@@ -49,7 +49,7 @@ export default function ChatScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { user } = useAuth();
-  
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,7 +73,7 @@ export default function ChatScreen() {
     try {
       // Fetch messages
       const { data: messagesData, error: messagesError } = await api.getMessages(id);
-      
+
       if (messagesError) {
         console.error('Error fetching messages:', messagesError);
       } else {
@@ -124,7 +124,7 @@ export default function ChatScreen() {
         if (prev.some((m) => m.id === newMessage.id)) return prev;
         return [...prev, newMessage];
       });
-      
+
       // If message is from another user (incoming message)
       if (newMessage.sender_id !== currentUserId) {
         // Update sender's message status to 'delivered' (so sender can see it)
@@ -154,9 +154,6 @@ export default function ChatScreen() {
       api.unsubscribeFromMessageStatus(statusChannel);
     };
   }, [id]);
-
-  // Update message status to 'delivered' when recipient receives message
-  // This will be handled by the real-time subscription on the recipient's device
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -292,7 +289,7 @@ export default function ChatScreen() {
           payload: { user_id: currentUserId, is_typing: false },
         });
       }
-    }, 2000);
+    }, 2000) as any;
   }, [id, currentUserId]);
 
   // Send message
@@ -317,7 +314,7 @@ export default function ChatScreen() {
 
     try {
       const { data, error } = await api.sendMessage(id, currentUserId, content);
-      
+
       if (error) {
         console.error('Error sending message:', error);
         setMessageText(content); // Restore message on error
@@ -354,10 +351,10 @@ export default function ChatScreen() {
   // Format time
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
       minute: '2-digit',
-      hour12: true 
+      hour12: true
     });
   };
 
@@ -396,48 +393,47 @@ export default function ChatScreen() {
   }
 
   return (
-    <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`} edges={['bottom']}>
-      <Stack.Screen
-        options={{
-          title: '',
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} className="p-2">
-              <ChevronLeft size={24} color={isDark ? '#FFFFFF' : '#374151'} />
-            </TouchableOpacity>
-          ),
-          headerTitle: () => (
-            <View className="flex-row items-center">
-              <Text className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                {getTitle()}
-              </Text>
-              {conversation?.type === 'direct' && (
-                <View className="ml-2 flex-row items-center">
-                  <View
-                    className={`w-2 h-2 rounded-full ${
-                      isOnline ? 'bg-green-500' : 'bg-gray-400'
-                    }`}
-                    style={{
-                      shadowColor: isOnline ? '#10b981' : '#9ca3af',
-                      shadowOffset: { width: 0, height: 0 },
-                      shadowOpacity: 0.8,
-                      shadowRadius: 4,
-                    }}
-                  />
-                  <Text className={`text-xs ml-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {isOnline ? 'Online' : 'Offline'}
-                  </Text>
-                </View>
-              )}
-            </View>
-          ),
-        }}
-      />
-      
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-        keyboardVerticalOffset={90}
-      >
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      className="flex-1"
+      keyboardVerticalOffset={90}
+    >
+      <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`} edges={['bottom']}>
+        <Stack.Screen
+          options={{
+            title: '',
+            headerLeft: () => (
+              <TouchableOpacity onPress={() => router.back()} className="p-2">
+                <ChevronLeft size={24} color={isDark ? '#FFFFFF' : '#374151'} />
+              </TouchableOpacity>
+            ),
+            headerTitle: () => (
+              <View className="flex-row items-center">
+                <Text className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {getTitle()}
+                </Text>
+                {conversation?.type === 'direct' && (
+                  <View className="ml-2 flex-row items-center">
+                    <View
+                      className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'
+                        }`}
+                      style={{
+                        shadowColor: isOnline ? '#10b981' : '#9ca3af',
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0.8,
+                        shadowRadius: 4,
+                      }}
+                    />
+                    <Text className={`text-xs ml-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {isOnline ? 'Online' : 'Offline'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ),
+          }}
+        />
+
         {/* Messages */}
         <ScrollView
           ref={scrollViewRef}
@@ -477,31 +473,29 @@ export default function ChatScreen() {
                           {message.sender.name}
                         </Text>
                       )}
-                      
+
                       <View
-                        className={`max-w-[80%] px-4 py-3 rounded-2xl ${
-                          isOwnMessage
+                        className={`max-w-[80%] px-4 py-3 rounded-2xl ${isOwnMessage
                             ? 'bg-primary-500 rounded-br-sm'
                             : isDark
-                            ? 'bg-gray-800 rounded-bl-sm'
-                            : 'bg-white rounded-bl-sm'
-                        }`}
+                              ? 'bg-gray-800 rounded-bl-sm'
+                              : 'bg-white rounded-bl-sm'
+                          }`}
                         style={
                           !isOwnMessage
                             ? {
-                                shadowColor: '#000',
-                                shadowOffset: { width: 0, height: 1 },
-                                shadowOpacity: 0.05,
-                                shadowRadius: 2,
-                                elevation: 1,
-                              }
+                              shadowColor: '#000',
+                              shadowOffset: { width: 0, height: 1 },
+                              shadowOpacity: 0.05,
+                              shadowRadius: 2,
+                              elevation: 1,
+                            }
                             : undefined
                         }
                       >
                         <Text
-                          className={`text-base ${
-                            isOwnMessage ? 'text-white' : isDark ? 'text-white' : 'text-gray-900'
-                          }`}
+                          className={`text-base ${isOwnMessage ? 'text-white' : isDark ? 'text-white' : 'text-gray-900'
+                            }`}
                         >
                           {message.content}
                         </Text>
@@ -515,15 +509,14 @@ export default function ChatScreen() {
                         {/* Message status for outgoing messages */}
                         {isOwnMessage && message.status && (
                           <Text
-                            className={`text-xs mt-1 ml-2 ${
-                              isDark ? 'text-gray-500' : 'text-gray-400'
-                            }`}
+                            className={`text-xs mt-1 ml-2 ${isDark ? 'text-gray-500' : 'text-gray-400'
+                              }`}
                           >
                             {message.status === 'read'
                               ? 'Read'
                               : message.status === 'delivered'
-                              ? 'Delivered'
-                              : 'Sent'}
+                                ? 'Delivered'
+                                : 'Sent'}
                           </Text>
                         )}
                       </View>
@@ -538,9 +531,8 @@ export default function ChatScreen() {
           {typingUsers.length > 0 && (
             <View className="flex-row items-center mb-2 px-2">
               <View
-                className={`px-4 py-2 rounded-2xl ${
-                  isDark ? 'bg-gray-800' : 'bg-white'
-                }`}
+                className={`px-4 py-2 rounded-2xl ${isDark ? 'bg-gray-800' : 'bg-white'
+                  }`}
                 style={{
                   shadowColor: '#000',
                   shadowOffset: { width: 0, height: 1 },
@@ -561,15 +553,13 @@ export default function ChatScreen() {
 
         {/* Message Input */}
         <View
-          className={`px-4 py-3 ${isDark ? 'bg-gray-800' : 'bg-white'} border-t ${
-            isDark ? 'border-gray-700' : 'border-gray-200'
-          }`}
+          className={`px-4 py-3 ${isDark ? 'bg-gray-800' : 'bg-white'} border-t ${isDark ? 'border-gray-700' : 'border-gray-200'
+            }`}
         >
           <View className="flex-row items-end">
             <TextInput
-              className={`flex-1 max-h-24 px-4 py-3 rounded-2xl ${
-                isDark ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'
-              }`}
+              className={`flex-1 max-h-24 px-4 py-3 rounded-2xl ${isDark ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'
+                }`}
               placeholder="Type a message..."
               placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
               value={messageText}
@@ -584,9 +574,8 @@ export default function ChatScreen() {
             <TouchableOpacity
               onPress={sendMessage}
               disabled={!messageText.trim() || sending}
-              className={`ml-2 w-12 h-12 rounded-full items-center justify-center ${
-                messageText.trim() && !sending ? 'bg-primary-500' : isDark ? 'bg-gray-700' : 'bg-gray-200'
-              }`}
+              className={`ml-2 w-12 h-12 rounded-full items-center justify-center ${messageText.trim() && !sending ? 'bg-primary-500' : isDark ? 'bg-gray-700' : 'bg-gray-200'
+                }`}
               activeOpacity={0.8}
             >
               {sending ? (
@@ -600,7 +589,7 @@ export default function ChatScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }

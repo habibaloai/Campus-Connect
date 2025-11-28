@@ -14,7 +14,7 @@ import { getNotificationRoute, NotificationData } from '../../lib/notifications'
 
 const NotificationIcon = ({ type }: { type: string }) => {
   const iconProps = { size: 20, color: '#6B7280' };
-  
+
   switch (type) {
     case 'event':
       return <Calendar {...iconProps} color="#3B82F6" />;
@@ -22,6 +22,8 @@ const NotificationIcon = ({ type }: { type: string }) => {
       return <MessageCircle {...iconProps} color="#10B981" />;
     case 'community':
       return <Users {...iconProps} color="#8B5CF6" />;
+    case 'social':
+      return <Users {...iconProps} color="#EC4899" />; // Pink for social/friend matches
     case 'academic':
       return <BookOpen {...iconProps} color="#F59E0B" />;
     default:
@@ -41,24 +43,21 @@ const NotificationItem = ({
   return (
     <TouchableOpacity
       onPress={onPress}
-      className={`flex-row items-start p-4 border-b border-gray-100 ${
-        !notification.read ? 'bg-blue-50' : 'bg-white'
-      }`}
+      className={`flex-row items-start p-4 border-b border-gray-100 ${!notification.read ? 'bg-blue-50' : 'bg-white'
+        }`}
       activeOpacity={0.7}
     >
       <View
-        className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${
-          !notification.read ? 'bg-blue-100' : 'bg-gray-100'
-        }`}
+        className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${!notification.read ? 'bg-blue-100' : 'bg-gray-100'
+          }`}
       >
         <NotificationIcon type={notification.type} />
       </View>
-      
+
       <View className="flex-1">
         <Text
-          className={`text-base ${
-            !notification.read ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'
-          }`}
+          className={`text-base ${!notification.read ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'
+            }`}
           numberOfLines={1}
         >
           {notification.title}
@@ -88,7 +87,7 @@ function getTimeAgo(dateString: string): string {
   if (diffMins < 60) return `${diffMins}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
-  
+
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -120,7 +119,7 @@ export default function NotificationsScreen() {
         title: notification.title,
         body: notification.body,
       };
-      
+
       const route = getNotificationRoute(data);
       router.push(route as any);
     },
@@ -138,7 +137,7 @@ export default function NotificationsScreen() {
 
     notifications.forEach((notification) => {
       const date = new Date(notification.created_at);
-      
+
       if (date >= todayStart) {
         today.push(notification);
       } else if (date >= yesterdayStart) {
@@ -220,7 +219,7 @@ export default function NotificationsScreen() {
           {renderSection('Today', groupedNotifications.today)}
           {renderSection('Yesterday', groupedNotifications.yesterday)}
           {renderSection('Older', groupedNotifications.older)}
-          
+
           <View className="h-8" />
         </ScrollView>
       )}

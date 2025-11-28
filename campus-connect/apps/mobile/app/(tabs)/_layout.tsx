@@ -25,8 +25,8 @@ export default function TabLayout() {
           borderTopColor: borderColor,
           borderTopWidth: 1,
           paddingTop: 8,
-          paddingBottom: 8,
-          height: 70,
+          paddingBottom: 20, // Increased from 8 to lift it up
+          height: 90, // Increased from 70 to accommodate padding
           elevation: 8,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },

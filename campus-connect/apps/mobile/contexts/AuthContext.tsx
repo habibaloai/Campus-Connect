@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, auth, api } from '@/lib/supabase';
 import { Profile } from '@/types';
@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string) => {
     try {
       const { data, error } = await api.getProfile(userId);
       if (error) {
@@ -44,21 +44,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error fetching profile:', error);
     }
-  };
+  }, []);
 
-  const checkBiometricAvailability = async () => {
+  const checkBiometricAvailability = useCallback(async () => {
     try {
       const compatible = await LocalAuthentication.hasHardwareAsync();
       const enrolled = await LocalAuthentication.isEnrolledAsync();
       setBiometricAvailable(compatible && enrolled);
-      
+
       const enabled = await biometricStorage.isEnabled();
       setBiometricEnabled(enabled);
     } catch (error) {
       console.error('Error checking biometric availability:', error);
       setBiometricAvailable(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const initAuth = async () => {
       try {
         console.log('Initializing auth...');
-        
+
         // Check biometric availability
         await checkBiometricAvailability();
 
@@ -125,13 +125,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchProfile, checkBiometricAvailability]);
 
-  const signUp = async (email: string, password: string, name: string) => {
+  const signUp = useCallback(async (email: string, password: string, name: string) => {
     try {
       console.log('Signing up with email:', email);
       const { data, error } = await auth.signUp(email, password, name);
-      
+
       if (error) {
         console.log('SignUp error:', error.message);
         return { error };
@@ -151,9 +151,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('SignUp exception:', error);
       return { error: { message: error.message || 'Network error. Please try again.' } };
     }
-  };
+  }, [fetchProfile]);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     try {
       console.log('Signing in...');
       const { data, error } = await auth.signIn(email, password);
@@ -168,9 +168,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('SignIn error:', error);
       return { error: { message: 'Network error. Please try again.' } };
     }
-  };
+  }, []);
 
-  const signInWithBiometric = async () => {
+  const signInWithBiometric = useCallback(async () => {
     try {
       if (!biometricAvailable || !biometricEnabled) {
         return { error: { message: 'Biometric authentication not available or enabled' } };
@@ -199,9 +199,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Biometric sign in error:', error);
       return { error: { message: error.message || 'Biometric authentication failed' } };
     }
-  };
+  }, [biometricAvailable, biometricEnabled]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       console.log('Signing out...');
       await auth.signOut();
@@ -219,9 +219,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(null);
       router.replace('/(auth)/login');
     }
-  };
+  }, []);
 
-  const refreshProfile = async () => {
+  const refreshProfile = useCallback(async () => {
     if (user) {
       console.log('[AuthContext] Refreshing profile for user:', user.id);
       await fetchProfile(user.id);
@@ -229,7 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       console.log('[AuthContext] No user, cannot refresh profile');
     }
-  };
+  }, [user, fetchProfile]);
 
   const enableBiometric = async () => {
     await biometricStorage.enable();

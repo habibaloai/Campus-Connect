@@ -30,7 +30,7 @@ export const auth = {
       // First, check if a profile with this email already exists
       // This prevents duplicate signups even if Supabase doesn't return an error
       const normalizedEmail = email.toLowerCase().trim();
-      
+
       // Try to check for existing profile, but don't fail if check fails (RLS might prevent it)
       let existingProfile = null;
       try {
@@ -54,12 +54,12 @@ export const auth = {
       if (existingProfile) {
         // User already exists
         console.log('Duplicate signup attempt detected for email:', normalizedEmail);
-        return { 
-          data: null, 
-          error: { 
+        return {
+          data: null,
+          error: {
             message: 'An account with this email already exists. Please sign in instead.',
-            status: 400 
-          } 
+            status: 400
+          }
         };
       }
 
@@ -80,19 +80,19 @@ export const auth = {
         },
       });
 
-      console.log('SignUp response:', { 
-        hasUser: !!data?.user, 
-        hasSession: !!data?.session, 
+      console.log('SignUp response:', {
+        hasUser: !!data?.user,
+        hasSession: !!data?.session,
         hasError: !!error,
-        errorMessage: error?.message 
+        errorMessage: error?.message
       });
 
       if (error) {
         // Check if error is due to user already existing
         // Supabase returns different error messages for duplicate users
         const errorMessage = error.message?.toLowerCase() || '';
-        const isDuplicateUser = 
-          errorMessage.includes('already registered') || 
+        const isDuplicateUser =
+          errorMessage.includes('already registered') ||
           errorMessage.includes('user already registered') ||
           errorMessage.includes('email address is already registered') ||
           errorMessage.includes('user with this email already exists') ||
@@ -101,12 +101,12 @@ export const auth = {
           error.status === 400;
 
         if (isDuplicateUser) {
-          return { 
-            data: null, 
-            error: { 
+          return {
+            data: null,
+            error: {
               message: 'An account with this email already exists. Please sign in instead.',
-              status: error.status || 400 
-            } 
+              status: error.status || 400
+            }
           };
         }
         return { data: null, error };
@@ -131,18 +131,18 @@ export const auth = {
           // If profile upsert fails due to duplicate email constraint, user already exists
           // Only fail if it's specifically an email unique constraint violation
           const errorMsg = profileError.message?.toLowerCase() || '';
-          const isEmailDuplicate = 
-            profileError.code === '23505' && 
+          const isEmailDuplicate =
+            profileError.code === '23505' &&
             (errorMsg.includes('email') || errorMsg.includes('profiles_email_key') || errorMsg.includes('profiles_email'));
-          
+
           if (isEmailDuplicate) {
             console.log('Profile duplicate email error detected:', profileError.message);
-            return { 
-              data: null, 
-              error: { 
+            return {
+              data: null,
+              error: {
                 message: 'An account with this email already exists. Please sign in instead.',
-                status: 400 
-              } 
+                status: 400
+              }
             };
           }
           // Other profile errors are warnings, not failures
@@ -157,25 +157,25 @@ export const auth = {
       return { data, error: null };
     } catch (err: any) {
       console.error('SignUp error:', err);
-      
+
       // Check for duplicate user error in catch block
       const errorMessage = err.message?.toLowerCase() || '';
-      const isDuplicateUser = 
-        errorMessage.includes('already registered') || 
+      const isDuplicateUser =
+        errorMessage.includes('already registered') ||
         errorMessage.includes('user already registered') ||
         errorMessage.includes('email address is already registered') ||
         err.status === 422;
-      
+
       if (isDuplicateUser) {
-        return { 
-          data: null, 
-          error: { 
+        return {
+          data: null,
+          error: {
             message: 'An account with this email already exists. Please sign in instead.',
-            status: 400 
-          } 
+            status: 400
+          }
         };
       }
-      
+
       return { data: null, error: { message: err.message || 'Signup failed' } };
     }
   },
@@ -222,12 +222,12 @@ export const auth = {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         console.error('Invalid email format:', email);
-        return { 
-          data: null, 
-          error: { 
+        return {
+          data: null,
+          error: {
             message: 'Please enter a valid email address',
-            status: 400 
-          } 
+            status: 400
+          }
         };
       }
 
@@ -311,13 +311,35 @@ export const api = {
   // Profile
   getProfile: async (userId: string) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+
+    if (data) {
+      // Fetch interests
+      const { data: interestsData } = await supabase
+        .from('user_interests')
+        .select('interests(name)')
+        .eq('user_id', userId);
+
+      if (interestsData) {
+        // Transform from [{interests: {name: "foo"}}, ...] to ["foo", ...]
+        data.interests = interestsData.map((item: any) => item.interests?.name).filter(Boolean);
+      }
+    }
+
     return { data, error };
+  },
+
+  updateUserInterests: async (userId: string, interests: string[]) => {
+    const { error } = await supabase.rpc('update_user_interests', {
+      p_user_id: userId,
+      p_interests: interests
+    });
+    return { error };
   },
 
   updateProfile: async (userId: string, updates: any) => {
     // Remove undefined values and ensure proper types
     const cleanUpdates: any = {};
-    
+
     Object.entries(updates).forEach(([key, value]) => {
       if (value !== undefined) {
         // Handle interests array - ensure it's properly formatted for PostgreSQL
@@ -328,20 +350,20 @@ export const api = {
         }
       }
     });
-    
+
     console.log('[API] updateProfile called with:', {
       userId,
       updates: cleanUpdates,
       updates_stringified: JSON.stringify(cleanUpdates),
     });
-    
+
     const { data, error } = await supabase
       .from('profiles')
       .update(cleanUpdates)
       .eq('id', userId)
       .select()
       .single();
-    
+
     if (error) {
       console.error('[API] Supabase update error:', error);
       console.error('[API] Error code:', error.code);
@@ -351,7 +373,7 @@ export const api = {
     } else {
       console.log('[API] Profile updated successfully:', data);
     }
-    
+
     return { data, error };
   },
 
@@ -527,7 +549,7 @@ export const api = {
     // Get reply counts for all posts
     const postIds = data.map((post: any) => post.id);
     let replyCounts: Record<string, number> = {};
-    
+
     if (postIds.length > 0) {
       const { data: replies, error: repliesError } = await supabase
         .from('post_replies')
@@ -811,9 +833,9 @@ export const api = {
 
     const transformedData = data
       ? {
-          ...data,
-          sender: Array.isArray(data.sender) ? data.sender[0] : data.sender,
-        }
+        ...data,
+        sender: Array.isArray(data.sender) ? data.sender[0] : data.sender,
+      }
       : null;
 
     return { data: transformedData, error: null };
@@ -822,7 +844,7 @@ export const api = {
   markMessagesAsRead: async (conversationId: string, userId: string) => {
     const { error } = await supabase
       .from('messages')
-      .update({ 
+      .update({
         read: true,
         status: 'read',
         read_at: new Date().toISOString(),
@@ -981,7 +1003,7 @@ export const api = {
     // Get or create typing channel for this conversation
     const channelName = `typing:${conversationId}`;
     let channel = supabase.channel(channelName);
-    
+
     // Ensure channel is subscribed before sending
     channel.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
@@ -1656,16 +1678,16 @@ export const api = {
       .eq('user_id', userId)
       .eq('streak_type', streakType)
       .maybeSingle();
-    
+
     const today = activityDate || new Date().toISOString().split('T')[0];
     const yesterday = new Date(new Date(today).getTime() - 86400000).toISOString().split('T')[0];
-    
+
     let newStreak = 1;
     let streakStartDate = today;
 
     if (currentStreak) {
       const lastActivity = currentStreak.last_activity_date;
-      
+
       if (lastActivity === yesterday) {
         // Continue streak
         newStreak = currentStreak.current_streak + 1;
@@ -1765,7 +1787,7 @@ export const api = {
     if (stats) {
       const newTotal = stats.total_points + points;
       const { data: levelConfig } = await api.getLevelForPoints(newTotal);
-      
+
       await api.updateUserStats(userId, {
         total_points: newTotal,
         level: levelConfig?.level || stats.level,
@@ -1802,7 +1824,7 @@ export const api = {
   // Achievements
   getAchievements: async (category?: string) => {
     let query = supabase.from('achievements').select('*');
-    
+
     if (category) {
       query = query.eq('category', category);
     }
