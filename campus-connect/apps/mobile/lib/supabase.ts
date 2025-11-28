@@ -30,7 +30,7 @@ export const auth = {
       // First, check if a profile with this email already exists
       // This prevents duplicate signups even if Supabase doesn't return an error
       const normalizedEmail = email.toLowerCase().trim();
-      
+
       // Try to check for existing profile, but don't fail if check fails (RLS might prevent it)
       let existingProfile = null;
       try {
@@ -54,12 +54,12 @@ export const auth = {
       if (existingProfile) {
         // User already exists
         console.log('Duplicate signup attempt detected for email:', normalizedEmail);
-        return { 
-          data: null, 
-          error: { 
+        return {
+          data: null,
+          error: {
             message: 'An account with this email already exists. Please sign in instead.',
-            status: 400 
-          } 
+            status: 400
+          }
         };
       }
 
@@ -80,19 +80,19 @@ export const auth = {
         },
       });
 
-      console.log('SignUp response:', { 
-        hasUser: !!data?.user, 
-        hasSession: !!data?.session, 
+      console.log('SignUp response:', {
+        hasUser: !!data?.user,
+        hasSession: !!data?.session,
         hasError: !!error,
-        errorMessage: error?.message 
+        errorMessage: error?.message
       });
 
       if (error) {
         // Check if error is due to user already existing
         // Supabase returns different error messages for duplicate users
         const errorMessage = error.message?.toLowerCase() || '';
-        const isDuplicateUser = 
-          errorMessage.includes('already registered') || 
+        const isDuplicateUser =
+          errorMessage.includes('already registered') ||
           errorMessage.includes('user already registered') ||
           errorMessage.includes('email address is already registered') ||
           errorMessage.includes('user with this email already exists') ||
@@ -101,12 +101,12 @@ export const auth = {
           error.status === 400;
 
         if (isDuplicateUser) {
-          return { 
-            data: null, 
-            error: { 
+          return {
+            data: null,
+            error: {
               message: 'An account with this email already exists. Please sign in instead.',
-              status: error.status || 400 
-            } 
+              status: error.status || 400
+            }
           };
         }
         return { data: null, error };
@@ -131,18 +131,18 @@ export const auth = {
           // If profile upsert fails due to duplicate email constraint, user already exists
           // Only fail if it's specifically an email unique constraint violation
           const errorMsg = profileError.message?.toLowerCase() || '';
-          const isEmailDuplicate = 
-            profileError.code === '23505' && 
+          const isEmailDuplicate =
+            profileError.code === '23505' &&
             (errorMsg.includes('email') || errorMsg.includes('profiles_email_key') || errorMsg.includes('profiles_email'));
-          
+
           if (isEmailDuplicate) {
             console.log('Profile duplicate email error detected:', profileError.message);
-            return { 
-              data: null, 
-              error: { 
+            return {
+              data: null,
+              error: {
                 message: 'An account with this email already exists. Please sign in instead.',
-                status: 400 
-              } 
+                status: 400
+              }
             };
           }
           // Other profile errors are warnings, not failures
@@ -157,25 +157,25 @@ export const auth = {
       return { data, error: null };
     } catch (err: any) {
       console.error('SignUp error:', err);
-      
+
       // Check for duplicate user error in catch block
       const errorMessage = err.message?.toLowerCase() || '';
-      const isDuplicateUser = 
-        errorMessage.includes('already registered') || 
+      const isDuplicateUser =
+        errorMessage.includes('already registered') ||
         errorMessage.includes('user already registered') ||
         errorMessage.includes('email address is already registered') ||
         err.status === 422;
-      
+
       if (isDuplicateUser) {
-        return { 
-          data: null, 
-          error: { 
+        return {
+          data: null,
+          error: {
             message: 'An account with this email already exists. Please sign in instead.',
-            status: 400 
-          } 
+            status: 400
+          }
         };
       }
-      
+
       return { data: null, error: { message: err.message || 'Signup failed' } };
     }
   },
@@ -222,12 +222,12 @@ export const auth = {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         console.error('Invalid email format:', email);
-        return { 
-          data: null, 
-          error: { 
+        return {
+          data: null,
+          error: {
             message: 'Please enter a valid email address',
-            status: 400 
-          } 
+            status: 400
+          }
         };
       }
 
@@ -317,7 +317,7 @@ export const api = {
   updateProfile: async (userId: string, updates: any) => {
     // Remove undefined values and ensure proper types
     const cleanUpdates: any = {};
-    
+
     Object.entries(updates).forEach(([key, value]) => {
       if (value !== undefined) {
         // Handle interests array - ensure it's properly formatted for PostgreSQL
@@ -328,30 +328,45 @@ export const api = {
         }
       }
     });
-    
+
     console.log('[API] updateProfile called with:', {
       userId,
       updates: cleanUpdates,
       updates_stringified: JSON.stringify(cleanUpdates),
     });
-    
+
+    // 1. Update the profiles table (Legacy/Backup)
     const { data, error } = await supabase
       .from('profiles')
       .update(cleanUpdates)
       .eq('id', userId)
       .select()
       .single();
-    
+
     if (error) {
       console.error('[API] Supabase update error:', error);
-      console.error('[API] Error code:', error.code);
-      console.error('[API] Error message:', error.message);
-      console.error('[API] Error details:', error.details);
-      console.error('[API] Error hint:', error.hint);
+      return { data, error };
     } else {
       console.log('[API] Profile updated successfully:', data);
     }
-    
+
+    // 2. Update the user_interests table (New Schema)
+    // We do this if 'interests' is part of the update
+    if (cleanUpdates.interests !== undefined) {
+      console.log('[API] Syncing interests to user_interests table...');
+      const { error: rpcError } = await supabase.rpc('update_user_interests', {
+        p_user_id: userId,
+        p_interests: cleanUpdates.interests || []
+      });
+
+      if (rpcError) {
+        console.error('[API] Error syncing user_interests:', rpcError);
+        // We don't fail the whole operation if this fails, but we log it
+      } else {
+        console.log('[API] user_interests synced successfully');
+      }
+    }
+
     return { data, error };
   },
 
@@ -1621,7 +1636,7 @@ export const api = {
     // Get reply counts for all posts
     const postIds = data.map((post: any) => post.id);
     let replyCounts: Record<string, number> = {};
-    
+
     if (postIds.length > 0) {
       const { data: replies, error: repliesError } = await supabase
         .from('post_replies')
@@ -1920,9 +1935,9 @@ export const api = {
 
     const transformedData = data
       ? {
-          ...data,
-          sender: Array.isArray(data.sender) ? data.sender[0] : data.sender,
-        }
+        ...data,
+        sender: Array.isArray(data.sender) ? data.sender[0] : data.sender,
+      }
       : null;
 
     return { data: transformedData, error: null };
@@ -1931,7 +1946,7 @@ export const api = {
   markMessagesAsRead: async (conversationId: string, userId: string) => {
     const { error } = await supabase
       .from('messages')
-      .update({ 
+      .update({
         read: true,
         status: 'read',
         read_at: new Date().toISOString(),
@@ -2090,7 +2105,7 @@ export const api = {
     // Get or create typing channel for this conversation
     const channelName = `typing:${conversationId}`;
     let channel = supabase.channel(channelName);
-    
+
     // Ensure channel is subscribed before sending
     channel.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
@@ -2452,8 +2467,8 @@ export const api = {
     let query = supabase
       .from('friendships')
       .select(`
-        *,
-        friend:profiles!friendships_friend_id_fkey(*)
+          *,
+          friend: profiles!friendships_friend_id_fkey(*)
       `)
       .eq('user_id', userId);
 
@@ -2471,7 +2486,7 @@ export const api = {
     const { error } = await supabase
       .from('friendships')
       .delete()
-      .or(`and(user_id.eq.${userId},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${userId})`);
+      .or(`and(user_id.eq.${userId}, friend_id.eq.${friendId}), and(user_id.eq.${friendId}, friend_id.eq.${userId})`);
 
     return { error };
   },
@@ -2516,9 +2531,9 @@ export const api = {
     const { data, error } = await supabase
       .from('follows')
       .select(`
-        *,
-        follower:profiles!follows_follower_id_fkey(*)
-      `)
+      *,
+      follower: profiles!follows_follower_id_fkey(*)
+        `)
       .eq('following_id', userId)
       .order('created_at', { ascending: false });
 
@@ -2530,8 +2545,8 @@ export const api = {
       .from('follows')
       .select(`
         *,
-        following:profiles!follows_following_id_fkey(*)
-      `)
+        following: profiles!follows_following_id_fkey(*)
+          `)
       .eq('follower_id', userId)
       .order('created_at', { ascending: false });
 
@@ -2570,9 +2585,9 @@ export const api = {
     const { data, error } = await supabase
       .from('connection_stories')
       .select(`
-        *,
-        connected_user:profiles!connection_stories_connected_user_id_fkey(*)
-      `)
+          *,
+          connected_user: profiles!connection_stories_connected_user_id_fkey(*)
+            `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
@@ -2584,10 +2599,10 @@ export const api = {
     let query = supabase
       .from('course_classmates')
       .select(`
-        *,
-        classmate:profiles!course_classmates_classmate_id_fkey(*),
-        course:courses(*)
-      `)
+            *,
+            classmate: profiles!course_classmates_classmate_id_fkey(*),
+              course: courses(*)
+                `)
       .eq('user_id', userId);
 
     if (courseId) {
@@ -2687,8 +2702,8 @@ export const api = {
     const { data, error } = await supabase
       .from('friend_locations')
       .select(`
-        *,
-        user:profiles(*)
+                *,
+                user: profiles(*)
       `)
       .in('user_id', friendIds)
       .eq('is_visible', true);
@@ -2765,16 +2780,16 @@ export const api = {
       .eq('user_id', userId)
       .eq('streak_type', streakType)
       .maybeSingle();
-    
+
     const today = activityDate || new Date().toISOString().split('T')[0];
     const yesterday = new Date(new Date(today).getTime() - 86400000).toISOString().split('T')[0];
-    
+
     let newStreak = 1;
     let streakStartDate = today;
 
     if (currentStreak) {
       const lastActivity = currentStreak.last_activity_date;
-      
+
       if (lastActivity === yesterday) {
         // Continue streak
         newStreak = currentStreak.current_streak + 1;
@@ -2817,7 +2832,7 @@ export const api = {
     // Award points for milestones
     if (newStreak === 7 || newStreak === 30 || newStreak === 100) {
       const points = newStreak === 7 ? 50 : newStreak === 30 ? 200 : 1000;
-      await api.addPoints(userId, points, 'streak_milestone', `${newStreak}-day streak!`);
+      await api.addPoints(userId, points, 'streak_milestone', `${newStreak} -day streak!`);
     }
 
     return { data, error };
@@ -2874,7 +2889,7 @@ export const api = {
     if (stats) {
       const newTotal = stats.total_points + points;
       const { data: levelConfig } = await api.getLevelForPoints(newTotal);
-      
+
       await api.updateUserStats(userId, {
         total_points: newTotal,
         level: levelConfig?.level || stats.level,
@@ -2911,7 +2926,7 @@ export const api = {
   // Achievements
   getAchievements: async (category?: string) => {
     let query = supabase.from('achievements').select('*');
-    
+
     if (category) {
       query = query.eq('category', category);
     }
@@ -2925,8 +2940,8 @@ export const api = {
     const { data, error } = await supabase
       .from('user_achievements')
       .select(`
-        *,
-        achievement:achievements(*)
+      *,
+      achievement: achievements(*)
       `)
       .eq('user_id', userId)
       .order('unlocked_at', { ascending: false });
@@ -2967,7 +2982,7 @@ export const api = {
 
     // Award points
     if (!error && achievement) {
-      await api.addPoints(userId, achievement.points, 'achievement', `Unlocked: ${achievement.name}`);
+      await api.addPoints(userId, achievement.points, 'achievement', `Unlocked: ${achievement.name} `);
     }
 
     return { data, error };
@@ -2997,8 +3012,8 @@ export const api = {
     const { data: entries, error } = await supabase
       .from('leaderboard_entries')
       .select(`
-        *,
-        user:profiles(id, name, avatar_url, major, year)
+      *,
+      user: profiles(id, name, avatar_url, major, year)
       `)
       .eq('leaderboard_id', leaderboard.id)
       .order('rank', { ascending: true })
@@ -3097,7 +3112,7 @@ export const api = {
 
       // Award rewards
       if (challenge.reward_points > 0) {
-        await api.addPoints(userId, challenge.reward_points, 'challenge', `Completed: ${challenge.name}`);
+        await api.addPoints(userId, challenge.reward_points, 'challenge', `Completed: ${challenge.name} `);
       }
       if (challenge.reward_achievement_id) {
         await api.unlockAchievement(userId, challenge.reward_achievement_id);
@@ -3111,9 +3126,9 @@ export const api = {
     const { data, error } = await supabase
       .from('challenge_participants')
       .select(`
-        *,
-        challenge:challenges(*)
-      `)
+      *,
+      challenge: challenges(*)
+        `)
       .eq('user_id', userId)
       .order('joined_at', { ascending: false });
 
@@ -3126,7 +3141,7 @@ export const api = {
       .from('surprise_rewards')
       .select(`
         *,
-        achievement:achievements(*)
+        achievement: achievements(*)
       `)
       .eq('user_id', userId)
       .eq('claimed', false)
@@ -3224,7 +3239,7 @@ export const api = {
       console.log('[Avatar Upload] User ID:', userId);
       console.log('[Avatar Upload] Attempting to upload to bucket: avatars');
 
-      const fileName = `${userId}_${Date.now()}.${fileExt}`;
+      const fileName = `${userId}_${Date.now()}.${fileExt} `;
       const filePath = fileName; // Store directly in bucket root, not in subfolder
 
       // Read file as base64 using legacy API (for compatibility)
@@ -3264,7 +3279,7 @@ export const api = {
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, bytes, {
-          contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
+          contentType: `image / ${fileExt === 'jpg' ? 'jpeg' : fileExt} `,
           upsert: false, // Don't upsert - we want unique filenames
         });
 
@@ -3272,7 +3287,7 @@ export const api = {
         // Check if it's a bucket not found or permission error
         const errorMessage = (uploadError.message || '').toLowerCase();
         const statusCode = uploadError.statusCode || uploadError.status;
-        
+
         console.error('[Avatar Upload] Upload error details:', {
           message: uploadError.message,
           statusCode: statusCode,
@@ -3353,7 +3368,7 @@ export const api = {
       return { url: publicUrl, error: null };
     } catch (error: any) {
       console.error('Error uploading avatar:', error);
-      
+
       // Check for network errors in catch block
       if (error.message?.includes('network') || error.message?.includes('Network') || error.message?.includes('fetch')) {
         return {

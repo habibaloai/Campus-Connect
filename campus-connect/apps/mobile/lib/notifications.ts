@@ -7,7 +7,7 @@ import { storage } from './storage';
 let Notifications: any = null;
 if (Platform.OS !== 'web') {
   Notifications = require('expo-notifications');
-  
+
   // Configure notification handling
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -113,7 +113,7 @@ export async function savePushTokenToSupabase(userId: string, token: string): Pr
     }
 
     // Also save locally for quick access
-    await secureStorage.setItem('push_token', token);
+    await storage.setItem('push_token', token);
     return true;
   } catch (error) {
     console.error('Error saving push token:', error);
@@ -134,7 +134,7 @@ export async function removePushTokenFromSupabase(userId: string): Promise<boole
       return false;
     }
 
-    await secureStorage.deleteItem('push_token');
+    await storage.removeItem('push_token');
     return true;
   } catch (error) {
     console.error('Error removing push token:', error);
@@ -157,7 +157,7 @@ export async function scheduleLocalNotification(
     content: {
       title,
       body,
-      data: data as Record<string, unknown>,
+      data: data as unknown as Record<string, unknown>,
       sound: true,
     },
     trigger: trigger || null, // null = immediate
@@ -179,7 +179,7 @@ export async function scheduleReminderNotification(
     content: {
       title,
       body,
-      data: data as Record<string, unknown>,
+      data: data as unknown as Record<string, unknown>,
       sound: true,
     },
     trigger: {
@@ -221,7 +221,14 @@ export async function getNotificationHistory(userId: string, limit = 50) {
       return [];
     }
 
-    return data || [];
+    // Map database fields to application model
+    // The database has 'message' but the app expects 'body'
+    const mappedData = (data || []).map((n: any) => ({
+      ...n,
+      body: n.body || n.message, // Fallback to message if body is missing
+    }));
+
+    return mappedData;
   } catch (error) {
     console.error('Error fetching notifications:', error);
     return [];

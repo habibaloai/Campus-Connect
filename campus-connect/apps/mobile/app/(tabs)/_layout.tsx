@@ -1,13 +1,15 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Home, Users, Calendar, MessageCircle, Menu } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useMessages } from '@/providers';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { unreadMessagesCount } = useMessages();
+  const insets = useSafeAreaInsets();
   const isDark = colorScheme === 'dark';
 
   const activeColor = '#3b82f6';
@@ -25,8 +27,8 @@ export default function TabLayout() {
           borderTopColor: borderColor,
           borderTopWidth: 1,
           paddingTop: 8,
-          paddingBottom: 8,
-          height: 70,
+          paddingBottom: Platform.OS === 'ios' ? insets.bottom + 10 : 12,
+          height: 60 + (Platform.OS === 'ios' ? insets.bottom : 0) + 10,
           elevation: 8,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
@@ -37,7 +39,7 @@ export default function TabLayout() {
           fontSize: 11,
           fontWeight: '600',
           marginTop: 4,
-          marginBottom: 4,
+          marginBottom: Platform.OS === 'ios' ? 0 : 4,
         },
         tabBarIconStyle: {
           marginTop: 4,
