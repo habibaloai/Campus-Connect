@@ -11,8 +11,7 @@
       "@/contexts/*": ["./contexts/*"],
       "@/constants/*": ["./constants/*"],
       "@/types/*": ["./types/*"]
-    },
-    "types": ["nativewind/types"]
+    }
   },
   "include": [
     "**/*.ts",

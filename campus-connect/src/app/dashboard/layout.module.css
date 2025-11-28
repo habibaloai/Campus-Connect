@@ -35,9 +35,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--gradient-primary);
+  background: transparent;
   border-radius: var(--radius-md);
   color: white;
+  overflow: hidden;
 }
 
 .headerTitle {

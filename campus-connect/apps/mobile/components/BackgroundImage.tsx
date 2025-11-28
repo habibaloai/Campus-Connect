@@ -32,7 +32,7 @@ export default function BackgroundImage({
   const finalOverlayOpacity = overlayOpacity !== undefined 
     ? overlayOpacity 
     : useTheme 
-      ? (isDark ? 0.7 : 0.5) // Darker overlay in dark mode for better contrast
+      ? (isDark ? 0.7 : 0.4) // Darker overlay in dark mode for better contrast, lighter in light mode
       : 0.5;
 
   if (!backgroundSource) {

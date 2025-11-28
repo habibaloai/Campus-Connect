@@ -10,7 +10,7 @@ export default function TabLayout() {
   const { unreadMessagesCount } = useMessages();
   const isDark = colorScheme === 'dark';
 
-  const activeColor = '#3b82f6';
+  const activeColor = '#0066cc';
   const inactiveColor = isDark ? '#9ca3af' : '#6b7280';
   const bgColor = isDark ? '#1e293b' : 'rgba(255, 255, 255, 0.95)';
   const borderColor = isDark ? '#334155' : '#e2e8f0';

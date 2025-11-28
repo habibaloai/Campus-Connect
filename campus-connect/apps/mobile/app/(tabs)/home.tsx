@@ -21,7 +21,6 @@ import {
   Clock,
   ChevronRight,
   Flame,
-  GraduationCap,
 } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useAuth, useNotifications } from '@/providers';
@@ -56,12 +55,12 @@ const todaysClasses = [
 ];
 
 // Stats data
-const statsData = [
-  { id: 'gpa', label: 'GPA', value: '3.75', icon: TrendingUp, color: '#10b981', bgColor: '#d1fae5' },
-  { id: 'credits', label: 'CREDITS', value: '78', icon: BookOpen, color: '#3b82f6', bgColor: '#dbeafe' },
-  { id: 'balance', label: 'BALANCE', value: '$156', icon: Wallet, color: '#f59e0b', bgColor: '#fef3c7' },
-  { id: 'points', label: 'POINTS', value: '2450', icon: Award, color: '#ef4444', bgColor: '#fee2e2' },
-];
+  const statsData = [
+    { id: 'gpa', label: 'GPA', value: '3.75', icon: TrendingUp, color: '#10b981', bgColor: '#d1fae5' },
+    { id: 'credits', label: 'CREDITS', value: '78', icon: BookOpen, color: '#0066cc', bgColor: '#e6f2ff' },
+    { id: 'balance', label: 'BALANCE', value: '$156', icon: Wallet, color: '#f59e0b', bgColor: '#fef3c7' },
+    { id: 'points', label: 'POINTS', value: '2450', icon: Award, color: '#ef4444', bgColor: '#fee2e2' },
+  ];
 
 export default function HomeScreen() {
   const { user, profile, signOut } = useAuth();
@@ -82,25 +81,22 @@ export default function HomeScreen() {
   }, [refreshNotifications]);
 
   const greeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    return 'Welcome back';
   };
 
   const userName = profile?.name || user?.email?.split('@')[0] || 'Student';
 
   return (
-    <BackgroundImage>
+    <BackgroundImage overlayOpacity={isDark ? 0.7 : 0.4}>
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style={isDark ? 'light' : 'light'} />
+        <StatusBar style="light" />
         
         <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0066cc" />
         }
       >
         {/* Header */}
@@ -113,23 +109,37 @@ export default function HomeScreen() {
               width: 40, 
               height: 40, 
               borderRadius: 12, 
-              backgroundColor: 'rgba(59, 130, 246, 0.9)', 
+              backgroundColor: 'transparent', 
               alignItems: 'center', 
               justifyContent: 'center', 
-              marginRight: 12 
+              marginRight: 12,
+              overflow: 'hidden'
             }}>
-              <GraduationCap size={22} color="#ffffff" />
+              <Image 
+                source={require('@/assets/images/tum-logo.png')}
+                style={{ width: 40, height: 40, resizeMode: 'contain' }}
+              />
             </View>
-            <Text style={[styles.headerTitle, isDark && styles.headerTitleDark]}>
+            <Text style={[
+              styles.headerTitle, 
+              isDark && styles.headerTitleDark,
+              !isDark && { 
+                color: '#1e293b',
+                textShadowColor: 'rgba(255, 255, 255, 0.8)',
+              }
+            ]}>
               Campus Connect
             </Text>
           </View>
           
           <TouchableOpacity
             onPress={() => router.push('/notifications')}
-            style={styles.notificationButton}
+            style={[
+              styles.notificationButton,
+              !isDark && { backgroundColor: 'rgba(255, 255, 255, 0.3)' }
+            ]}
           >
-            <Bell size={20} color="#ffffff" />
+            <Bell size={20} color={isDark ? "#ffffff" : "#1e293b"} />
             {unreadCount > 0 && (
               <View className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-red-500 rounded-full items-center justify-center px-1">
                 <Text className="text-white text-xs font-bold">
@@ -150,8 +160,8 @@ export default function HomeScreen() {
               <Text style={{ 
                 fontSize: 24, 
                 fontWeight: 'bold', 
-                color: '#ffffff',
-                textShadowColor: 'rgba(0, 0, 0, 0.3)',
+                color: isDark ? '#ffffff' : '#1e293b',
+                textShadowColor: isDark ? 'rgba(0, 0, 0, 0.5)' : 'rgba(255, 255, 255, 0.8)',
                 textShadowOffset: { width: 0, height: 1 },
                 textShadowRadius: 3,
               }}>
@@ -160,8 +170,8 @@ export default function HomeScreen() {
               <Text style={{ 
                 fontSize: 16, 
                 marginTop: 4, 
-                color: 'rgba(255, 255, 255, 0.9)',
-                textShadowColor: 'rgba(0, 0, 0, 0.3)',
+                color: isDark ? 'rgba(255, 255, 255, 0.9)' : '#475569',
+                textShadowColor: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.6)',
                 textShadowOffset: { width: 0, height: 1 },
                 textShadowRadius: 2,
               }}>
@@ -170,9 +180,21 @@ export default function HomeScreen() {
             </View>
             
             {/* Streak Badge */}
-            <View className="flex-row items-center bg-orange-100 px-3 py-2 rounded-full">
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: isDark ? 'rgba(249, 115, 22, 0.2)' : '#ffedd5',
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 20,
+            }}>
               <Flame size={16} color="#f97316" />
-              <Text className="text-orange-600 font-semibold text-sm ml-1">
+              <Text style={{
+                color: isDark ? '#fbbf24' : '#ea580c',
+                fontWeight: '600',
+                fontSize: 14,
+                marginLeft: 6,
+              }}>
                 {streak} day streak
               </Text>
             </View>
@@ -243,9 +265,9 @@ export default function HomeScreen() {
             }}
             activeOpacity={0.8}
           >
-            <View className="w-11 h-11 rounded-xl bg-blue-100 items-center justify-center">
-              <Bell size={22} color="#3b82f6" />
-            </View>
+             <View className="w-11 h-11 rounded-xl bg-blue-100 items-center justify-center">
+               <Bell size={22} color="#0066cc" />
+             </View>
             <View className="flex-1 ml-4">
               <Text style={{ fontSize: 16, fontWeight: '600', color: isDark ? '#ffffff' : '#1e293b' }}>
                 You have {unreadCount || 4} new notifications
@@ -270,9 +292,9 @@ export default function HomeScreen() {
                 Today's Classes
               </Text>
             </View>
-            <TouchableOpacity onPress={() => router.push('/academics')}>
-              <Text className="text-blue-500 font-medium text-sm">View All</Text>
-            </TouchableOpacity>
+             <TouchableOpacity onPress={() => router.push('/academics')}>
+               <Text style={{ color: '#0066cc', fontWeight: '500', fontSize: 14 }}>View All</Text>
+             </TouchableOpacity>
           </View>
 
           {todaysClasses.map((classItem, index) => (
@@ -296,16 +318,16 @@ export default function HomeScreen() {
               >
                 <View className="flex-row items-center">
                   <View className="mr-4">
-                    {classItem.isNow ? (
-                      <View className="bg-blue-500 px-3 py-1.5 rounded-lg">
-                        <View className="flex-row items-center">
-                          <Clock size={14} color="#ffffff" />
-                          <Text className="text-white font-semibold text-sm ml-1">
-                            {classItem.time}
-                          </Text>
-                        </View>
-                      </View>
-                    ) : (
+                     {classItem.isNow ? (
+                       <View style={{ backgroundColor: '#0066cc', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}>
+                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                           <Clock size={14} color="#ffffff" />
+                           <Text style={{ color: '#ffffff', fontWeight: '600', fontSize: 14, marginLeft: 4 }}>
+                             {classItem.time}
+                           </Text>
+                         </View>
+                       </View>
+                     ) : (
                       <View className="flex-row items-center">
                         <Clock size={16} color={isDark ? '#9ca3af' : '#9ca3af'} />
                         <Text className={`font-medium ml-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -327,11 +349,11 @@ export default function HomeScreen() {
                     </Text>
                   </View>
 
-                  {classItem.isNow && (
-                    <View className="bg-blue-500 px-3 py-1.5 rounded-lg">
-                      <Text className="text-white font-bold text-xs">NOW</Text>
-                    </View>
-                  )}
+                   {classItem.isNow && (
+                     <View style={{ backgroundColor: '#0066cc', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}>
+                       <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 12 }}>NOW</Text>
+                     </View>
+                   )}
                 </View>
               </TouchableOpacity>
             </Animated.View>
@@ -348,12 +370,12 @@ export default function HomeScreen() {
           </Text>
           
           <View className="flex-row flex-wrap justify-between">
-            {[
-              { title: 'Community', route: '/(tabs)/community', color: '#00897b', bgColor: '#e0f2f1' },
-              { title: 'Events', route: '/(tabs)/events', color: '#9c27b0', bgColor: '#f3e5f5' },
-              { title: 'Messages', route: '/(tabs)/messages', color: '#3b82f6', bgColor: '#dbeafe' },
-              { title: 'More', route: '/(tabs)/profile', color: '#6b7280', bgColor: '#f3f4f6' },
-            ].map((action, index) => (
+             {[
+               { title: 'Community', route: '/(tabs)/community', color: '#00897b', bgColor: '#e0f2f1' },
+               { title: 'Events', route: '/(tabs)/events', color: '#0066cc', bgColor: '#e6f2ff' },
+               { title: 'Messages', route: '/(tabs)/messages', color: '#0066cc', bgColor: '#e6f2ff' },
+               { title: 'More', route: '/(tabs)/profile', color: '#6b7280', bgColor: '#f3f4f6' },
+             ].map((action, index) => (
               <TouchableOpacity
                 key={action.title}
                 onPress={() => router.push(action.route as any)}

@@ -9,13 +9,17 @@ import {
   Platform,
   ActivityIndicator,
   AppState,
+  Image,
 } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Send, User, ChevronLeft, Users } from 'lucide-react-native';
+import { Send, User, ChevronLeft, Users, Camera, MoreVertical } from 'lucide-react-native';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
 import { api, supabase } from '@/lib/supabase';
+import PageHeader from '@/components/ui/PageHeader';
+import MessageBubble from '@/components/ui/MessageBubble';
+import BackgroundImage from '@/components/BackgroundImage';
 
 interface Message {
   id: string;
@@ -62,7 +66,7 @@ export default function ChatScreen() {
   const presenceSubscriptionRef = useRef<any>(null);
   const typingChannelRef = useRef<any>(null);
   const typingSubscriptionRef = useRef<any>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentUserId = user?.id;
 
@@ -385,55 +389,35 @@ export default function ChatScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className={`flex-1 items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <ActivityIndicator size="large" color="#1a73e8" />
-        <Text className={`mt-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Loading messages...</Text>
-      </SafeAreaView>
+      <BackgroundImage overlayOpacity={isDark ? 0.7 : 0.4}>
+        <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color="#0066cc" />
+          <Text style={{ marginTop: 16, color: isDark ? '#94a3b8' : '#64748b' }}>Loading messages...</Text>
+        </SafeAreaView>
+      </BackgroundImage>
     );
   }
 
-  return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1"
-      keyboardVerticalOffset={90}
-    >
-      <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`} edges={['bottom']}>
-        <Stack.Screen
-          options={{
-            title: '',
-            headerLeft: () => (
-              <TouchableOpacity onPress={() => router.back()} className="p-2">
-                <ChevronLeft size={24} color={isDark ? '#FFFFFF' : '#374151'} />
-              </TouchableOpacity>
-            ),
-            headerTitle: () => (
-              <View className="flex-row items-center">
-                <Text className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {getTitle()}
-                </Text>
-                {conversation?.type === 'direct' && (
-                  <View className="ml-2 flex-row items-center">
-                    <View
-                      className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'
-                        }`}
-                      style={{
-                        shadowColor: isOnline ? '#10b981' : '#9ca3af',
-                        shadowOffset: { width: 0, height: 0 },
-                        shadowOpacity: 0.8,
-                        shadowRadius: 4,
-                      }}
-                    />
-                    <Text className={`text-xs ml-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {isOnline ? 'Online' : 'Offline'}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            ),
-          }}
-        />
+  const otherParticipant = getOtherParticipant();
 
+  return (
+    <BackgroundImage overlayOpacity={isDark ? 0.7 : 0.4}>
+      <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+        <Stack.Screen options={{ headerShown: false }} />
+        
+        {/* Custom Header matching Figma */}
+        <PageHeader
+          title={getTitle()}
+          showBack={true}
+          rightAction="more"
+          onRightActionPress={() => {}}
+        />
+      
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1"
+        keyboardVerticalOffset={90}
+      >
         {/* Messages */}
         <ScrollView
           ref={scrollViewRef}
@@ -463,104 +447,71 @@ export default function ChatScreen() {
                 {group.messages.map((message) => {
                   const isOwnMessage = message.sender_id === currentUserId;
                   return (
-                    <View
+                    <MessageBubble
                       key={message.id}
-                      className={`mb-3 ${isOwnMessage ? 'items-end' : 'items-start'}`}
-                    >
-                      {/* Sender name for group chats */}
-                      {!isOwnMessage && conversation?.type === 'group' && message.sender?.name && (
-                        <Text className={`text-xs mb-1 ml-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {message.sender.name}
-                        </Text>
-                      )}
-
-                      <View
-                        className={`max-w-[80%] px-4 py-3 rounded-2xl ${isOwnMessage
-                            ? 'bg-primary-500 rounded-br-sm'
-                            : isDark
-                              ? 'bg-gray-800 rounded-bl-sm'
-                              : 'bg-white rounded-bl-sm'
-                          }`}
-                        style={
-                          !isOwnMessage
-                            ? {
-                              shadowColor: '#000',
-                              shadowOffset: { width: 0, height: 1 },
-                              shadowOpacity: 0.05,
-                              shadowRadius: 2,
-                              elevation: 1,
-                            }
-                            : undefined
-                        }
-                      >
-                        <Text
-                          className={`text-base ${isOwnMessage ? 'text-white' : isDark ? 'text-white' : 'text-gray-900'
-                            }`}
-                        >
-                          {message.content}
-                        </Text>
-                      </View>
-                      <View className={`flex-row items-center ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
-                        <Text
-                          className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
-                        >
-                          {formatTime(message.created_at)}
-                        </Text>
-                        {/* Message status for outgoing messages */}
-                        {isOwnMessage && message.status && (
-                          <Text
-                            className={`text-xs mt-1 ml-2 ${isDark ? 'text-gray-500' : 'text-gray-400'
-                              }`}
-                          >
-                            {message.status === 'read'
-                              ? 'Read'
-                              : message.status === 'delivered'
-                                ? 'Delivered'
-                                : 'Sent'}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
+                      message={message.content}
+                      isSent={isOwnMessage}
+                      timestamp={formatTime(message.created_at)}
+                      senderName={message.sender?.name}
+                      senderAvatar={message.sender?.avatar_url}
+                    />
                   );
                 })}
               </View>
             ))
           )}
 
-          {/* Typing Indicator */}
+          {/* Typing Indicator - matching Figma design */}
           {typingUsers.length > 0 && (
-            <View className="flex-row items-center mb-2 px-2">
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, paddingHorizontal: 20 }}>
+              {otherParticipant?.avatar_url ? (
+                <Image source={{ uri: otherParticipant.avatar_url }} style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8 }} />
+              ) : (
+                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#64748b' }}>{otherParticipant?.name?.[0] || 'U'}</Text>
+                </View>
+              )}
               <View
-                className={`px-4 py-2 rounded-2xl ${isDark ? 'bg-gray-800' : 'bg-white'
-                  }`}
                 style={{
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.05,
-                  shadowRadius: 2,
-                  elevation: 1,
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 16,
+                  backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                  borderWidth: 1,
+                  borderColor: 'rgba(0, 0, 0, 0.05)',
                 }}
               >
-                <Text className={`italic ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  {typingUsers.length === 1 && conversation?.type === 'direct'
-                    ? 'typing...'
-                    : 'Someone is typing...'}
+                <Text style={{ fontStyle: 'italic', color: isDark ? '#94a3b8' : '#64748b' }}>
+                  {otherParticipant?.name || 'Someone'} is typing...
                 </Text>
               </View>
             </View>
           )}
         </ScrollView>
 
-        {/* Message Input */}
+        {/* Message Input - matching Figma design */}
         <View
-          className={`px-4 py-3 ${isDark ? 'bg-gray-800' : 'bg-white'} border-t ${isDark ? 'border-gray-700' : 'border-gray-200'
-            }`}
+          style={{
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            borderTopWidth: 1,
+            borderTopColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+          }}
         >
-          <View className="flex-row items-end">
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
             <TextInput
-              className={`flex-1 max-h-24 px-4 py-3 rounded-2xl ${isDark ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'
-                }`}
-              placeholder="Type a message..."
+              style={{
+                flex: 1,
+                maxHeight: 96,
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                borderRadius: 24,
+                backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
+                color: isDark ? '#ffffff' : '#1e293b',
+                fontSize: 15,
+              }}
+              placeholder="Type something"
               placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
               value={messageText}
               onChangeText={(text) => {
@@ -574,22 +525,44 @@ export default function ChatScreen() {
             <TouchableOpacity
               onPress={sendMessage}
               disabled={!messageText.trim() || sending}
-              className={`ml-2 w-12 h-12 rounded-full items-center justify-center ${messageText.trim() && !sending ? 'bg-primary-500' : isDark ? 'bg-gray-700' : 'bg-gray-200'
-                }`}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: messageText.trim() && !sending ? '#0066cc' : (isDark ? '#1e293b' : '#e2e8f0'),
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
               activeOpacity={0.8}
             >
               {sending ? (
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
-                <Send
+                <Camera
                   size={20}
-                  color={messageText.trim() ? '#ffffff' : isDark ? '#6b7280' : '#9ca3af'}
+                  color={messageText.trim() ? '#ffffff' : (isDark ? '#6b7280' : '#9ca3af')}
                 />
               )}
             </TouchableOpacity>
+            {messageText.trim() && (
+              <TouchableOpacity
+                onPress={sendMessage}
+                disabled={sending}
+                style={{
+                  paddingHorizontal: 20,
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  backgroundColor: '#0066cc',
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: '#ffffff', fontWeight: '600', fontSize: 15 }}>Post</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
+      </KeyboardAvoidingView>
       </SafeAreaView>
-    </KeyboardAvoidingView>
+    </BackgroundImage>
   );
 }

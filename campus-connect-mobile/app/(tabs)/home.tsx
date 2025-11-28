@@ -19,7 +19,6 @@ import {
   Clock,
   ChevronRight,
   Flame,
-  GraduationCap,
 } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useAuth, useNotifications } from '@/providers';
@@ -106,8 +105,11 @@ export default function HomeScreen() {
           className={`px-5 pt-3 pb-2 flex-row items-center justify-between ${isDark ? 'bg-gray-900' : 'bg-[#f8fafc]'}`}
         >
           <View className="flex-row items-center">
-            <View className="w-10 h-10 rounded-xl bg-blue-500 items-center justify-center mr-3">
-              <GraduationCap size={22} color="#ffffff" />
+            <View className="w-10 h-10 rounded-xl bg-transparent items-center justify-center mr-3 overflow-hidden">
+              <Image 
+                source={require('@/assets/images/tum-logo.png')}
+                style={{ width: 40, height: 40, resizeMode: 'contain' }}
+              />
             </View>
             <Text className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
               Campus Connect
