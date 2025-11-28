@@ -13,9 +13,10 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Link, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Mail, Lock, Fingerprint } from 'lucide-react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useAuth } from '@/providers';
 
@@ -24,8 +25,10 @@ const { width, height } = Dimensions.get('window');
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signInWithBiometric, biometricAvailable, biometricEnabled } = useAuth();
+  const { signIn } = useAuth();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -42,16 +45,6 @@ export default function LoginScreen() {
     }
   };
 
-  const handleBiometricLogin = async () => {
-    setIsLoading(true);
-    const { error } = await signInWithBiometric();
-    setIsLoading(false);
-
-    if (error) {
-      Alert.alert('Authentication Failed', error.message);
-    }
-  };
-
   // Use splash screen image as background
   const backgroundSource = require('../../assets/images/splash-screen.png');
 
@@ -61,8 +54,22 @@ export default function LoginScreen() {
       style={styles.background}
       resizeMode="cover"
     >
-      {/* Overlay for better text readability */}
-      <View style={styles.overlay} />
+      {/* Gradient Overlay */}
+      <LinearGradient
+        colors={['rgba(0,0,0,0.5)', 'rgba(0,0,0,0.1)']}
+        style={styles.gradientOverlay}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+
+      {/* Dark gradient at bottom */}
+      <LinearGradient
+        colors={['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']}
+        locations={[0, 0.4424, 1]}
+        style={styles.bottomGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
       
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -75,28 +82,27 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
-            {/* Header */}
+            {/* Login Title */}
             <Animated.View
               entering={FadeInUp.duration(800).springify()}
-              style={styles.header}
+              style={styles.titleContainer}
             >
-              <Text style={styles.title}>Welcome Back</Text>
-              <Text style={styles.subtitle}>Sign in to continue</Text>
+              <Text style={styles.title}>Login</Text>
             </Animated.View>
 
-            {/* Form Container */}
+            {/* Form */}
             <Animated.View 
               entering={FadeInDown.duration(800).delay(150).springify()}
               style={styles.formContainer}
             >
               {/* Email Input */}
-              <View style={styles.inputWrapper}>
-                <View style={styles.inputContainer}>
-                  <Mail size={20} color="#9ca3af" />
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Email</Text>
+                <View style={styles.inputWrapper}>
                   <TextInput
                     style={styles.input}
-                    placeholder="Email"
-                    placeholderTextColor="#9ca3af"
+                    placeholder="Email Address"
+                    placeholderTextColor="#a09f99"
                     value={email}
                     onChangeText={setEmail}
                     keyboardType="email-address"
@@ -107,74 +113,85 @@ export default function LoginScreen() {
               </View>
 
               {/* Password Input */}
-              <View style={styles.inputWrapper}>
-                <View style={styles.inputContainer}>
-                  <Lock size={20} color="#9ca3af" />
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Password</Text>
+                <View style={styles.inputWrapper}>
                   <TextInput
                     style={styles.input}
                     placeholder="Password"
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor="#a09f99"
                     value={password}
                     onChangeText={setPassword}
-                    secureTextEntry
+                    secureTextEntry={!showPassword}
                   />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={styles.visibilityToggle}
+                  >
+                    {showPassword ? (
+                      <EyeOff size={24} color="#a09f99" />
+                    ) : (
+                      <Eye size={24} color="#a09f99" />
+                    )}
+                  </TouchableOpacity>
                 </View>
               </View>
 
-              {/* Forgot Password */}
-              <TouchableOpacity 
-                style={styles.forgotPassword}
-                onPress={() => router.push('/(auth)/forgot-password')}
-              >
-                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-              </TouchableOpacity>
+              {/* Remember Me and Forgot Password */}
+              <View style={styles.optionsRow}>
+                <TouchableOpacity
+                  onPress={() => setRememberMe(!rememberMe)}
+                  style={styles.rememberMeContainer}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                    {rememberMe && <View style={styles.checkboxInner} />}
+                  </View>
+                  <Text style={styles.rememberMeText}>Remember me</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={() => router.push('/(auth)/forgot-password')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
 
-              {/* Login Button */}
+            {/* Login Button */}
+            <Animated.View
+              entering={FadeInDown.duration(800).delay(250).springify()}
+              style={styles.buttonContainer}
+            >
               <TouchableOpacity
                 onPress={handleLogin}
                 disabled={isLoading}
                 style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
-                activeOpacity={0.9}
+                activeOpacity={0.8}
               >
                 {isLoading ? (
                   <ActivityIndicator color="#ffffff" />
                 ) : (
-                  <Text style={styles.loginButtonText}>Sign In</Text>
+                  <Text style={styles.loginButtonText}>Login</Text>
                 )}
               </TouchableOpacity>
-
-              {/* Biometric Login */}
-              {biometricAvailable && biometricEnabled && (
-                <TouchableOpacity
-                  onPress={handleBiometricLogin}
-                  disabled={isLoading}
-                  style={styles.biometricButton}
-                  activeOpacity={0.8}
-                >
-                  <Fingerprint size={22} color="#3b82f6" />
-                  <Text style={styles.biometricButtonText}>
-                    Sign in with Biometrics
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {/* Divider */}
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              {/* Sign Up Link */}
-              <View style={styles.signupContainer}>
-                <Text style={styles.signupText}>Don't have an account? </Text>
-                <Link href="/(auth)/signup" asChild>
-                  <TouchableOpacity>
-                    <Text style={styles.signupLink}>Sign Up</Text>
-                  </TouchableOpacity>
-                </Link>
-              </View>
             </Animated.View>
+
+            {/* Sign Up Link */}
+            <Animated.View
+              entering={FadeInDown.duration(800).delay(300).springify()}
+              style={styles.signupContainer}
+            >
+              <Text style={styles.signupText}>Don't have an account? </Text>
+              <Link href="/(auth)/signup" asChild>
+                <TouchableOpacity>
+                  <Text style={styles.signupLink}>Signup</Text>
+                </TouchableOpacity>
+              </Link>
+            </Animated.View>
+
+            {/* Progress Indicator */}
+            <View style={styles.progressIndicator} />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -188,9 +205,15 @@ const styles = StyleSheet.create({
     width: width,
     height: height,
   },
-  overlay: {
+  gradientOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  bottomGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: height * 0.525,
   },
   container: {
     flex: 1,
@@ -201,138 +224,131 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   content: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 40,
+    paddingHorizontal: 39,
+    paddingVertical: 20,
   },
-  header: {
+  titleContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 24,
   },
   title: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    color: '#FFFFFF',
+    textAlign: 'center',
   },
   formContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
+    marginBottom: 20,
+  },
+  inputGroup: {
+    marginBottom: 15,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 8,
   },
   inputWrapper: {
-    marginBottom: 16,
-  },
-  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    backgroundColor: '#d8d8dd',
+    borderRadius: 6,
+    height: 55,
+    paddingHorizontal: 20,
   },
   input: {
     flex: 1,
-    marginLeft: 12,
     fontSize: 16,
     color: '#1e293b',
+    letterSpacing: 0.16,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 24,
+  visibilityToggle: {
+    padding: 4,
+  },
+  optionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  rememberMeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#a09f99',
+    marginRight: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#0066cc',
+  },
+  checkboxInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FFFFFF',
+  },
+  rememberMeText: {
+    fontSize: 14,
+    color: '#a09f99',
   },
   forgotPasswordText: {
     fontSize: 14,
-    color: '#3b82f6',
-    fontWeight: '600',
+    color: '#a09f99',
+    textDecorationLine: 'underline',
+  },
+  buttonContainer: {
+    marginBottom: 20,
   },
   loginButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    paddingVertical: 16,
+    backgroundColor: '#0066cc',
+    borderRadius: 6,
+    height: 55,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2.767 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2.214,
+    elevation: 4,
   },
   loginButtonDisabled: {
     opacity: 0.7,
   },
   loginButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
+    color: '#FFFFFF',
+    fontSize: 18,
     fontWeight: 'bold',
-    letterSpacing: 0.5,
-  },
-  biometricButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    borderRadius: 12,
-    paddingVertical: 14,
-    marginBottom: 24,
-    borderWidth: 1.5,
-    borderColor: '#3b82f6',
-  },
-  biometricButtonText: {
-    color: '#3b82f6',
-    fontSize: 15,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e2e8f0',
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    fontSize: 12,
-    color: '#94a3b8',
-    fontWeight: '600',
-    textTransform: 'uppercase',
   },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 12,
   },
   signupText: {
-    fontSize: 14,
-    color: '#64748b',
+    fontSize: 16,
+    color: '#d8d8dd',
+    letterSpacing: 0.16,
   },
   signupLink: {
-    fontSize: 14,
-    color: '#3b82f6',
+    fontSize: 16,
+    color: '#11c986',
     fontWeight: 'bold',
+    letterSpacing: 0.16,
+  },
+  progressIndicator: {
+    width: 135,
+    height: 5,
+    backgroundColor: '#0066cc',
+    borderRadius: 100,
+    alignSelf: 'center',
+    marginTop: 8,
   },
 });

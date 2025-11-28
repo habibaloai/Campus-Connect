@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Image, StyleSheet, Dimensions, StatusBar } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 const { width, height } = Dimensions.get('window');
 
@@ -16,7 +17,6 @@ export default function SplashScreen({ imageUri }: SplashScreenProps) {
       ? { uri: imageUri }
       : require('../assets/images/splash-screen.png');
   } catch (error) {
-    // If image doesn't exist, use a placeholder color
     imageSource = null;
   }
 
@@ -24,7 +24,7 @@ export default function SplashScreen({ imageUri }: SplashScreenProps) {
     <View style={styles.container}>
       <StatusBar hidden />
       
-      {/* Background Image or Color */}
+      {/* Background Image */}
       {imageSource ? (
         <Image
           source={imageSource}
@@ -35,43 +35,60 @@ export default function SplashScreen({ imageUri }: SplashScreenProps) {
         <View style={[styles.backgroundImage, styles.placeholderBackground]} />
       )}
 
-      {/* Dark gradient overlay at bottom */}
-      <View style={styles.bottomGradient} />
+      {/* Gradient Overlay - from rgba(0,0,0,0.5) to rgba(0,0,0,0.1) */}
+      <LinearGradient
+        colors={['rgba(0,0,0,0.5)', 'rgba(0,0,0,0.1)']}
+        style={styles.gradientOverlay}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
 
-      {/* Text Overlay */}
-      <Animated.View 
-        entering={FadeIn.duration(800).delay(300)}
-        style={styles.textContainer}
-      >
-        {/* TUM Logo and Text */}
-        <View style={styles.logoContainer}>
-          <View style={styles.diamondLogo}>
+      {/* Dark gradient at bottom */}
+      <LinearGradient
+        colors={['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']}
+        locations={[0, 0.4424, 1]}
+        style={styles.bottomGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+
+      {/* Content Container */}
+      <View style={styles.contentContainer}>
+        {/* Logo and Text Row */}
+        <Animated.View 
+          entering={FadeIn.duration(600).delay(300)}
+          style={styles.logoTextRow}
+        >
+          <View style={styles.logoContainer}>
             <View style={styles.diamondShape} />
           </View>
-          <View style={styles.titleContainer}>
+          <View style={styles.textGroup}>
+            <View style={styles.titleRow}>
+              <Animated.Text 
+                entering={FadeIn.duration(600).delay(500)}
+                style={styles.tumText}
+              >
+                TUM
+              </Animated.Text>
+              <Animated.Text 
+                entering={FadeIn.duration(600).delay(600)}
+                style={styles.heilbronnText}
+              >
+                {' '}Heilbronn
+              </Animated.Text>
+            </View>
             <Animated.Text 
-              entering={FadeIn.duration(600).delay(500)}
-              style={styles.tumText}
+              entering={FadeIn.duration(600).delay(700)}
+              style={styles.campusConnectText}
             >
-              TUM
-            </Animated.Text>
-            <Animated.Text 
-              entering={FadeIn.duration(600).delay(600)}
-              style={styles.heilbronnText}
-            >
-              Heilbronn
+              campus-connect
             </Animated.Text>
           </View>
-        </View>
-        
-        {/* Campus Connect Text */}
-        <Animated.Text 
-          entering={FadeIn.duration(600).delay(700)}
-          style={styles.campusConnectText}
-        >
-          campus-connect
-        </Animated.Text>
-      </Animated.View>
+        </Animated.View>
+      </View>
+
+      {/* Blue Progress Indicator at Bottom */}
+      <View style={styles.progressIndicator} />
     </View>
   );
 }
@@ -81,6 +98,9 @@ const styles = StyleSheet.create({
     flex: 1,
     width: width,
     height: height,
+    backgroundColor: '#111110',
+    borderRadius: 30,
+    overflow: 'hidden',
   },
   backgroundImage: {
     position: 'absolute',
@@ -90,65 +110,88 @@ const styles = StyleSheet.create({
     left: 0,
   },
   placeholderBackground: {
-    backgroundColor: '#4A90E2', // Fallback blue color
+    backgroundColor: '#111110',
+  },
+  gradientOverlay: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    top: 0,
+    left: 0,
+    borderRadius: 30,
   },
   bottomGradient: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: height * 0.25, // Bottom 25% dark gradient
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    height: height * 0.525, // Matches Figma design
   },
-  textContainer: {
+  contentContainer: {
     position: 'absolute',
-    top: '35%',
+    top: '36%',
     left: 0,
     right: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoContainer: {
+  logoTextRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'center',
+    flexWrap: 'wrap',
   },
-  diamondLogo: {
-    width: 40,
-    height: 40,
-    marginRight: 12,
+  logoContainer: {
+    width: 32,
+    height: 32,
+    marginRight: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   diamondShape: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     backgroundColor: '#FFFFFF',
     transform: [{ rotate: '45deg' }],
+    borderRadius: 2,
   },
-  titleContainer: {
+  textGroup: {
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
+    marginBottom: 2,
   },
   tumText: {
-    fontSize: 36,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#0065BD', // TUM blue
-    letterSpacing: 1,
+    color: '#0066cc',
+    lineHeight: 32,
   },
   heilbronnText: {
-    fontSize: 36,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginLeft: 8,
-    letterSpacing: 0.5,
+    lineHeight: 32,
   },
   campusConnectText: {
-    fontSize: 18,
+    fontSize: 14,
     color: '#FFFFFF',
     fontWeight: '500',
-    letterSpacing: 2,
+    letterSpacing: 6,
     textTransform: 'lowercase',
+    marginTop: 2,
+    lineHeight: 20,
+  },
+  progressIndicator: {
+    position: 'absolute',
+    bottom: 7,
+    left: 139,
+    width: 135,
+    height: 5,
+    backgroundColor: '#0066cc',
+    borderRadius: 100,
   },
 });
-
