@@ -12,6 +12,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -25,12 +27,16 @@ import {
   User,
   Users,
   X,
+  Filter,
+  Clock,
 } from 'lucide-react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
 import { api, supabase } from '@/lib/supabase';
 import PageHeader from '@/components/ui/PageHeader';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface Post {
   id: string;
@@ -72,11 +78,11 @@ const categoryColors: Record<string, { bg: string; text: string; border: string 
 const defaultColors = { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
 
 const categories = [
-  { id: 'all', label: 'All' },
-  { id: 'question', label: 'Question' },
-  { id: 'help', label: 'Help' },
-  { id: 'discussion', label: 'Discussion' },
-  { id: 'announcement', label: 'Announcement' },
+  { id: 'all', label: 'All', icon: Filter },
+  { id: 'question', label: 'Question', icon: MessageSquare },
+  { id: 'help', label: 'Help', icon: Users },
+  { id: 'discussion', label: 'Discussion', icon: MessageCircle },
+  { id: 'announcement', label: 'Announcement', icon: Users },
 ];
 
 const postCategories = [
@@ -180,7 +186,6 @@ export default function CommunityScreen() {
       return;
     }
 
-    // Don't allow replying to your own post
     if (post.author.id === user.id) {
       Alert.alert('Info', 'You cannot reply to your own post');
       return;
@@ -189,7 +194,6 @@ export default function CommunityScreen() {
     setReplyingToId(post.id);
 
     try {
-      // Create or get existing conversation with the post author
       const result = await api.createDirectConversation(user.id, post.author.id);
 
       if (result.error) {
@@ -200,7 +204,6 @@ export default function CommunityScreen() {
       }
 
       if (result.data) {
-        // Navigate to the conversation
         router.push(`/(tabs)/messages/${result.data.id}` as any);
       }
     } catch (error) {
@@ -266,7 +269,6 @@ export default function CommunityScreen() {
         return;
       }
 
-      // Reset form and close modal
       setShowCreateModal(false);
       setNewPost({
         title: '',
@@ -274,7 +276,6 @@ export default function CommunityScreen() {
         category: 'question',
       });
 
-      // Refresh posts
       fetchPosts();
       Alert.alert('Success', 'Your post has been created!');
     } catch (err) {
@@ -291,7 +292,7 @@ export default function CommunityScreen() {
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#0066cc" />
-            <Text style={styles.loadingText}>Loading posts...</Text>
+            <Text style={[styles.loadingText, { color: isDark ? '#ffffff' : '#1e293b' }]}>Loading posts...</Text>
           </View>
         </SafeAreaView>
       </BackgroundImage>
@@ -301,376 +302,351 @@ export default function CommunityScreen() {
   return (
     <BackgroundImage overlayOpacity={isDark ? 0.7 : 0.4}>
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-      {/* Header */}
-      <PageHeader
-        title="Community"
-        showBack={false}
-        rightAction={
-          <TouchableOpacity
-            onPress={() => setShowCreateModal(true)}
-            style={{
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 8,
-              backgroundColor: '#0066cc',
-            }}
-            activeOpacity={0.8}
-          >
-            <Plus size={20} color="#ffffff" />
-          </TouchableOpacity>
-        }
-      />
-
-      {/* Search Bar */}
-      <Animated.View
-        entering={FadeInDown.duration(400).delay(100).springify()}
-        style={{ paddingHorizontal: 20, paddingVertical: 12 }}
-      >
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 16,
-            paddingVertical: 14,
-            borderRadius: 24,
-            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: isDark ? 0.3 : 0.15,
-            shadowRadius: 12,
-            elevation: 6,
-          }}
-        >
-          <Search size={20} color={isDark ? '#9ca3af' : '#9ca3af'} />
-          <TextInput
-            className={`flex-1 ml-3 text-base ${isDark ? 'text-white' : 'text-gray-900'}`}
-            placeholder="Search requests..."
-            placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-      </Animated.View>
-
-      {/* Category Filters */}
-      <Animated.View
-        entering={FadeInDown.duration(400).delay(100).springify()}
-        className="px-5 pb-3"
-      >
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 8 }}
-        >
-          {categories.map((category) => {
-            const isSelected = selectedCategory === category.id;
-            return (
-              <TouchableOpacity
-                key={category.id}
-                onPress={() => setSelectedCategory(category.id)}
-                className={`px-4 py-2 rounded-full ${
-                  isSelected
-                    ? 'bg-[#0066cc]'
-                    : isDark
-                    ? 'bg-gray-800 border border-gray-700'
-                    : 'bg-white border border-gray-200'
-                }`}
-                activeOpacity={0.7}
-              >
-                <Text
-                  className={`text-sm font-medium ${
-                    isSelected
-                      ? 'text-white'
-                      : isDark
-                      ? 'text-gray-300'
-                      : 'text-gray-700'
-                  }`}
-                >
-                  {category.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </Animated.View>
-
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0066cc" />
-        }
-      >
-        {error ? (
-          <View className="items-center justify-center py-12">
-            <Users size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
-            <Text className={`mt-4 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{error}</Text>
-            <TouchableOpacity 
-              onPress={onRefresh} 
-              style={{ marginTop: 16, backgroundColor: '#0066cc', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 }}
+        {/* Header */}
+        <PageHeader
+          title="Community"
+          showBack={false}
+          rightAction={
+            <TouchableOpacity
+              onPress={() => setShowCreateModal(true)}
+              style={styles.createButton}
+              activeOpacity={0.8}
             >
-              <Text style={{ color: '#ffffff', fontWeight: '600' }}>Retry</Text>
+              <Plus size={20} color="#ffffff" />
             </TouchableOpacity>
+          }
+        />
+
+        {/* Search Bar */}
+        <Animated.View
+          entering={FadeInDown.duration(400).delay(100).springify()}
+          style={styles.searchContainer}
+        >
+          <View style={[styles.searchBar, isDark && styles.searchBarDark]}>
+            <Search size={20} color={isDark ? '#9ca3af' : '#9ca3af'} />
+            <TextInput
+              style={[styles.searchInput, { color: isDark ? '#ffffff' : '#1e293b' }]}
+              placeholder="Search posts..."
+              placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
           </View>
-        ) : filteredPosts.length === 0 ? (
-          <View className="items-center justify-center py-12">
-            <Users size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
-            <Text className={`mt-4 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              {searchQuery ? 'No posts match your search' : 'No posts yet. Start the conversation!'}
-            </Text>
-          </View>
-        ) : (
-          <View className="mt-2">
-            {filteredPosts.map((post, index) => {
-              const colors = categoryColors[post.category] || defaultColors;
-              
+        </Animated.View>
+
+        {/* Category Filters - Horizontal Scroll */}
+        <Animated.View
+          entering={FadeInDown.duration(400).delay(150).springify()}
+          style={styles.categoryContainer}
+        >
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryScrollContent}
+          >
+            {categories.map((category) => {
+              const isSelected = selectedCategory === category.id;
+              const Icon = category.icon;
               return (
-                <Animated.View
-                  key={post.id}
-                  entering={FadeInDown.duration(400).delay(80 * index).springify()}
+                <TouchableOpacity
+                  key={category.id}
+                  onPress={() => setSelectedCategory(category.id)}
+                  style={[
+                    styles.categoryChip,
+                    isSelected && styles.categoryChipSelected,
+                    isDark && !isSelected && styles.categoryChipDark,
+                  ]}
+                  activeOpacity={0.7}
                 >
-                  <TouchableOpacity
-                    onPress={() => router.push(`/(tabs)/community/${post.id}` as any)}
-                    style={{
-                      marginBottom: 12,
-                      padding: 16,
-                      borderRadius: 24,
-                      backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: isDark ? 0.3 : 0.15,
-                      shadowRadius: 12,
-                      elevation: 6,
-                    }}
-                    activeOpacity={0.8}
+                  <Icon 
+                    size={16} 
+                    color={isSelected ? '#ffffff' : (isDark ? '#9ca3af' : '#6b7280')} 
+                  />
+                  <Text
+                    style={[
+                      styles.categoryChipText,
+                      isSelected && styles.categoryChipTextSelected,
+                      { color: isSelected ? '#ffffff' : (isDark ? '#9ca3af' : '#6b7280') },
+                    ]}
                   >
-                    {/* Author Info */}
-                    <View className="flex-row items-center mb-3">
-                      <View className="w-11 h-11 rounded-full bg-blue-100 items-center justify-center">
-                        <User size={20} color="#0066cc" />
-                      </View>
-                      <View className="ml-3 flex-1">
-                        <Text className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                          {post.author?.name || 'Anonymous'}
-                        </Text>
-                        <Text className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                          {post.author?.major || 'Student'} • {formatTimeAgo(post.created_at)}
-                        </Text>
-                      </View>
-                      <View
-                        className="px-2.5 py-1 rounded-full"
-                        style={{ backgroundColor: colors.bg }}
-                      >
-                        <Text
-                          className="text-xs font-semibold capitalize"
-                          style={{ color: colors.text }}
-                        >
-                          {post.category.replace('_', ' ')}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Post Content */}
-                    <Text
-                      className={`text-base font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}
-                    >
-                      {post.title}
-                    </Text>
-                    <Text
-                      className={`text-sm leading-5 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
-                      numberOfLines={2}
-                    >
-                      {post.content}
-                    </Text>
-
-                    {/* Actions */}
-                    <View className={`flex-row items-center justify-center mt-4 pt-3 border-t ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
-                      {/* Check if this is the user's own post */}
-                      {post.author?.id === user?.id ? (
-                        <View className={`flex-1 items-center py-2 rounded-xl ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                          <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                            Your post
-                          </Text>
-                        </View>
-                      ) : (
-                        <TouchableOpacity
-                          className={`flex-1 flex-row items-center justify-center py-2.5 rounded-xl border ${
-                            replyingToId === post.id
-                              ? 'bg-gray-100 border-gray-300'
-                              : isDark
-                              ? 'bg-gray-800 border-gray-700'
-                              : 'bg-white border-gray-200'
-                          }`}
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            handleReply(post);
-                          }}
-                          disabled={replyingToId === post.id}
-                          activeOpacity={0.7}
-                        >
-                          {replyingToId === post.id ? (
-                            <ActivityIndicator size="small" color="#0066cc" />
-                          ) : (
-                            <>
-                              <MessageCircle size={18} color={isDark ? '#9ca3af' : '#6b7280'} />
-                              <Text className={`text-sm font-medium ml-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                                Reply
-                              </Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                </Animated.View>
+                    {category.label}
+                  </Text>
+                </TouchableOpacity>
               );
             })}
-          </View>
-        )}
-      </ScrollView>
+          </ScrollView>
+        </Animated.View>
 
-      {/* FAB - Create Post */}
-      <TouchableOpacity
-        onPress={() => setShowCreateModal(true)}
-        style={{
-          position: 'absolute',
-          bottom: 24,
-          right: 24,
-          width: 56,
-          height: 56,
-          backgroundColor: '#0066cc',
-          borderRadius: 28,
-          alignItems: 'center',
-          justifyContent: 'center',
-          shadowColor: '#0066cc',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.4,
-          shadowRadius: 8,
-          elevation: 6,
-        }}
-        activeOpacity={0.8}
-      >
-        <Plus size={26} color="#ffffff" strokeWidth={2.5} />
-      </TouchableOpacity>
-
-      {/* Create Post Modal */}
-      <Modal
-        visible={showCreateModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowCreateModal(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          className="flex-1"
+        {/* Posts List */}
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0066cc" />
+          }
         >
-          <View className="flex-1 bg-black/50 justify-end">
-            <View style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: isDark ? 'rgba(30, 41, 59, 0.98)' : 'rgba(255, 255, 255, 0.98)', maxHeight: '90%' }}>
-              {/* Modal Header */}
-              <View className={`flex-row items-center justify-between px-5 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  Create Post
-                </Text>
-                <TouchableOpacity
-                  onPress={() => setShowCreateModal(false)}
-                  className="p-2"
-                >
-                  <X size={24} color={isDark ? '#9ca3af' : '#6b7280'} />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView className="px-5 py-4" keyboardShouldPersistTaps="handled">
-                {/* Post Title */}
-                <View className="mb-4">
-                  <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Title *
-                  </Text>
-                  <TextInput
-                    className={`px-4 py-3 rounded-xl border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
-                    placeholder="What's your question or topic?"
-                    placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
-                    value={newPost.title}
-                    onChangeText={(text) => setNewPost({ ...newPost, title: text })}
-                    maxLength={100}
-                  />
-                </View>
-
-                {/* Category */}
-                <View className="mb-4">
-                  <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Category *
-                  </Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View className="flex-row gap-2">
-                      {postCategories.map((cat) => {
-                        const colors = categoryColors[cat.id] || defaultColors;
-                        const isSelected = newPost.category === cat.id;
-                        return (
-                          <TouchableOpacity
-                            key={cat.id}
-                            onPress={() => setNewPost({ ...newPost, category: cat.id })}
-                            className={`px-4 py-2 rounded-full border`}
-                            style={{
-                              backgroundColor: isSelected ? colors.bg : isDark ? '#1f2937' : '#f9fafb',
-                              borderColor: isSelected ? colors.text : isDark ? '#374151' : '#e5e7eb',
-                            }}
-                          >
-                            <Text
-                              style={{ color: isSelected ? colors.text : isDark ? '#d1d5db' : '#4b5563' }}
-                              className="font-medium"
-                            >
-                              {cat.label}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </ScrollView>
-                </View>
-
-                {/* Content */}
-                <View className="mb-6">
-                  <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Content *
-                  </Text>
-                  <TextInput
-                    className={`px-4 py-3 rounded-xl border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
-                    placeholder="Share more details about your post..."
-                    placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
-                    multiline
-                    numberOfLines={6}
-                    textAlignVertical="top"
-                    style={{ minHeight: 120 }}
-                    value={newPost.content}
-                    onChangeText={(text) => setNewPost({ ...newPost, content: text })}
-                  />
-                </View>
-
-                {/* Create Button */}
-                <TouchableOpacity
-                  onPress={handleCreatePost}
-                  disabled={creating || !newPost.title.trim() || !newPost.content.trim()}
-                  className={`py-4 rounded-xl items-center mb-6 ${
-                    creating || !newPost.title.trim() || !newPost.content.trim()
-                      ? 'bg-gray-400'
-                      : 'bg-[#14b8a6]'
-                  }`}
-                  activeOpacity={0.8}
-                >
-                  {creating ? (
-                    <ActivityIndicator color="#ffffff" />
-                  ) : (
-                    <Text className="text-white font-bold text-base">
-                      {user ? 'Create Post' : 'Sign in to post'}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </ScrollView>
+          {error ? (
+            <View style={styles.emptyContainer}>
+              <Users size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
+              <Text style={[styles.emptyText, { color: isDark ? '#94a3b8' : '#64748b' }]}>{error}</Text>
+              <TouchableOpacity 
+                onPress={onRefresh} 
+                style={styles.retryButton}
+              >
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
             </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+          ) : filteredPosts.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Users size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
+              <Text style={[styles.emptyText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
+                {searchQuery ? 'No posts match your search' : 'No posts yet. Start the conversation!'}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.postsContainer}>
+              {filteredPosts.map((post, index) => {
+                const colors = categoryColors[post.category] || defaultColors;
+                
+                return (
+                  <Animated.View
+                    key={post.id}
+                    entering={FadeInRight.duration(400).delay(80 * index).springify()}
+                  >
+                    <TouchableOpacity
+                      onPress={() => router.push(`/(tabs)/community/${post.id}` as any)}
+                      style={[styles.postCard, isDark && styles.postCardDark]}
+                      activeOpacity={0.8}
+                    >
+                      {/* Author Header */}
+                      <View style={styles.postHeader}>
+                        <View style={styles.authorInfo}>
+                          <View style={[styles.avatarContainer, { backgroundColor: colors.bg }]}>
+                            {post.author?.avatar_url ? (
+                              <Image 
+                                source={{ uri: post.author.avatar_url }} 
+                                style={styles.avatar}
+                              />
+                            ) : (
+                              <User size={20} color={colors.text} />
+                            )}
+                          </View>
+                          <View style={styles.authorDetails}>
+                            <Text style={[styles.authorName, { color: isDark ? '#ffffff' : '#1e293b' }]}>
+                              {post.author?.name || 'Anonymous'}
+                            </Text>
+                            <View style={styles.authorMeta}>
+                              <Text style={[styles.authorMetaText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
+                                {post.author?.major || 'Student'}
+                              </Text>
+                              <Text style={[styles.authorMetaText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
+                                • {formatTimeAgo(post.created_at)}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                        <View style={[styles.categoryBadge, { backgroundColor: colors.bg }]}>
+                          <Text style={[styles.categoryBadgeText, { color: colors.text }]}>
+                            {post.category.replace('_', ' ')}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Post Content */}
+                      <Text style={[styles.postTitle, { color: isDark ? '#ffffff' : '#1e293b' }]}>
+                        {post.title}
+                      </Text>
+                      <Text
+                        style={[styles.postContent, { color: isDark ? '#94a3b8' : '#64748b' }]}
+                        numberOfLines={3}
+                      >
+                        {post.content}
+                      </Text>
+
+                      {/* Post Actions */}
+                      <View style={styles.postActions}>
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleLike(post.id, post.is_liked);
+                          }}
+                          style={styles.actionButton}
+                        >
+                          <Heart 
+                            size={18} 
+                            color={post.is_liked ? '#ef4444' : (isDark ? '#9ca3af' : '#6b7280')}
+                            fill={post.is_liked ? '#ef4444' : 'none'}
+                          />
+                          <Text style={[styles.actionText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
+                            {post.likes}
+                          </Text>
+                        </TouchableOpacity>
+                        
+                        <View style={styles.actionButton}>
+                          <MessageCircle size={18} color={isDark ? '#9ca3af' : '#6b7280'} />
+                          <Text style={[styles.actionText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
+                            {post.reply_count}
+                          </Text>
+                        </View>
+
+                        {post.author?.id !== user?.id && (
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              handleReply(post);
+                            }}
+                            style={[styles.replyButton, isDark && styles.replyButtonDark]}
+                            disabled={replyingToId === post.id}
+                          >
+                            {replyingToId === post.id ? (
+                              <ActivityIndicator size="small" color="#0066cc" />
+                            ) : (
+                              <>
+                                <MessageCircle size={16} color="#0066cc" />
+                                <Text style={styles.replyButtonText}>Reply</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  </Animated.View>
+                );
+              })}
+            </View>
+          )}
+        </ScrollView>
+
+        {/* FAB - Create Post */}
+        <TouchableOpacity
+          onPress={() => setShowCreateModal(true)}
+          style={styles.fab}
+          activeOpacity={0.8}
+        >
+          <Plus size={26} color="#ffffff" strokeWidth={2.5} />
+        </TouchableOpacity>
+
+        {/* Create Post Modal */}
+        <Modal
+          visible={showCreateModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowCreateModal(false)}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalContainer}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
+                {/* Modal Header */}
+                <View style={[styles.modalHeader, isDark && styles.modalHeaderDark]}>
+                  <Text style={[styles.modalTitle, { color: isDark ? '#ffffff' : '#1e293b' }]}>
+                    Create Post
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setShowCreateModal(false)}
+                    style={styles.modalCloseButton}
+                  >
+                    <X size={24} color={isDark ? '#9ca3af' : '#6b7280'} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView 
+                  style={styles.modalScrollView}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {/* Post Title */}
+                  <View style={styles.modalField}>
+                    <Text style={[styles.modalLabel, { color: isDark ? '#e2e8f0' : '#475569' }]}>
+                      Title *
+                    </Text>
+                    <TextInput
+                      style={[styles.modalInput, isDark && styles.modalInputDark]}
+                      placeholder="What's your question or topic?"
+                      placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+                      value={newPost.title}
+                      onChangeText={(text) => setNewPost({ ...newPost, title: text })}
+                      maxLength={100}
+                    />
+                  </View>
+
+                  {/* Category */}
+                  <View style={styles.modalField}>
+                    <Text style={[styles.modalLabel, { color: isDark ? '#e2e8f0' : '#475569' }]}>
+                      Category *
+                    </Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <View style={styles.categorySelection}>
+                        {postCategories.map((cat) => {
+                          const colors = categoryColors[cat.id] || defaultColors;
+                          const isSelected = newPost.category === cat.id;
+                          return (
+                            <TouchableOpacity
+                              key={cat.id}
+                              onPress={() => setNewPost({ ...newPost, category: cat.id })}
+                              style={[
+                                styles.categorySelectChip,
+                                isSelected && { backgroundColor: colors.bg, borderColor: colors.text },
+                                isDark && !isSelected && styles.categorySelectChipDark,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.categorySelectText,
+                                  { color: isSelected ? colors.text : (isDark ? '#d1d5db' : '#4b5563') },
+                                ]}
+                              >
+                                {cat.label}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </ScrollView>
+                  </View>
+
+                  {/* Content */}
+                  <View style={styles.modalField}>
+                    <Text style={[styles.modalLabel, { color: isDark ? '#e2e8f0' : '#475569' }]}>
+                      Content *
+                    </Text>
+                    <TextInput
+                      style={[styles.modalTextArea, isDark && styles.modalInputDark]}
+                      placeholder="Share more details about your post..."
+                      placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+                      multiline
+                      numberOfLines={6}
+                      textAlignVertical="top"
+                      value={newPost.content}
+                      onChangeText={(text) => setNewPost({ ...newPost, content: text })}
+                    />
+                  </View>
+
+                  {/* Create Button */}
+                  <TouchableOpacity
+                    onPress={handleCreatePost}
+                    disabled={creating || !newPost.title.trim() || !newPost.content.trim()}
+                    style={[
+                      styles.createPostButton,
+                      (creating || !newPost.title.trim() || !newPost.content.trim()) && styles.createPostButtonDisabled,
+                    ]}
+                    activeOpacity={0.8}
+                  >
+                    {creating ? (
+                      <ActivityIndicator color="#ffffff" />
+                    ) : (
+                      <Text style={styles.createPostButtonText}>
+                        Create Post
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </ScrollView>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
       </SafeAreaView>
     </BackgroundImage>
   );
@@ -687,7 +663,340 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  createButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#0066cc',
+  },
+  searchContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  searchBarDark: {
+    backgroundColor: 'rgba(30, 41, 59, 0.98)',
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  categoryContainer: {
+    marginBottom: 8,
+  },
+  categoryScrollContent: {
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    gap: 6,
+  },
+  categoryChipSelected: {
+    backgroundColor: '#0066cc',
+    borderColor: '#0066cc',
+  },
+  categoryChipDark: {
+    backgroundColor: 'rgba(30, 41, 59, 0.98)',
+    borderColor: '#334155',
+  },
+  categoryChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  categoryChipTextSelected: {
+    color: '#ffffff',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 100,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 16,
+    backgroundColor: '#0066cc',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  postsContainer: {
+    gap: 16,
+  },
+  postCard: {
+    padding: 20,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  postCardDark: {
+    backgroundColor: 'rgba(30, 41, 59, 0.98)',
+  },
+  postHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  authorInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  avatarContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  authorDetails: {
+    flex: 1,
+  },
+  authorName: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  authorMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  authorMetaText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  categoryBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  categoryBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  postTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 8,
+    letterSpacing: -0.3,
+  },
+  postContent: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  postActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
+    gap: 20,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  actionText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  replyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 'auto',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#e6f2ff',
+    gap: 6,
+  },
+  replyButtonDark: {
+    backgroundColor: 'rgba(0, 102, 204, 0.2)',
+  },
+  replyButtonText: {
+    color: '#0066cc',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    backgroundColor: '#0066cc',
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0066cc',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalContainer: {
+    flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    maxHeight: '90%',
+  },
+  modalContentDark: {
+    backgroundColor: 'rgba(30, 41, 59, 0.98)',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  modalHeaderDark: {
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  modalScrollView: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  modalField: {
+    marginBottom: 20,
+  },
+  modalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  modalInput: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    fontSize: 15,
+    color: '#1e293b',
+  },
+  modalInputDark: {
+    backgroundColor: '#1e293b',
+    borderColor: '#334155',
+    color: '#ffffff',
+  },
+  modalTextArea: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    fontSize: 15,
+    color: '#1e293b',
+    minHeight: 120,
+  },
+  categorySelection: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  categorySelectChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+  },
+  categorySelectChipDark: {
+    backgroundColor: '#1e293b',
+    borderColor: '#334155',
+  },
+  categorySelectText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  createPostButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    backgroundColor: '#0066cc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  createPostButtonDisabled: {
+    backgroundColor: '#9ca3af',
+  },
+  createPostButtonText: {
     color: '#ffffff',
     fontSize: 16,
+    fontWeight: '700',
   },
 });
