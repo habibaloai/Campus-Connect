@@ -110,6 +110,7 @@ export default function EventsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newEvent, setNewEvent] = useState<NewEventForm>({
@@ -217,11 +218,13 @@ export default function EventsScreen() {
     return name.charAt(0).toUpperCase();
   };
 
-  const filteredEvents = events.filter((event) =>
-    event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    event.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    event.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredEvents = events.filter((event) => {
+    const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = !selectedCategory || event.category.toLowerCase() === selectedCategory.toLowerCase();
+    return matchesSearch && matchesCategory;
+  });
 
   const handlePickImage = async () => {
     try {
@@ -505,26 +508,146 @@ export default function EventsScreen() {
         </View>
       </Animated.View>
 
+      {/* Search Bar */}
+      <Animated.View
+        entering={FadeInDown.duration(400).delay(100).springify()}
+        style={{ paddingHorizontal: 20, paddingVertical: 12 }}
+      >
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            borderRadius: 16,
+            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.98)' : 'rgba(255, 255, 255, 0.98)',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+            elevation: 3,
+          }}
+        >
+          <Search size={20} color={isDark ? '#9ca3af' : '#9ca3af'} />
+          <TextInput
+            style={{
+              flex: 1,
+              marginLeft: 12,
+              fontSize: 15,
+              fontWeight: '500',
+              color: isDark ? '#ffffff' : '#1e293b',
+            }}
+            placeholder="Search events..."
+            placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+      </Animated.View>
+
+      {/* Category Filters - Horizontal Scroll */}
+      <Animated.View
+        entering={FadeInDown.duration(400).delay(150).springify()}
+        style={{ marginBottom: 8 }}
+      >
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}
+        >
+          <TouchableOpacity
+            onPress={() => setSelectedCategory(null)}
+            style={{
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              borderRadius: 20,
+              backgroundColor: !selectedCategory
+                ? '#0066cc'
+                : isDark
+                ? 'rgba(30, 41, 59, 0.98)'
+                : 'rgba(255, 255, 255, 0.98)',
+              borderWidth: 1,
+              borderColor: !selectedCategory ? '#0066cc' : isDark ? '#334155' : '#e2e8f0',
+            }}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: '600',
+                color: !selectedCategory ? '#ffffff' : isDark ? '#9ca3af' : '#6b7280',
+              }}
+            >
+              All
+            </Text>
+          </TouchableOpacity>
+          {eventCategories.map((cat) => {
+            const colors = categoryColors[cat.id] || defaultColors;
+            const isSelected = selectedCategory === cat.id;
+            return (
+              <TouchableOpacity
+                key={cat.id}
+                onPress={() => setSelectedCategory(isSelected ? null : cat.id)}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  backgroundColor: isSelected
+                    ? colors.bg
+                    : isDark
+                    ? 'rgba(30, 41, 59, 0.98)'
+                    : 'rgba(255, 255, 255, 0.98)',
+                  borderWidth: 1,
+                  borderColor: isSelected ? colors.text : isDark ? '#334155' : '#e2e8f0',
+                }}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: '600',
+                    color: isSelected ? colors.text : isDark ? '#9ca3af' : '#6b7280',
+                  }}
+                >
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </Animated.View>
+
       <ScrollView
-        className="flex-1"
+        style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#14b8a6" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0066cc" />
         }
       >
         {error ? (
-          <View className="items-center justify-center py-12">
+          <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 48 }}>
             <Calendar size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
-            <Text className={`mt-4 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{error}</Text>
-            <TouchableOpacity onPress={onRefresh} className="mt-4 bg-[#14b8a6] px-6 py-2.5 rounded-xl">
-              <Text className="text-white font-semibold">Retry</Text>
+            <Text style={{ marginTop: 16, textAlign: 'center', color: isDark ? '#94a3b8' : '#64748b', fontSize: 15 }}>
+              {error}
+            </Text>
+            <TouchableOpacity
+              onPress={onRefresh}
+              style={{
+                marginTop: 16,
+                backgroundColor: '#0066cc',
+                paddingHorizontal: 24,
+                paddingVertical: 12,
+                borderRadius: 12,
+              }}
+            >
+              <Text style={{ color: '#ffffff', fontWeight: '600', fontSize: 14 }}>Retry</Text>
             </TouchableOpacity>
           </View>
         ) : filteredEvents.length === 0 ? (
-          <View className="items-center justify-center py-12">
+          <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 48 }}>
             <Calendar size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
-            <Text className={`mt-4 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            <Text style={{ marginTop: 16, textAlign: 'center', color: isDark ? '#94a3b8' : '#64748b', fontSize: 15 }}>
               {searchQuery ? 'No events match your search' : 'No upcoming events'}
             </Text>
           </View>
