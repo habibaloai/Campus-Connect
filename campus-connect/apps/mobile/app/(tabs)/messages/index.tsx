@@ -384,7 +384,6 @@ export default function MessagesScreen() {
                   }}
                   activeOpacity={0.8}
                 >
-<<<<<<< HEAD
                   {/* Avatar */}
                   <View
                     className={`w-14 h-14 rounded-full items-center justify-center overflow-hidden ${
@@ -406,13 +405,6 @@ export default function MessagesScreen() {
                       );
                     })()}
                   </View>
-                        <Text style={{ fontSize: 20, fontWeight: '600', color: '#64748b' }}>
-                          {otherParticipant?.name?.[0]?.toUpperCase() || 'U'}
-                        </Text>
-                      </View>
-                    );
-                  })()}
->>>>>>> main
 
                   {/* Content */}
                   <View className="flex-1 ml-4">
