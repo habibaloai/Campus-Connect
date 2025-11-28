@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useColorScheme } from '@/components/useColorScheme';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { DesignSystem } from '@/constants/design';
-import { User } from 'lucide-react-native';
+import { User, Edit2 } from 'lucide-react-native';
 import { router } from 'expo-router';
 
 const { width } = Dimensions.get('window');
@@ -42,6 +42,20 @@ export default function ProfileHeader({
           end={{ x: 1, y: 1 }}
           style={styles.gradientCard}
         >
+          {/* Profile icon button in top right */}
+          <View style={styles.profileIconButton}>
+            <TouchableOpacity
+              onPress={() => router.push('/profile/edit')}
+              style={[
+                styles.editButton,
+                { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 102, 204, 0.1)' }
+              ]}
+              activeOpacity={0.7}
+            >
+              <Edit2 size={18} color={isDark ? "#ffffff" : "#0066cc"} />
+            </TouchableOpacity>
+          </View>
+          
           {/* Profile Content */}
           <View style={styles.profileContent}>
             {/* Profile Picture */}
