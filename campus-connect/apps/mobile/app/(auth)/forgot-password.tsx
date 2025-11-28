@@ -12,9 +12,9 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Mail } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { auth } from '@/lib/supabase';
 
@@ -67,7 +67,23 @@ export default function ForgotPasswordScreen() {
       style={styles.background}
       resizeMode="cover"
     >
-      <View style={styles.overlay} />
+      {/* Gradient Overlay */}
+      <LinearGradient
+        colors={['rgba(0,0,0,0.5)', 'rgba(0,0,0,0.1)']}
+        style={styles.gradientOverlay}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+
+      {/* Dark gradient at bottom */}
+      <LinearGradient
+        colors={['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']}
+        locations={[0, 0.4424, 1]}
+        style={styles.bottomGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
@@ -79,15 +95,12 @@ export default function ForgotPasswordScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
-            {/* Header */}
+            {/* Title */}
             <Animated.View
               entering={FadeInUp.duration(800).springify()}
-              style={styles.header}
+              style={styles.titleContainer}
             >
               <Text style={styles.title}>Forgot Password?</Text>
-              <Text style={styles.subtitle}>
-                Enter your email address and we'll send you a link to reset your password.
-              </Text>
             </Animated.View>
 
             {/* Message Display */}
@@ -108,19 +121,19 @@ export default function ForgotPasswordScreen() {
               </Animated.View>
             )}
 
-            {/* Form Container */}
-            <Animated.View 
+            {/* Form */}
+            <Animated.View
               entering={FadeInDown.duration(800).delay(150).springify()}
               style={styles.formContainer}
             >
               {/* Email Input */}
-              <View style={styles.inputWrapper}>
-                <View style={styles.inputContainer}>
-                  <Mail size={20} color="#9ca3af" />
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Email</Text>
+                <View style={styles.inputWrapper}>
                   <TextInput
                     style={styles.input}
-                    placeholder="Email"
-                    placeholderTextColor="#9ca3af"
+                    placeholder="Email Address"
+                    placeholderTextColor="#a09f99"
                     value={email}
                     onChangeText={setEmail}
                     keyboardType="email-address"
@@ -129,13 +142,18 @@ export default function ForgotPasswordScreen() {
                   />
                 </View>
               </View>
+            </Animated.View>
 
-              {/* Send Reset Link Button */}
+            {/* Send Reset Link Button */}
+            <Animated.View
+              entering={FadeInDown.duration(800).delay(250).springify()}
+              style={styles.buttonContainer}
+            >
               <TouchableOpacity
                 onPress={handleResetPassword}
                 disabled={isLoading}
                 style={[styles.resetButton, isLoading && styles.resetButtonDisabled]}
-                activeOpacity={0.9}
+                activeOpacity={0.8}
               >
                 {isLoading ? (
                   <ActivityIndicator color="#ffffff" />
@@ -151,13 +169,16 @@ export default function ForgotPasswordScreen() {
               style={styles.backToLoginContainer}
             >
               <Text style={styles.backToLoginText}>Remember your password? </Text>
-              <TouchableOpacity onPress={() => router.back()}>
+              <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
                 <Text style={styles.backToLoginLink}>Back to Login</Text>
               </TouchableOpacity>
             </Animated.View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Progress Indicator - At bottom of screen */}
+      <View style={styles.progressIndicator} />
     </ImageBackground>
   );
 }
@@ -168,54 +189,43 @@ const styles = StyleSheet.create({
     width: width,
     height: height,
   },
-  overlay: {
+  gradientOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  bottomGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: height * 0.525,
   },
   container: {
     flex: 1,
-    width: '100%',
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingVertical: 40,
+    paddingVertical: 20,
   },
   content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 39,
+    paddingVertical: 20,
   },
-  header: {
+  titleContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 24,
   },
   title: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 8,
+    color: '#FFFFFF',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#e0e0e0',
-    textAlign: 'center',
-    paddingHorizontal: 20,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
   },
   messageContainer: {
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     width: '100%',
-    maxWidth: 400,
   },
   errorMessage: {
     backgroundColor: 'rgba(254, 242, 242, 0.95)',
@@ -239,74 +249,79 @@ const styles = StyleSheet.create({
     color: '#16a34a',
   },
   formContainer: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 10,
+    marginBottom: 16,
+  },
+  inputGroup: {
+    marginBottom: 15,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 8,
   },
   inputWrapper: {
-    marginBottom: 24,
-  },
-  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    backgroundColor: '#d8d8dd',
+    borderRadius: 6,
+    height: 55,
+    paddingHorizontal: 20,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#FFFFFF',
   },
   input: {
     flex: 1,
-    marginLeft: 12,
     fontSize: 16,
     color: '#1e293b',
+    letterSpacing: 0.16,
+  },
+  buttonContainer: {
+    marginBottom: 24,
   },
   resetButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    paddingVertical: 16,
+    backgroundColor: '#0066cc',
+    borderRadius: 6,
+    height: 55,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2.767 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2.214,
+    elevation: 4,
   },
   resetButtonDisabled: {
-    backgroundColor: '#93c5fd',
+    opacity: 0.7,
   },
   resetButtonText: {
-    color: '#ffffff',
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 'bold',
   },
   backToLoginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    alignItems: 'center',
+    marginBottom: 20,
   },
   backToLoginText: {
-    fontSize: 14,
-    color: '#ffffff',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    fontSize: 16,
+    color: '#FFFFFF',
   },
   backToLoginLink: {
-    fontSize: 14,
-    color: '#ffffff',
+    fontSize: 16,
+    color: '#11c986',
     fontWeight: 'bold',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+  },
+  progressIndicator: {
+    position: 'absolute',
+    bottom: 7,
+    left: '50%',
+    marginLeft: -67.5, // Half of 135px width to center it
+    width: 135,
+    height: 5,
+    backgroundColor: '#0066cc',
+    borderRadius: 100,
   },
 });
