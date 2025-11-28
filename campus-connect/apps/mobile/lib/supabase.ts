@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { supabaseStorageAdapter } from './storage';
 import Constants from 'expo-constants';
+import { readAsStringAsync } from 'expo-file-system/legacy';
 
 // Get Supabase credentials from environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || Constants.expoConfig?.extra?.supabaseUrl || '';
@@ -169,7 +170,43 @@ export const api = {
   },
 
   updateProfile: async (userId: string, updates: any) => {
-    const { data, error } = await supabase.from('profiles').update(updates).eq('id', userId).select().single();
+    // Remove undefined values and ensure proper types
+    const cleanUpdates: any = {};
+    
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value !== undefined) {
+        // Handle interests array - ensure it's properly formatted for PostgreSQL
+        if (key === 'interests' && value !== null) {
+          cleanUpdates[key] = Array.isArray(value) ? value : [];
+        } else {
+          cleanUpdates[key] = value;
+        }
+      }
+    });
+    
+    console.log('[API] updateProfile called with:', {
+      userId,
+      updates: cleanUpdates,
+      updates_stringified: JSON.stringify(cleanUpdates),
+    });
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(cleanUpdates)
+      .eq('id', userId)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('[API] Supabase update error:', error);
+      console.error('[API] Error code:', error.code);
+      console.error('[API] Error message:', error.message);
+      console.error('[API] Error details:', error.details);
+      console.error('[API] Error hint:', error.hint);
+    } else {
+      console.log('[API] Profile updated successfully:', data);
+    }
+    
     return { data, error };
   },
 
@@ -1032,6 +1069,875 @@ export const api = {
       .limit(10);
 
     return { data, error };
+  },
+
+  // =============================================
+  // SOCIAL CONNECTIONS API
+  // =============================================
+
+  // Friend Requests
+  sendFriendRequest: async (requesterId: string, recipientId: string) => {
+    const { data, error } = await supabase
+      .from('friend_requests')
+      .insert({
+        requester_id: requesterId,
+        recipient_id: recipientId,
+        status: 'pending',
+      })
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  getFriendRequests: async (userId: string, type: 'sent' | 'received' = 'received') => {
+    const column = type === 'sent' ? 'requester_id' : 'recipient_id';
+    const { data, error } = await supabase
+      .from('friend_requests')
+      .select(`
+        *,
+        requester:profiles!friend_requests_requester_id_fkey(id, name, avatar_url, major, year),
+        recipient:profiles!friend_requests_recipient_id_fkey(id, name, avatar_url, major, year)
+      `)
+      .eq(column, userId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    return { data, error };
+  },
+
+  respondToFriendRequest: async (requestId: string, status: 'accepted' | 'rejected', userId: string) => {
+    // First update the request
+    const { data: request, error: requestError } = await supabase
+      .from('friend_requests')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', requestId)
+      .eq('recipient_id', userId)
+      .select()
+      .single();
+
+    if (requestError || !request) return { data: null, error: requestError };
+
+    // If accepted, create mutual friendship
+    if (status === 'accepted') {
+      const { error: friendshipError } = await supabase.from('friendships').insert([
+        { user_id: request.requester_id, friend_id: request.recipient_id },
+        { user_id: request.recipient_id, friend_id: request.requester_id },
+      ]);
+
+      if (friendshipError) return { data: null, error: friendshipError };
+    }
+
+    return { data: request, error: null };
+  },
+
+  cancelFriendRequest: async (requestId: string, userId: string) => {
+    const { error } = await supabase
+      .from('friend_requests')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('id', requestId)
+      .eq('requester_id', userId);
+
+    return { error };
+  },
+
+  // Friendships
+  getFriends: async (userId: string, closeFriendsOnly: boolean = false) => {
+    let query = supabase
+      .from('friendships')
+      .select(`
+        *,
+        friend:profiles!friendships_friend_id_fkey(*)
+      `)
+      .eq('user_id', userId);
+
+    if (closeFriendsOnly) {
+      query = query.eq('is_close_friend', true);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+
+    return { data, error };
+  },
+
+  removeFriend: async (userId: string, friendId: string) => {
+    // Remove both directions of friendship
+    const { error } = await supabase
+      .from('friendships')
+      .delete()
+      .or(`and(user_id.eq.${userId},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${userId})`);
+
+    return { error };
+  },
+
+  toggleCloseFriend: async (userId: string, friendId: string, isCloseFriend: boolean) => {
+    const { data, error } = await supabase
+      .from('friendships')
+      .update({ is_close_friend: isCloseFriend })
+      .eq('user_id', userId)
+      .eq('friend_id', friendId)
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  // Follows
+  followUser: async (followerId: string, followingId: string) => {
+    const { data, error } = await supabase
+      .from('follows')
+      .insert({
+        follower_id: followerId,
+        following_id: followingId,
+      })
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  unfollowUser: async (followerId: string, followingId: string) => {
+    const { error } = await supabase
+      .from('follows')
+      .delete()
+      .eq('follower_id', followerId)
+      .eq('following_id', followingId);
+
+    return { error };
+  },
+
+  getFollowers: async (userId: string) => {
+    const { data, error } = await supabase
+      .from('follows')
+      .select(`
+        *,
+        follower:profiles!follows_follower_id_fkey(*)
+      `)
+      .eq('following_id', userId)
+      .order('created_at', { ascending: false });
+
+    return { data, error };
+  },
+
+  getFollowing: async (userId: string) => {
+    const { data, error } = await supabase
+      .from('follows')
+      .select(`
+        *,
+        following:profiles!follows_following_id_fkey(*)
+      `)
+      .eq('follower_id', userId)
+      .order('created_at', { ascending: false });
+
+    return { data, error };
+  },
+
+  checkFollowStatus: async (followerId: string, followingId: string) => {
+    const { data, error } = await supabase
+      .from('follows')
+      .select('id')
+      .eq('follower_id', followerId)
+      .eq('following_id', followingId)
+      .maybeSingle();
+
+    return { data: !!data, error };
+  },
+
+  // Connection Stories
+  addConnectionStory: async (userId: string, connectedUserId: string, story: string, location?: string, context?: string) => {
+    const { data, error } = await supabase
+      .from('connection_stories')
+      .insert({
+        user_id: userId,
+        connected_user_id: connectedUserId,
+        story,
+        location,
+        context,
+      })
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  getConnectionStories: async (userId: string) => {
+    const { data, error } = await supabase
+      .from('connection_stories')
+      .select(`
+        *,
+        connected_user:profiles!connection_stories_connected_user_id_fkey(*)
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    return { data, error };
+  },
+
+  // Course Classmates
+  getCourseClassmates: async (userId: string, courseId?: string) => {
+    let query = supabase
+      .from('course_classmates')
+      .select(`
+        *,
+        classmate:profiles!course_classmates_classmate_id_fkey(*),
+        course:courses(*)
+      `)
+      .eq('user_id', userId);
+
+    if (courseId) {
+      query = query.eq('course_id', courseId);
+    }
+
+    const { data, error } = await query.order('discovered_at', { ascending: false });
+
+    return { data, error };
+  },
+
+  // Mutual Connections
+  getMutualConnections: async (userId: string, otherUserId: string) => {
+    // Get mutual friends
+    const { data: userFriends } = await supabase
+      .from('friendships')
+      .select('friend_id')
+      .eq('user_id', userId);
+
+    const { data: otherFriends } = await supabase
+      .from('friendships')
+      .select('friend_id')
+      .eq('user_id', otherUserId);
+
+    const userFriendIds = userFriends?.map((f) => f.friend_id) || [];
+    const otherFriendIds = otherFriends?.map((f) => f.friend_id) || [];
+    const mutualFriendIds = userFriendIds.filter((id) => otherFriendIds.includes(id));
+
+    if (mutualFriendIds.length === 0) {
+      return { data: [], error: null };
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', mutualFriendIds);
+
+    return { data, error };
+  },
+
+  // Social Stats
+  getSocialStats: async (userId: string) => {
+    const [friends, followers, following] = await Promise.all([
+      supabase.from('friendships').select('id', { count: 'exact' }).eq('user_id', userId),
+      supabase.from('follows').select('id', { count: 'exact' }).eq('following_id', userId),
+      supabase.from('follows').select('id', { count: 'exact' }).eq('follower_id', userId),
+    ]);
+
+    const closeFriends = await supabase
+      .from('friendships')
+      .select('id', { count: 'exact' })
+      .eq('user_id', userId)
+      .eq('is_close_friend', true);
+
+    return {
+      data: {
+        friends_count: friends.count || 0,
+        followers_count: followers.count || 0,
+        following_count: following.count || 0,
+        close_friends_count: closeFriends.count || 0,
+      },
+      error: null,
+    };
+  },
+
+  // Friend Locations (for map)
+  updateFriendLocation: async (userId: string, latitude: number, longitude: number, locationName?: string, isVisible: boolean = true) => {
+    const { data, error } = await supabase
+      .from('friend_locations')
+      .upsert({
+        user_id: userId,
+        latitude,
+        longitude,
+        location_name: locationName,
+        is_visible: isVisible,
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  getFriendLocations: async (userId: string) => {
+    // Get locations of friends who have visibility enabled
+    const { data: friends } = await supabase
+      .from('friendships')
+      .select('friend_id')
+      .eq('user_id', userId);
+
+    const friendIds = friends?.map((f) => f.friend_id) || [];
+
+    if (friendIds.length === 0) {
+      return { data: [], error: null };
+    }
+
+    const { data, error } = await supabase
+      .from('friend_locations')
+      .select(`
+        *,
+        user:profiles(*)
+      `)
+      .in('user_id', friendIds)
+      .eq('is_visible', true);
+
+    return { data, error };
+  },
+
+  // =============================================
+  // GAMIFICATION & STREAKS API
+  // =============================================
+
+  // User Stats
+  getUserStats: async (userId: string) => {
+    const { data, error } = await supabase
+      .from('user_stats')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    // If no stats exist, create default
+    if (!data && !error) {
+      const { data: newStats, error: createError } = await supabase
+        .from('user_stats')
+        .insert({ user_id: userId })
+        .select()
+        .single();
+      return { data: newStats, error: createError };
+    }
+
+    return { data, error };
+  },
+
+  updateUserStats: async (userId: string, updates: Partial<any>) => {
+    const { data, error } = await supabase
+      .from('user_stats')
+      .upsert({
+        user_id: userId,
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  // Streaks
+  getStreaks: async (userId: string) => {
+    const { data, error } = await supabase
+      .from('streaks')
+      .select('*')
+      .eq('user_id', userId)
+      .order('current_streak', { ascending: false });
+
+    return { data, error };
+  },
+
+  getStreak: async (userId: string, streakType: string) => {
+    const { data, error } = await supabase
+      .from('streaks')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('streak_type', streakType)
+      .maybeSingle();
+
+    return { data, error };
+  },
+
+  updateStreak: async (userId: string, streakType: string, activityDate?: string) => {
+    // Get current streak
+    const { data: currentStreak } = await supabase
+      .from('streaks')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('streak_type', streakType)
+      .maybeSingle();
+    
+    const today = activityDate || new Date().toISOString().split('T')[0];
+    const yesterday = new Date(new Date(today).getTime() - 86400000).toISOString().split('T')[0];
+    
+    let newStreak = 1;
+    let streakStartDate = today;
+
+    if (currentStreak) {
+      const lastActivity = currentStreak.last_activity_date;
+      
+      if (lastActivity === yesterday) {
+        // Continue streak
+        newStreak = currentStreak.current_streak + 1;
+        streakStartDate = currentStreak.streak_start_date || today;
+      } else if (lastActivity === today) {
+        // Already logged today
+        return { data: currentStreak, error: null };
+      } else {
+        // Streak broken, start new one
+        newStreak = 1;
+        streakStartDate = today;
+      }
+    }
+
+    const longestStreak = currentStreak
+      ? Math.max(currentStreak.longest_streak, newStreak)
+      : newStreak;
+
+    const { data, error } = await supabase
+      .from('streaks')
+      .upsert({
+        user_id: userId,
+        streak_type: streakType,
+        current_streak: newStreak,
+        longest_streak: longestStreak,
+        last_activity_date: today,
+        streak_start_date: streakStartDate,
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    // Log activity
+    await supabase.from('streak_activities').insert({
+      user_id: userId,
+      streak_type: streakType,
+      activity_date: today,
+    });
+
+    // Award points for milestones
+    if (newStreak === 7 || newStreak === 30 || newStreak === 100) {
+      const points = newStreak === 7 ? 50 : newStreak === 30 ? 200 : 1000;
+      await api.addPoints(userId, points, 'streak_milestone', `${newStreak}-day streak!`);
+    }
+
+    return { data, error };
+  },
+
+  // Streak Recovery
+  useStreakRecovery: async (userId: string, streakType: string) => {
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+
+    // Check if already used this month
+    const { data: existing } = await supabase
+      .from('streak_recoveries')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('recovery_month', currentMonth)
+      .maybeSingle();
+
+    if (existing) {
+      return { data: null, error: { message: 'Streak recovery already used this month' } };
+    }
+
+    // Use recovery
+    const { data, error } = await supabase
+      .from('streak_recoveries')
+      .insert({
+        user_id: userId,
+        streak_type: streakType,
+        recovery_month: currentMonth,
+      })
+      .select()
+      .single();
+
+    // Restore streak (don't break it) - just mark as used, streak logic will handle continuation
+    // The streak will continue from where it left off on next activity
+
+    return { data, error };
+  },
+
+  // Points
+  addPoints: async (userId: string, points: number, source: string, description?: string, metadata?: Record<string, any>) => {
+    // Add transaction
+    const { error: transError } = await supabase.from('point_transactions').insert({
+      user_id: userId,
+      points,
+      source,
+      description,
+      metadata,
+    });
+
+    if (transError) return { error: transError };
+
+    // Update user stats
+    const { data: stats } = await api.getUserStats(userId);
+    if (stats) {
+      const newTotal = stats.total_points + points;
+      const { data: levelConfig } = await api.getLevelForPoints(newTotal);
+      
+      await api.updateUserStats(userId, {
+        total_points: newTotal,
+        level: levelConfig?.level || stats.level,
+      });
+    }
+
+    return { error: null };
+  },
+
+  getPointHistory: async (userId: string, limit: number = 50) => {
+    const { data, error } = await supabase
+      .from('point_transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    return { data, error };
+  },
+
+  // Levels
+  getLevelForPoints: async (points: number) => {
+    const { data, error } = await supabase
+      .from('level_config')
+      .select('*')
+      .lte('points_required', points)
+      .order('level', { ascending: false })
+      .limit(1)
+      .single();
+
+    return { data, error };
+  },
+
+  // Achievements
+  getAchievements: async (category?: string) => {
+    let query = supabase.from('achievements').select('*');
+    
+    if (category) {
+      query = query.eq('category', category);
+    }
+
+    const { data, error } = await query.order('points', { ascending: false });
+
+    return { data, error };
+  },
+
+  getUserAchievements: async (userId: string) => {
+    const { data, error } = await supabase
+      .from('user_achievements')
+      .select(`
+        *,
+        achievement:achievements(*)
+      `)
+      .eq('user_id', userId)
+      .order('unlocked_at', { ascending: false });
+
+    return { data, error };
+  },
+
+  unlockAchievement: async (userId: string, achievementId: string) => {
+    // Check if already unlocked
+    const { data: existing } = await supabase
+      .from('user_achievements')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('achievement_id', achievementId)
+      .maybeSingle();
+
+    if (existing) {
+      return { data: existing, error: null };
+    }
+
+    // Get achievement details
+    const { data: achievement } = await supabase
+      .from('achievements')
+      .select('*')
+      .eq('id', achievementId)
+      .single();
+
+    // Unlock achievement
+    const { data, error } = await supabase
+      .from('user_achievements')
+      .insert({
+        user_id: userId,
+        achievement_id: achievementId,
+        is_completed: true,
+      })
+      .select()
+      .single();
+
+    // Award points
+    if (!error && achievement) {
+      await api.addPoints(userId, achievement.points, 'achievement', `Unlocked: ${achievement.name}`);
+    }
+
+    return { data, error };
+  },
+
+  // Leaderboards
+  getLeaderboard: async (type: string, category?: string, courseId?: string) => {
+    let query = supabase
+      .from('leaderboards')
+      .select('*')
+      .eq('type', type)
+      .eq('is_active', true);
+
+    if (category) {
+      query = query.eq('category', category);
+    }
+    if (courseId) {
+      query = query.eq('course_id', courseId);
+    }
+
+    const { data: leaderboard } = await query.order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+    if (!leaderboard) {
+      return { data: null, error: null };
+    }
+
+    const { data: entries, error } = await supabase
+      .from('leaderboard_entries')
+      .select(`
+        *,
+        user:profiles(id, name, avatar_url, major, year)
+      `)
+      .eq('leaderboard_id', leaderboard.id)
+      .order('rank', { ascending: true })
+      .limit(100);
+
+    return { data: { ...leaderboard, entries }, error };
+  },
+
+  updateLeaderboardEntry: async (leaderboardId: string, userId: string, score: number) => {
+    const { data, error } = await supabase
+      .from('leaderboard_entries')
+      .upsert({
+        leaderboard_id: leaderboardId,
+        user_id: userId,
+        score,
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    // Recalculate ranks
+    const { data: allEntries } = await supabase
+      .from('leaderboard_entries')
+      .select('id, score')
+      .eq('leaderboard_id', leaderboardId)
+      .order('score', { ascending: false });
+
+    if (allEntries) {
+      const updates = allEntries.map((entry, index) => ({
+        id: entry.id,
+        rank: index + 1,
+      }));
+
+      for (const update of updates) {
+        await supabase
+          .from('leaderboard_entries')
+          .update({ rank: update.rank })
+          .eq('id', update.id);
+      }
+    }
+
+    return { data, error };
+  },
+
+  // Challenges
+  getChallenges: async (type?: string, activeOnly: boolean = true) => {
+    let query = supabase.from('challenges').select('*');
+
+    if (activeOnly) {
+      query = query.eq('is_active', true);
+    }
+    if (type) {
+      query = query.eq('type', type);
+    }
+
+    const { data, error } = await query
+      .order('created_at', { ascending: false });
+
+    return { data, error };
+  },
+
+  joinChallenge: async (userId: string, challengeId: string) => {
+    const { data, error } = await supabase
+      .from('challenge_participants')
+      .insert({
+        user_id: userId,
+        challenge_id: challengeId,
+      })
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  updateChallengeProgress: async (userId: string, challengeId: string, progress: number) => {
+    const { data: challenge } = await supabase
+      .from('challenges')
+      .select('*')
+      .eq('id', challengeId)
+      .single();
+
+    const { data, error } = await supabase
+      .from('challenge_participants')
+      .update({ progress })
+      .eq('user_id', userId)
+      .eq('challenge_id', challengeId)
+      .select()
+      .single();
+
+    // Check if completed
+    if (!error && challenge && progress >= challenge.target_value) {
+      await supabase
+        .from('challenge_participants')
+        .update({ completed_at: new Date().toISOString() })
+        .eq('id', data.id);
+
+      // Award rewards
+      if (challenge.reward_points > 0) {
+        await api.addPoints(userId, challenge.reward_points, 'challenge', `Completed: ${challenge.name}`);
+      }
+      if (challenge.reward_achievement_id) {
+        await api.unlockAchievement(userId, challenge.reward_achievement_id);
+      }
+    }
+
+    return { data, error };
+  },
+
+  getUserChallenges: async (userId: string) => {
+    const { data, error } = await supabase
+      .from('challenge_participants')
+      .select(`
+        *,
+        challenge:challenges(*)
+      `)
+      .eq('user_id', userId)
+      .order('joined_at', { ascending: false });
+
+    return { data, error };
+  },
+
+  // Surprise Rewards
+  getSurpriseRewards: async (userId: string) => {
+    const { data, error } = await supabase
+      .from('surprise_rewards')
+      .select(`
+        *,
+        achievement:achievements(*)
+      `)
+      .eq('user_id', userId)
+      .eq('claimed', false)
+      .order('created_at', { ascending: false });
+
+    return { data, error };
+  },
+
+  claimSurpriseReward: async (rewardId: string, userId: string) => {
+    const { data: reward } = await supabase
+      .from('surprise_rewards')
+      .select('*')
+      .eq('id', rewardId)
+      .eq('user_id', userId)
+      .single();
+
+    if (!reward || reward.claimed) {
+      return { data: null, error: { message: 'Reward not found or already claimed' } };
+    }
+
+    const { data, error } = await supabase
+      .from('surprise_rewards')
+      .update({ claimed: true })
+      .eq('id', rewardId)
+      .select()
+      .single();
+
+    // Apply reward
+    if (!error) {
+      if (reward.reward_type === 'points' && reward.reward_value) {
+        await api.addPoints(userId, reward.reward_value, 'surprise_reward', reward.message);
+      } else if (reward.reward_type === 'achievement' && reward.achievement_id) {
+        await api.unlockAchievement(userId, reward.achievement_id);
+      }
+    }
+
+    return { data, error };
+  },
+
+  // =============================================
+  // STORAGE HELPERS
+  // =============================================
+  uploadAvatar: async (userId: string, fileUri: string, fileExt: string = 'jpg'): Promise<{ url: string | null; error: any }> => {
+    try {
+      const fileName = `${userId}-${Date.now()}.${fileExt}`;
+      const filePath = fileName; // Store directly in bucket root, not in subfolder
+
+      // Read file as base64 using legacy API (for compatibility)
+      const base64 = await readAsStringAsync(fileUri, {
+        encoding: 'base64',
+      });
+
+      // Convert base64 to Uint8Array for Supabase (React Native compatible)
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+      const lookup = new Uint8Array(256);
+      for (let i = 0; i < chars.length; i++) {
+        lookup[chars.charCodeAt(i)] = i;
+      }
+
+      let bufferLength = base64.length * 0.75;
+      if (base64[base64.length - 1] === '=') {
+        bufferLength--;
+        if (base64[base64.length - 2] === '=') {
+          bufferLength--;
+        }
+      }
+
+      const bytes = new Uint8Array(bufferLength);
+      let p = 0;
+      for (let i = 0; i < base64.length; i += 4) {
+        const encoded1 = lookup[base64.charCodeAt(i)];
+        const encoded2 = lookup[base64.charCodeAt(i + 1)];
+        const encoded3 = lookup[base64.charCodeAt(i + 2)];
+        const encoded4 = lookup[base64.charCodeAt(i + 3)];
+
+        bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
+        bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
+        bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
+      }
+
+      // Try to upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, bytes, {
+          contentType: `image/${fileExt}`,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        // Check if it's a bucket not found error
+        if (uploadError.message?.includes('Bucket not found') || uploadError.message?.includes('bucket')) {
+          console.warn('Storage bucket "avatars" not found. Please create it in Supabase Storage.');
+          return {
+            url: null,
+            error: {
+              message: 'Storage bucket not configured. Please create an "avatars" bucket in Supabase Storage.',
+              code: 'BUCKET_NOT_FOUND',
+            },
+          };
+        }
+        console.error('Avatar upload error:', uploadError);
+        return { url: null, error: uploadError };
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      return { url: urlData.publicUrl, error: null };
+    } catch (error: any) {
+      console.error('Error uploading avatar:', error);
+      return {
+        url: null,
+        error: {
+          message: error.message || 'Failed to upload avatar',
+          code: 'UPLOAD_ERROR',
+        },
+      };
+    }
   },
 };
 

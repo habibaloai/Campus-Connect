@@ -223,7 +223,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => {
     if (user) {
+      console.log('[AuthContext] Refreshing profile for user:', user.id);
       await fetchProfile(user.id);
+      console.log('[AuthContext] Profile refresh completed');
+    } else {
+      console.log('[AuthContext] No user, cannot refresh profile');
     }
   };
 
