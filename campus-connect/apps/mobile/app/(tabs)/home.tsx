@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Image,
+  ImageBackground,
   StyleSheet,
   Dimensions,
 } from 'react-native';
@@ -13,7 +14,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import BackgroundImage from '@/components/BackgroundImage';
 import {
   Bell,
   TrendingUp,
@@ -28,6 +28,8 @@ import {
   Users,
   MapPin,
   ArrowRight,
+  Bot,
+  Search,
 } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useAuth, useNotifications } from '@/providers';
@@ -66,43 +68,51 @@ const todaysClasses = [
   },
 ];
 
-// Stats data with gradient colors
-const statsData = [
+// Stats data - will be set dynamically based on theme
+const getStatsData = (isDark: boolean) => [
   { 
     id: 'gpa', 
     label: 'GPA', 
     value: '3.75', 
     icon: TrendingUp, 
-    gradient: ['#10b981', '#059669'],
-    iconBg: 'rgba(16, 185, 129, 0.2)',
-    iconColor: '#ffffff',
+    gradient: isDark 
+      ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)'] // Lighter for dark mode
+      : ['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.85)'], // Slightly translucent white for light mode
+    iconBg: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 102, 204, 0.1)',
+    iconColor: isDark ? '#ffffff' : '#0066cc',
   },
   { 
     id: 'credits', 
     label: 'Credits', 
     value: '78', 
     icon: BookOpen, 
-    gradient: ['#0066cc', '#0052a3'],
-    iconBg: 'rgba(0, 102, 204, 0.2)',
-    iconColor: '#ffffff',
+    gradient: isDark 
+      ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)'] // Lighter for dark mode
+      : ['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.85)'], // Slightly translucent white for light mode
+    iconBg: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 102, 204, 0.1)',
+    iconColor: isDark ? '#ffffff' : '#0066cc',
   },
   { 
     id: 'balance', 
     label: 'Balance', 
     value: '$156', 
     icon: Wallet, 
-    gradient: ['#3b82f6', '#2563eb'],
-    iconBg: 'rgba(59, 130, 246, 0.2)',
-    iconColor: '#ffffff',
+    gradient: isDark 
+      ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)'] // Lighter for dark mode
+      : ['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.85)'], // Slightly translucent white for light mode
+    iconBg: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 102, 204, 0.1)',
+    iconColor: isDark ? '#ffffff' : '#0066cc',
   },
   { 
     id: 'points', 
     label: 'Points', 
     value: '2.4K', 
     icon: Award, 
-    gradient: ['#6366f1', '#4f46e5'],
-    iconBg: 'rgba(99, 102, 241, 0.2)',
-    iconColor: '#ffffff',
+    gradient: isDark 
+      ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)'] // Lighter for dark mode
+      : ['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.85)'], // Slightly translucent white for light mode
+    iconBg: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 102, 204, 0.1)',
+    iconColor: isDark ? '#ffffff' : '#0066cc',
   },
 ];
 
@@ -116,6 +126,7 @@ export default function HomeScreen() {
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
 
   const isDark = colorScheme === 'dark';
+  const statsData = getStatsData(isDark);
 
   // Reset animation key when screen comes into focus
   useFocusEffect(
@@ -151,18 +162,46 @@ export default function HomeScreen() {
   }, [refreshNotifications]);
 
   const greeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    return 'Welcome back';
   };
 
   const userName = profile?.name || user?.email?.split('@')[0] || 'Student';
 
+  // Use splash screen image as background (same as login page)
+  const backgroundSource = require('@/assets/images/splash-screen.png');
+
   return (
-    <BackgroundImage overlayOpacity={isDark ? 0.7 : 0.4}>
+    <ImageBackground
+      source={backgroundSource}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      {/* Blurred Background Overlay */}
+      <View style={[styles.blurOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)' }]} />
+      
+      {/* Gradient Overlay - dark mode: dark, light mode: less white */}
+      <LinearGradient
+        colors={isDark 
+          ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']
+          : ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.05)']}
+        style={styles.gradientOverlay}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+
+      {/* Bottom gradient - dark mode: dark, light mode: less white */}
+      <LinearGradient
+        colors={isDark
+          ? ['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']
+          : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.4)']}
+        locations={[0, 0.4424, 1]}
+        style={styles.bottomGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="light" />
+        <StatusBar style={isDark ? "light" : "dark"} />
         
         <ScrollView
           className="flex-1"
@@ -179,7 +218,9 @@ export default function HomeScreen() {
             style={styles.headerContainer}
           >
             <LinearGradient
-              colors={isDark ? ['rgba(0, 102, 204, 0.15)', 'rgba(0, 102, 204, 0.05)'] : ['rgba(0, 102, 204, 0.08)', 'rgba(255, 255, 255, 0.95)']}
+              colors={isDark
+                ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)'] // Lighter for dark mode
+                : ['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.85)']} // Slightly translucent white for light mode
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.headerGradient}
@@ -205,9 +246,9 @@ export default function HomeScreen() {
                 
                 <TouchableOpacity
                   onPress={() => router.push('/notifications')}
-                  style={[styles.notificationButton, isDark && styles.notificationButtonDark]}
+                  style={[styles.notificationButton, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 102, 204, 0.1)' }]}
                 >
-                  <Bell size={20} color={isDark ? "#ffffff" : "#1e293b"} />
+                  <Bell size={20} color={isDark ? "#ffffff" : "#0066cc"} />
                   {unreadCount > 0 && (
                     <View style={styles.badge}>
                       <Text style={styles.badgeText}>
@@ -245,6 +286,43 @@ export default function HomeScreen() {
             </LinearGradient>
           </Animated.View>
 
+          {/* AI Assistant Search Bar */}
+          <Animated.View 
+            key={`ai-search-${animationKey}`}
+            entering={FadeInDown.duration(500).delay(150).springify()}
+            style={styles.aiSearchContainer}
+          >
+            <TouchableOpacity
+              onPress={() => router.push('/ai')}
+              activeOpacity={0.8}
+              style={styles.aiSearchButton}
+            >
+              <LinearGradient
+                colors={isDark
+                  ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)'] // Lighter for dark mode
+                  : ['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.85)']} // Slightly translucent white for light mode
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.aiSearchGradient}
+              >
+                <View style={styles.aiSearchContent}>
+                  <View style={[styles.aiIconContainer, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 102, 204, 0.1)' }]}>
+                    <Bot size={20} color={isDark ? "#ffffff" : "#0066cc"} />
+                  </View>
+                  <View style={styles.aiSearchTextContainer}>
+                    <Text style={[styles.aiSearchPlaceholder, { color: isDark ? 'rgba(255, 255, 255, 0.6)' : '#64748b' }]}>
+                      Ask AI Assistant...
+                    </Text>
+                    <Text style={[styles.aiSearchSubtext, { color: isDark ? 'rgba(255, 255, 255, 0.5)' : '#94a3b8' }]}>
+                      Get help with studies, events, and more
+                    </Text>
+                  </View>
+                  <Search size={18} color={isDark ? "rgba(255, 255, 255, 0.6)" : "#64748b"} />
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+
           {/* Horizontal Scrolling Stats */}
           <Animated.View 
             key={`stats-${animationKey}`}
@@ -271,29 +349,20 @@ export default function HomeScreen() {
                     end={{ x: 1, y: 1 }}
                     style={styles.statGradient}
                   >
-                    {/* Decorative circle pattern */}
-                    <View style={styles.statPattern}>
-                      <View style={[styles.patternCircle, { top: -20, right: -20 }]} />
-                      <View style={[styles.patternCircle, { bottom: -30, left: -30, width: 60, height: 60 }]} />
-                    </View>
-                    
-                    {/* Icon with glow effect */}
+                    {/* Icon */}
                     <View style={[styles.statIconContainer, { backgroundColor: stat.iconBg }]}>
                       <stat.icon size={28} color={stat.iconColor} strokeWidth={2.5} />
                     </View>
                     
                     {/* Value and Label */}
                     <View style={styles.statContent}>
-                      <Text style={styles.statValue}>
+                      <Text style={[styles.statValue, { color: isDark ? '#ffffff' : '#1e293b' }]}>
                         {stat.value}
                       </Text>
-                      <Text style={styles.statLabel}>
+                      <Text style={[styles.statLabel, { color: isDark ? 'rgba(255, 255, 255, 0.9)' : '#64748b' }]}>
                         {stat.label}
                       </Text>
                     </View>
-                    
-                    {/* Subtle shine effect */}
-                    <View style={styles.statShine} />
                   </LinearGradient>
                 </Animated.View>
               ))}
@@ -307,14 +376,14 @@ export default function HomeScreen() {
             style={styles.sectionContainer}
           >
             <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleContainer}>
-                <BookOpen size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
+              <View style={[styles.sectionTitleContainer, { backgroundColor: isDark ? 'rgba(0, 102, 204, 0.2)' : 'rgba(0, 102, 204, 0.1)' }]}>
+                <BookOpen size={20} color={isDark ? "#11c986" : "#0066cc"} />
                 <Text style={[styles.sectionTitle, { color: isDark ? '#ffffff' : '#1e293b' }]}>
                   Today's Classes
                 </Text>
               </View>
               <TouchableOpacity onPress={() => router.push('/academics')}>
-                <Text style={styles.viewAllText}>View All</Text>
+                <Text style={[styles.viewAllText, { color: isDark ? '#11c986' : '#0066cc' }]}>View All</Text>
               </TouchableOpacity>
             </View>
 
@@ -333,9 +402,9 @@ export default function HomeScreen() {
                   style={[styles.classCard, { width: CARD_WIDTH }]}
                 >
                   <LinearGradient
-                    colors={isDark 
-                      ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)'] 
-                      : ['rgba(255, 255, 255, 0.98)', 'rgba(240, 247, 255, 0.98)']}
+                    colors={isDark
+                      ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)'] // Lighter for dark mode
+                      : ['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.85)']} // Slightly translucent white for light mode
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.classGradient}
@@ -343,7 +412,7 @@ export default function HomeScreen() {
                     <View style={styles.classHeader}>
                       {classItem.isNow ? (
                         <LinearGradient
-                          colors={['#0066cc', '#0052a3']}
+                          colors={['rgba(17, 201, 134, 0.4)', 'rgba(5, 150, 105, 0.3)']}
                           style={styles.classTimeBadgeActive}
                         >
                           <Clock size={14} color="#ffffff" />
@@ -352,9 +421,9 @@ export default function HomeScreen() {
                           </Text>
                         </LinearGradient>
                       ) : (
-                        <View style={styles.classTimeBadge}>
-                          <Clock size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
-                          <Text style={[styles.classTime, { color: isDark ? '#9ca3af' : '#6b7280' }]}>
+                        <View style={[styles.classTimeBadge, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 102, 204, 0.1)' }]}>
+                          <Clock size={14} color={isDark ? "#11c986" : "#0066cc"} />
+                          <Text style={[styles.classTime, { color: isDark ? '#11c986' : '#0066cc' }]}>
                             {classItem.time}
                           </Text>
                         </View>
@@ -371,12 +440,12 @@ export default function HomeScreen() {
                     <Text style={[styles.classCode, { color: isDark ? '#ffffff' : '#1e293b' }]}>
                       {classItem.code}
                     </Text>
-                    <Text style={[styles.className, { color: isDark ? '#94a3b8' : '#64748b' }]}>
+                    <Text style={[styles.className, { color: isDark ? 'rgba(255, 255, 255, 0.8)' : '#64748b' }]}>
                       {classItem.name}
                     </Text>
                     <View style={styles.classLocation}>
-                      <MapPin size={14} color={isDark ? '#64748b' : '#94a3b8'} />
-                      <Text style={[styles.classLocationText, { color: isDark ? '#64748b' : '#94a3b8' }]}>
+                      <MapPin size={14} color={isDark ? "#11c986" : "#0066cc"} />
+                      <Text style={[styles.classLocationText, { color: isDark ? '#11c986' : '#0066cc' }]}>
                         {classItem.location}
                       </Text>
                     </View>
@@ -394,14 +463,14 @@ export default function HomeScreen() {
               style={styles.sectionContainer}
             >
               <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleContainer}>
-                  <Calendar size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
+                <View style={[styles.sectionTitleContainer, { backgroundColor: isDark ? 'rgba(0, 102, 204, 0.2)' : 'rgba(0, 102, 204, 0.1)' }]}>
+                  <Calendar size={20} color={isDark ? "#11c986" : "#0066cc"} />
                   <Text style={[styles.sectionTitle, { color: isDark ? '#ffffff' : '#1e293b' }]}>
                     Upcoming Events
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => router.push('/(tabs)/events')}>
-                  <Text style={styles.viewAllText}>View All</Text>
+                  <Text style={[styles.viewAllText, { color: isDark ? '#11c986' : '#0066cc' }]}>View All</Text>
                 </TouchableOpacity>
               </View>
 
@@ -420,9 +489,9 @@ export default function HomeScreen() {
                     style={[styles.eventCard, { width: CARD_WIDTH }]}
                   >
                     <LinearGradient
-                      colors={isDark 
-                        ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)'] 
-                        : ['rgba(255, 255, 255, 0.98)', 'rgba(240, 247, 255, 0.98)']}
+                      colors={isDark
+                        ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)'] // Lighter for dark mode
+                        : ['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.85)']} // Slightly translucent white for light mode
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.eventGradient}
@@ -432,26 +501,30 @@ export default function HomeScreen() {
                       </Text>
                       <View style={styles.eventDetails}>
                         <View style={styles.eventDetailRow}>
-                          <Calendar size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
-                          <Text style={[styles.eventDetailText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
+                          <Calendar size={14} color={isDark ? "#f59e0b" : "#0066cc"} />
+                          <Text style={[styles.eventDetailText, { color: isDark ? '#f59e0b' : '#0066cc' }]}>
                             {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </Text>
                         </View>
+                        {event.location && (
+                          <View style={styles.eventDetailRow}>
+                            <MapPin size={14} color={isDark ? "#f59e0b" : "#0066cc"} />
+                            <Text style={[styles.eventDetailText, { color: isDark ? '#f59e0b' : '#0066cc' }]} numberOfLines={1}>
+                              {event.location}
+                            </Text>
+                          </View>
+                        )}
                         <View style={styles.eventDetailRow}>
-                          <MapPin size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
-                          <Text style={[styles.eventDetailText, { color: isDark ? '#94a3b8' : '#64748b' }]} numberOfLines={1}>
-                            {event.location}
-                          </Text>
-                        </View>
-                        <View style={styles.eventDetailRow}>
-                          <Users size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
-                          <Text style={[styles.eventDetailText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
+                          <Users size={14} color={isDark ? "#f59e0b" : "#0066cc"} />
+                          <Text style={[styles.eventDetailText, { color: isDark ? '#f59e0b' : '#0066cc' }]}>
                             {event.attendee_count || 0} attending
                           </Text>
                         </View>
                       </View>
                       <LinearGradient
-                        colors={['#0066cc', '#0052a3']}
+                        colors={isDark
+                          ? ['#f59e0b', '#d97706']
+                          : ['#0066cc', '#0052a3']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={styles.eventButton}
@@ -478,8 +551,8 @@ export default function HomeScreen() {
             style={styles.sectionContainer}
           >
             <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleContainer}>
-                <Bell size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
+                <View style={[styles.sectionTitleContainer, { backgroundColor: isDark ? 'rgba(0, 102, 204, 0.2)' : 'rgba(0, 102, 204, 0.1)' }]}>
+                <Bell size={20} color={isDark ? "#11c986" : "#0066cc"} />
                 <Text style={[styles.sectionTitle, { color: isDark ? '#ffffff' : '#1e293b' }]}>
                   Notifications
                 </Text>
@@ -494,28 +567,25 @@ export default function HomeScreen() {
               style={styles.notificationCard}
             >
               <LinearGradient
-                colors={isDark 
-                  ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)'] 
-                  : ['rgba(255, 255, 255, 0.98)', 'rgba(240, 247, 255, 0.98)']}
+                colors={isDark
+                  ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)'] // Lighter for dark mode
+                  : ['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.85)']} // Slightly translucent white for light mode
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.notificationGradient}
               >
-                <LinearGradient
-                  colors={['#0066cc', '#0052a3']}
-                  style={styles.notificationIconContainer}
-                >
-                  <Bell size={22} color="#ffffff" />
-                </LinearGradient>
+                <View style={[styles.notificationIconContainer, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 102, 204, 0.1)' }]}>
+                  <Bell size={22} color={isDark ? "#6366f1" : "#0066cc"} />
+                </View>
                 <View style={styles.notificationContent}>
                   <Text style={[styles.notificationTitle, { color: isDark ? '#ffffff' : '#1e293b' }]}>
                     {unreadCount > 0 ? `You have ${unreadCount} new notification${unreadCount > 1 ? 's' : ''}` : 'No new notifications'}
                   </Text>
-                  <Text style={[styles.notificationSubtext, { color: isDark ? '#94a3b8' : '#64748b' }]}>
+                  <Text style={[styles.notificationSubtext, { color: isDark ? '#6366f1' : '#0066cc' }]}>
                     {unreadCount > 0 ? 'Tap to view all notifications' : 'You\'re all caught up!'}
                   </Text>
                 </View>
-                <ChevronRight size={20} color={isDark ? '#9ca3af' : '#9ca3af'} />
+                <ChevronRight size={20} color={isDark ? "#6366f1" : "#0066cc"} />
               </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
@@ -526,16 +596,16 @@ export default function HomeScreen() {
             entering={FadeInDown.duration(500).delay(600).springify()}
             style={styles.sectionContainer}
           >
-            <Text style={[styles.sectionTitle, { color: isDark ? '#ffffff' : '#1e293b', marginBottom: 16, paddingHorizontal: 20 }]}>
+            <Text style={[styles.sectionTitle, { marginBottom: 16, paddingHorizontal: 20, color: isDark ? '#ffffff' : '#1e293b' }]}>
               Quick Actions
             </Text>
             
             <View style={styles.quickActionsGrid}>
               {[
-                { title: 'Community', route: '/(tabs)/community', icon: Users, gradient: ['#00897b', '#00695c'] },
-                { title: 'Events', route: '/(tabs)/events', icon: Calendar, gradient: ['#0066cc', '#0052a3'] },
-                { title: 'Messages', route: '/(tabs)/messages', icon: MessageCircle, gradient: ['#3b82f6', '#2563eb'] },
-                { title: 'Profile', route: '/(tabs)/profile', icon: Users, gradient: ['#6366f1', '#4f46e5'] },
+                { title: 'Community', route: '/(tabs)/community', icon: Users, iconColor: '#11c986' },
+                { title: 'Events', route: '/(tabs)/events', icon: Calendar, iconColor: '#f59e0b' },
+                { title: 'Messages', route: '/(tabs)/messages', icon: MessageCircle, iconColor: '#6366f1' },
+                { title: 'Profile', route: '/(tabs)/profile', icon: Users, iconColor: '#ec4899' },
               ].map((action, index) => {
                 const Icon = action.icon;
                 return (
@@ -545,15 +615,17 @@ export default function HomeScreen() {
                     style={styles.quickActionCard}
                   >
                     <LinearGradient
-                      colors={action.gradient}
+                      colors={isDark
+                        ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)'] // Lighter for dark mode
+                        : ['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.85)']} // Slightly translucent white for light mode
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.quickActionGradient}
                     >
-                      <View style={styles.quickActionIconContainer}>
-                        <Icon size={24} color="#ffffff" strokeWidth={2.5} />
+                      <View style={[styles.quickActionIconContainer, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 102, 204, 0.1)' }]}>
+                        <Icon size={24} color={action.iconColor} strokeWidth={2.5} />
                       </View>
-                      <Text style={styles.quickActionText}>
+                      <Text style={[styles.quickActionText, { color: isDark ? '#ffffff' : '#1e293b' }]}>
                         {action.title}
                       </Text>
                     </LinearGradient>
@@ -567,7 +639,13 @@ export default function HomeScreen() {
           <View style={styles.signOutContainer}>
             <TouchableOpacity
               onPress={signOut}
-              style={[styles.signOutButton, isDark && styles.signOutButtonDark]}
+              style={[
+                styles.signOutButton,
+                {
+                  backgroundColor: isDark ? 'rgba(241, 245, 249, 0.8)' : 'rgba(241, 245, 249, 0.95)',
+                  borderColor: isDark ? 'rgba(148, 163, 184, 0.2)' : 'rgba(148, 163, 184, 0.3)',
+                }
+              ]}
             >
               <Text style={[styles.signOutText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
                 Sign Out
@@ -576,11 +654,32 @@ export default function HomeScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
-    </BackgroundImage>
+    </ImageBackground>
   );
 }
 
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  blurOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bottomGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: SCREEN_HEIGHT * 0.525,
+  },
   safeArea: {
     flex: 1,
   },
@@ -627,7 +726,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -636,11 +734,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  notificationButtonDark: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   badge: {
     position: 'absolute',
@@ -681,6 +774,48 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
   },
+  aiSearchContainer: {
+    paddingHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  aiSearchButton: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  aiSearchGradient: {
+    padding: 16,
+    borderRadius: 20,
+  },
+  aiSearchContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  aiIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  aiSearchTextContainer: {
+    flex: 1,
+  },
+  aiSearchPlaceholder: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  aiSearchSubtext: {
+    fontSize: 12,
+    fontWeight: '400',
+  },
   streakBadgeGradient: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -717,7 +852,7 @@ const styles = StyleSheet.create({
   sectionTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 102, 204, 0.1)',
+    backgroundColor: 'rgba(0, 102, 204, 0.2)',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
@@ -729,7 +864,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   viewAllText: {
-    color: '#0066cc',
     fontWeight: '700',
     fontSize: 15,
     letterSpacing: 0.2,
@@ -753,25 +887,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 160,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  statPattern: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0.15,
-  },
-  patternCircle: {
-    position: 'absolute',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   statIconContainer: {
     width: 64,
@@ -788,34 +903,18 @@ const styles = StyleSheet.create({
   },
   statContent: {
     alignItems: 'center',
-    zIndex: 1,
   },
   statValue: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#ffffff',
     marginBottom: 6,
     letterSpacing: -0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
   statLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.9)',
     textTransform: 'uppercase',
     letterSpacing: 1.2,
-  },
-  statShine: {
-    position: 'absolute',
-    top: -50,
-    left: -50,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    transform: [{ rotate: '45deg' }],
   },
   classCard: {
     borderRadius: 24,
@@ -842,7 +941,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
-    backgroundColor: 'rgba(241, 245, 249, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   classTimeBadgeActive: {
     flexDirection: 'row',
@@ -1020,7 +1119,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
@@ -1033,11 +1131,7 @@ const styles = StyleSheet.create({
   quickActionText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#ffffff',
     letterSpacing: 0.3,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   signOutContainer: {
     paddingHorizontal: 20,
@@ -1048,13 +1142,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
-    backgroundColor: 'rgba(241, 245, 249, 0.8)',
     borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.2)',
-  },
-  signOutButtonDark: {
-    backgroundColor: 'rgba(30, 41, 59, 0.6)',
-    borderColor: 'rgba(148, 163, 184, 0.1)',
   },
   signOutText: {
     fontSize: 15,
