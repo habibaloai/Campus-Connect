@@ -1,7 +1,16 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Image, StyleSheet, Dimensions, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSequence,
+  withDelay,
+  Easing,
+  interpolate,
+  Extrapolate,
+} from 'react-native-reanimated';
 
 const { width, height } = Dimensions.get('window');
 
@@ -19,6 +28,139 @@ export default function SplashScreen({ imageUri }: SplashScreenProps) {
   } catch (error) {
     imageSource = null;
   }
+
+  // Animation values for frame-by-frame animation
+  const frameProgress = useSharedValue(0); // Goes from 0 to 1 across all frames
+  
+  // Logo animation properties
+  const logoScale = useSharedValue(0);
+  const logoOpacity = useSharedValue(0);
+  const logoRotation = useSharedValue(-45);
+  const logoTranslateY = useSharedValue(-20);
+  
+  // Text animation properties
+  const tumOpacity = useSharedValue(0);
+  const tumTranslateX = useSharedValue(-20);
+  const heilbronnOpacity = useSharedValue(0);
+  const heilbronnTranslateX = useSharedValue(20);
+  const campusConnectOpacity = useSharedValue(0);
+  const campusConnectTranslateY = useSharedValue(10);
+
+  useEffect(() => {
+    const FRAME_DELAY = 400; // 400ms between frames
+    const TRANSITION_DURATION = 500; // Duration for each transition
+    const easeOut = Easing.out(Easing.cubic); // Smooth ease-out
+
+    // Frame 1: Logo appears with scale and fade (0ms)
+    logoScale.value = withTiming(1, {
+      duration: TRANSITION_DURATION,
+      easing: easeOut,
+    });
+    logoOpacity.value = withTiming(1, {
+      duration: TRANSITION_DURATION,
+      easing: easeOut,
+    });
+
+    // Frame 2: Logo rotates into position (400ms delay)
+    logoRotation.value = withDelay(
+      FRAME_DELAY,
+      withTiming(0, {
+        duration: TRANSITION_DURATION,
+        easing: easeOut,
+      })
+    );
+    logoTranslateY.value = withDelay(
+      FRAME_DELAY,
+      withTiming(0, {
+        duration: TRANSITION_DURATION,
+        easing: easeOut,
+      })
+    );
+
+    // Frame 3: "TUM" text appears from left (800ms delay)
+    tumOpacity.value = withDelay(
+      FRAME_DELAY * 2,
+      withTiming(1, {
+        duration: TRANSITION_DURATION,
+        easing: easeOut,
+      })
+    );
+    tumTranslateX.value = withDelay(
+      FRAME_DELAY * 2,
+      withTiming(0, {
+        duration: TRANSITION_DURATION,
+        easing: easeOut,
+      })
+    );
+
+    // Frame 4: "Heilbronn" text appears from right (1200ms delay)
+    heilbronnOpacity.value = withDelay(
+      FRAME_DELAY * 3,
+      withTiming(1, {
+        duration: TRANSITION_DURATION,
+        easing: easeOut,
+      })
+    );
+    heilbronnTranslateX.value = withDelay(
+      FRAME_DELAY * 3,
+      withTiming(0, {
+        duration: TRANSITION_DURATION,
+        easing: easeOut,
+      })
+    );
+
+    // Frame 5: "campus-connect" appears below (1600ms delay)
+    campusConnectOpacity.value = withDelay(
+      FRAME_DELAY * 4,
+      withTiming(1, {
+        duration: TRANSITION_DURATION,
+        easing: easeOut,
+      })
+    );
+    campusConnectTranslateY.value = withDelay(
+      FRAME_DELAY * 4,
+      withTiming(0, {
+        duration: TRANSITION_DURATION,
+        easing: easeOut,
+      })
+    );
+  }, []);
+
+  // Animated styles for logo
+  const logoAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { scale: logoScale.value },
+        { rotate: `${logoRotation.value}deg` },
+        { translateY: logoTranslateY.value },
+      ],
+      opacity: logoOpacity.value,
+    };
+  });
+
+  // Animated styles for "TUM" text
+  const tumAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: tumOpacity.value,
+      transform: [{ translateX: tumTranslateX.value }],
+    };
+  });
+
+  // Animated styles for "Heilbronn" text
+  const heilbronnAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: heilbronnOpacity.value,
+      transform: [{ translateX: heilbronnTranslateX.value }],
+    };
+  });
+
+  // Animated styles for "campus-connect" text
+  const campusConnectAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: campusConnectOpacity.value,
+      transform: [{ translateY: campusConnectTranslateY.value }],
+    };
+  });
 
   return (
     <View style={styles.container}>
@@ -55,36 +197,29 @@ export default function SplashScreen({ imageUri }: SplashScreenProps) {
       {/* Content Container */}
       <View style={styles.contentContainer}>
         {/* Logo and Text Row */}
-        <Animated.View 
-          entering={FadeIn.duration(600).delay(300)}
-          style={styles.logoTextRow}
-        >
-          <View style={styles.logoContainer}>
+        <View style={styles.logoTextRow}>
+          {/* Animated Logo */}
+          <Animated.View 
+            style={[styles.logoContainer, logoAnimatedStyle]}
+          >
             <View style={styles.diamondShape} />
-          </View>
+          </Animated.View>
+
+          {/* Animated Text Group */}
           <View style={styles.textGroup}>
             <View style={styles.titleRow}>
-              <Animated.Text 
-                entering={FadeIn.duration(600).delay(500)}
-                style={styles.tumText}
-              >
+              <Animated.Text style={[styles.tumText, tumAnimatedStyle]}>
                 TUM
               </Animated.Text>
-              <Animated.Text 
-                entering={FadeIn.duration(600).delay(600)}
-                style={styles.heilbronnText}
-              >
+              <Animated.Text style={[styles.heilbronnText, heilbronnAnimatedStyle]}>
                 {' '}Heilbronn
               </Animated.Text>
             </View>
-            <Animated.Text 
-              entering={FadeIn.duration(600).delay(700)}
-              style={styles.campusConnectText}
-            >
+            <Animated.Text style={[styles.campusConnectText, campusConnectAnimatedStyle]}>
               campus-connect
             </Animated.Text>
           </View>
-        </Animated.View>
+        </View>
       </View>
 
       {/* Blue Progress Indicator at Bottom */}
@@ -125,7 +260,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: height * 0.525, // Matches Figma design
+    height: height * 0.525,
   },
   contentContainer: {
     position: 'absolute',
@@ -188,7 +323,8 @@ const styles = StyleSheet.create({
   progressIndicator: {
     position: 'absolute',
     bottom: 7,
-    left: 139,
+    left: '50%',
+    marginLeft: -67.5,
     width: 135,
     height: 5,
     backgroundColor: '#0066cc',

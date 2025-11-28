@@ -189,12 +189,12 @@ export default function LoginScreen() {
                 </TouchableOpacity>
               </Link>
             </Animated.View>
-
-            {/* Progress Indicator */}
-            <View style={styles.progressIndicator} />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Progress Indicator - At bottom of screen */}
+      <View style={styles.progressIndicator} />
     </ImageBackground>
   );
 }
@@ -344,11 +344,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.16,
   },
   progressIndicator: {
+    position: 'absolute',
+    bottom: 7,
+    left: '50%',
+    marginLeft: -67.5, // Half of 135px width to center it
     width: 135,
     height: 5,
     backgroundColor: '#0066cc',
     borderRadius: 100,
-    alignSelf: 'center',
-    marginTop: 8,
   },
 });
