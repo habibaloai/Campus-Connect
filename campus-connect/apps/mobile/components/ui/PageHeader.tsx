@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { ChevronLeft, Edit, MoreVertical, Settings } from 'lucide-react-native';
 import { useColorScheme } from '@/components/useColorScheme';
 import { router } from 'expo-router';
@@ -54,10 +54,18 @@ export default function PageHeader({
   return (
     <View style={[styles.container, { backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)' }]}>
       <View style={styles.content}>
-        {showBack && (
+        {showBack ? (
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <ChevronLeft size={24} color={isDark ? '#ffffff' : '#1e293b'} />
           </TouchableOpacity>
+        ) : (
+          <View style={styles.logoContainer}>
+            <Image 
+              source={require('@/assets/images/tum-logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
         )}
         <View style={styles.titleContainer}>
           <Text style={[styles.title, { color: isDark ? '#ffffff' : '#1e293b' }]}>{title}</Text>
@@ -86,6 +94,17 @@ const styles = StyleSheet.create({
   backButton: {
     marginRight: 12,
     padding: 4,
+  },
+  logoContainer: {
+    width: 40,
+    height: 40,
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    width: 40,
+    height: 40,
   },
   titleContainer: {
     flex: 1,

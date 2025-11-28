@@ -22,6 +22,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth, useMessages } from '@/providers';
 import { api, supabase } from '@/lib/supabase';
+import PageHeader from '@/components/ui/PageHeader';
 
 interface Participant {
   id: string;
@@ -289,6 +290,7 @@ export default function MessagesScreen() {
   return (
     <BackgroundImage>
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+      <PageHeader title="Messages" showBack={false} />
       {/* Search Bar */}
       <Animated.View
         entering={FadeInDown.duration(400).springify()}

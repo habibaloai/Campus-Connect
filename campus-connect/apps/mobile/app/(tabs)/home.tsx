@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -65,12 +66,44 @@ const todaysClasses = [
   },
 ];
 
-// Stats data
+// Stats data with gradient colors
 const statsData = [
-  { id: 'gpa', label: 'GPA', value: '3.75', icon: TrendingUp, color: '#10b981', bgColor: '#d1fae5' },
-  { id: 'credits', label: 'Credits', value: '78', icon: BookOpen, color: '#0066cc', bgColor: '#e6f2ff' },
-  { id: 'balance', label: 'Balance', value: '$156', icon: Wallet, color: '#f59e0b', bgColor: '#fef3c7' },
-  { id: 'points', label: 'Points', value: '2.4K', icon: Award, color: '#ef4444', bgColor: '#fee2e2' },
+  { 
+    id: 'gpa', 
+    label: 'GPA', 
+    value: '3.75', 
+    icon: TrendingUp, 
+    gradient: ['#10b981', '#059669'],
+    iconBg: 'rgba(16, 185, 129, 0.2)',
+    iconColor: '#ffffff',
+  },
+  { 
+    id: 'credits', 
+    label: 'Credits', 
+    value: '78', 
+    icon: BookOpen, 
+    gradient: ['#0066cc', '#0052a3'],
+    iconBg: 'rgba(0, 102, 204, 0.2)',
+    iconColor: '#ffffff',
+  },
+  { 
+    id: 'balance', 
+    label: 'Balance', 
+    value: '$156', 
+    icon: Wallet, 
+    gradient: ['#3b82f6', '#2563eb'],
+    iconBg: 'rgba(59, 130, 246, 0.2)',
+    iconColor: '#ffffff',
+  },
+  { 
+    id: 'points', 
+    label: 'Points', 
+    value: '2.4K', 
+    icon: Award, 
+    gradient: ['#6366f1', '#4f46e5'],
+    iconBg: 'rgba(99, 102, 241, 0.2)',
+    iconColor: '#ffffff',
+  },
 ];
 
 export default function HomeScreen() {
@@ -139,46 +172,55 @@ export default function HomeScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0066cc" />
           }
         >
-          {/* Professional Header */}
+          {/* Professional Header with Gradient */}
           <Animated.View 
             key={`header-${animationKey}`}
             entering={FadeInDown.duration(500).springify()}
-            style={styles.header}
+            style={styles.headerContainer}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={styles.logoContainer}>
-                <Image 
-                  source={require('@/assets/images/tum-logo.png')}
-                  style={styles.logo}
-                  resizeMode="contain"
-                />
-              </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={[styles.headerTitle, { color: isDark ? '#ffffff' : '#1e293b' }]}>
-                  Campus Connect
-                </Text>
-                <Text style={[styles.headerSubtitle, { color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#64748b' }]}>
-                  {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                </Text>
-              </View>
-            </View>
-            
-            <TouchableOpacity
-              onPress={() => router.push('/notifications')}
-              style={[styles.notificationButton, isDark && styles.notificationButtonDark]}
+            <LinearGradient
+              colors={isDark ? ['rgba(0, 102, 204, 0.15)', 'rgba(0, 102, 204, 0.05)'] : ['rgba(0, 102, 204, 0.08)', 'rgba(255, 255, 255, 0.95)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.headerGradient}
             >
-              <Bell size={20} color={isDark ? "#ffffff" : "#1e293b"} />
-              {unreadCount > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </Text>
+              <View style={styles.header}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <View style={styles.logoContainer}>
+                    <Image 
+                      source={require('@/assets/images/tum-logo.png')}
+                      style={styles.logo}
+                      resizeMode="contain"
+                    />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={[styles.headerTitle, { color: isDark ? '#ffffff' : '#1e293b' }]}>
+                      Campus Connect
+                    </Text>
+                    <Text style={[styles.headerSubtitle, { color: isDark ? 'rgba(255, 255, 255, 0.8)' : '#64748b' }]}>
+                      {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                    </Text>
+                  </View>
                 </View>
-              )}
-            </TouchableOpacity>
+                
+                <TouchableOpacity
+                  onPress={() => router.push('/notifications')}
+                  style={[styles.notificationButton, isDark && styles.notificationButtonDark]}
+                >
+                  <Bell size={20} color={isDark ? "#ffffff" : "#1e293b"} />
+                  {unreadCount > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
           </Animated.View>
 
-          {/* Greeting Section */}
+          {/* Enhanced Greeting Section */}
           <Animated.View 
             key={`greeting-${animationKey}`}
             entering={FadeInDown.duration(500).delay(100).springify()}
@@ -192,10 +234,15 @@ export default function HomeScreen() {
                 Here's your overview for today
               </Text>
             </View>
-            <View style={[styles.streakBadge, isDark && styles.streakBadgeDark]}>
-              <Flame size={16} color="#f97316" />
+            <LinearGradient
+              colors={['#ff6b35', '#f97316']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.streakBadgeGradient}
+            >
+              <Flame size={16} color="#ffffff" />
               <Text style={styles.streakText}>{streak} day streak</Text>
-            </View>
+            </LinearGradient>
           </Animated.View>
 
           {/* Horizontal Scrolling Stats */}
@@ -218,15 +265,36 @@ export default function HomeScreen() {
                   entering={FadeInRight.duration(400).delay(250 + index * 80).springify()}
                   style={[styles.statCard, { width: CARD_WIDTH }]}
                 >
-                  <View style={[styles.statIconContainer, { backgroundColor: stat.bgColor }]}>
-                    <stat.icon size={24} color={stat.color} />
-                  </View>
-                  <Text style={[styles.statValue, { color: isDark ? '#ffffff' : '#1e293b' }]}>
-                    {stat.value}
-                  </Text>
-                  <Text style={[styles.statLabel, { color: isDark ? '#94a3b8' : '#64748b' }]}>
-                    {stat.label}
-                  </Text>
+                  <LinearGradient
+                    colors={stat.gradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.statGradient}
+                  >
+                    {/* Decorative circle pattern */}
+                    <View style={styles.statPattern}>
+                      <View style={[styles.patternCircle, { top: -20, right: -20 }]} />
+                      <View style={[styles.patternCircle, { bottom: -30, left: -30, width: 60, height: 60 }]} />
+                    </View>
+                    
+                    {/* Icon with glow effect */}
+                    <View style={[styles.statIconContainer, { backgroundColor: stat.iconBg }]}>
+                      <stat.icon size={28} color={stat.iconColor} strokeWidth={2.5} />
+                    </View>
+                    
+                    {/* Value and Label */}
+                    <View style={styles.statContent}>
+                      <Text style={styles.statValue}>
+                        {stat.value}
+                      </Text>
+                      <Text style={styles.statLabel}>
+                        {stat.label}
+                      </Text>
+                    </View>
+                    
+                    {/* Subtle shine effect */}
+                    <View style={styles.statShine} />
+                  </LinearGradient>
                 </Animated.View>
               ))}
             </ScrollView>
@@ -264,31 +332,55 @@ export default function HomeScreen() {
                   entering={FadeInRight.duration(400).delay(350 + index * 80).springify()}
                   style={[styles.classCard, { width: CARD_WIDTH }]}
                 >
-                  <View style={styles.classHeader}>
-                    <View style={[styles.classTimeBadge, classItem.isNow && styles.classTimeBadgeActive]}>
-                      <Clock size={14} color={classItem.isNow ? "#ffffff" : (isDark ? '#9ca3af' : '#6b7280')} />
-                      <Text style={[styles.classTime, classItem.isNow && styles.classTimeActive]}>
-                        {classItem.time}
+                  <LinearGradient
+                    colors={isDark 
+                      ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)'] 
+                      : ['rgba(255, 255, 255, 0.98)', 'rgba(240, 247, 255, 0.98)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.classGradient}
+                  >
+                    <View style={styles.classHeader}>
+                      {classItem.isNow ? (
+                        <LinearGradient
+                          colors={['#0066cc', '#0052a3']}
+                          style={styles.classTimeBadgeActive}
+                        >
+                          <Clock size={14} color="#ffffff" />
+                          <Text style={styles.classTimeActive}>
+                            {classItem.time}
+                          </Text>
+                        </LinearGradient>
+                      ) : (
+                        <View style={styles.classTimeBadge}>
+                          <Clock size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
+                          <Text style={[styles.classTime, { color: isDark ? '#9ca3af' : '#6b7280' }]}>
+                            {classItem.time}
+                          </Text>
+                        </View>
+                      )}
+                      {classItem.isNow && (
+                        <LinearGradient
+                          colors={['#ef4444', '#dc2626']}
+                          style={styles.nowBadge}
+                        >
+                          <Text style={styles.nowBadgeText}>NOW</Text>
+                        </LinearGradient>
+                      )}
+                    </View>
+                    <Text style={[styles.classCode, { color: isDark ? '#ffffff' : '#1e293b' }]}>
+                      {classItem.code}
+                    </Text>
+                    <Text style={[styles.className, { color: isDark ? '#94a3b8' : '#64748b' }]}>
+                      {classItem.name}
+                    </Text>
+                    <View style={styles.classLocation}>
+                      <MapPin size={14} color={isDark ? '#64748b' : '#94a3b8'} />
+                      <Text style={[styles.classLocationText, { color: isDark ? '#64748b' : '#94a3b8' }]}>
+                        {classItem.location}
                       </Text>
                     </View>
-                    {classItem.isNow && (
-                      <View style={styles.nowBadge}>
-                        <Text style={styles.nowBadgeText}>NOW</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={[styles.classCode, { color: isDark ? '#ffffff' : '#1e293b' }]}>
-                    {classItem.code}
-                  </Text>
-                  <Text style={[styles.className, { color: isDark ? '#94a3b8' : '#64748b' }]}>
-                    {classItem.name}
-                  </Text>
-                  <View style={styles.classLocation}>
-                    <MapPin size={14} color={isDark ? '#64748b' : '#94a3b8'} />
-                    <Text style={[styles.classLocationText, { color: isDark ? '#64748b' : '#94a3b8' }]}>
-                      {classItem.location}
-                    </Text>
-                  </View>
+                  </LinearGradient>
                 </Animated.View>
               ))}
             </ScrollView>
@@ -327,36 +419,52 @@ export default function HomeScreen() {
                     entering={FadeInRight.duration(400).delay(450 + index * 80).springify()}
                     style={[styles.eventCard, { width: CARD_WIDTH }]}
                   >
-                    <Text style={[styles.eventTitle, { color: isDark ? '#ffffff' : '#1e293b' }]} numberOfLines={2}>
-                      {event.title}
-                    </Text>
-                    <View style={styles.eventDetails}>
-                      <View style={styles.eventDetailRow}>
-                        <Calendar size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
-                        <Text style={[styles.eventDetailText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
-                          {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </Text>
-                      </View>
-                      <View style={styles.eventDetailRow}>
-                        <MapPin size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
-                        <Text style={[styles.eventDetailText, { color: isDark ? '#94a3b8' : '#64748b' }]} numberOfLines={1}>
-                          {event.location}
-                        </Text>
-                      </View>
-                      <View style={styles.eventDetailRow}>
-                        <Users size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
-                        <Text style={[styles.eventDetailText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
-                          {event.attendee_count || 0} attending
-                        </Text>
-                      </View>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.eventButton}
-                      onPress={() => router.push(`/(tabs)/events/${event.id}`)}
+                    <LinearGradient
+                      colors={isDark 
+                        ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)'] 
+                        : ['rgba(255, 255, 255, 0.98)', 'rgba(240, 247, 255, 0.98)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.eventGradient}
                     >
-                      <Text style={styles.eventButtonText}>View Event</Text>
-                      <ArrowRight size={16} color="#ffffff" />
-                    </TouchableOpacity>
+                      <Text style={[styles.eventTitle, { color: isDark ? '#ffffff' : '#1e293b' }]} numberOfLines={2}>
+                        {event.title}
+                      </Text>
+                      <View style={styles.eventDetails}>
+                        <View style={styles.eventDetailRow}>
+                          <Calendar size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
+                          <Text style={[styles.eventDetailText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
+                            {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </Text>
+                        </View>
+                        <View style={styles.eventDetailRow}>
+                          <MapPin size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
+                          <Text style={[styles.eventDetailText, { color: isDark ? '#94a3b8' : '#64748b' }]} numberOfLines={1}>
+                            {event.location}
+                          </Text>
+                        </View>
+                        <View style={styles.eventDetailRow}>
+                          <Users size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
+                          <Text style={[styles.eventDetailText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
+                            {event.attendee_count || 0} attending
+                          </Text>
+                        </View>
+                      </View>
+                      <LinearGradient
+                        colors={['#0066cc', '#0052a3']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.eventButton}
+                      >
+                        <TouchableOpacity
+                          onPress={() => router.push(`/(tabs)/events/${event.id}`)}
+                          style={styles.eventButtonContent}
+                        >
+                          <Text style={styles.eventButtonText}>View Event</Text>
+                          <ArrowRight size={16} color="#ffffff" />
+                        </TouchableOpacity>
+                      </LinearGradient>
+                    </LinearGradient>
                   </Animated.View>
                 ))}
               </ScrollView>
@@ -383,20 +491,32 @@ export default function HomeScreen() {
 
             <TouchableOpacity
               onPress={() => router.push('/notifications')}
-              style={[styles.notificationCard, isDark && styles.notificationCardDark]}
+              style={styles.notificationCard}
             >
-              <View style={[styles.notificationIconContainer, { backgroundColor: '#e6f2ff' }]}>
-                <Bell size={22} color="#0066cc" />
-              </View>
-              <View style={styles.notificationContent}>
-                <Text style={[styles.notificationTitle, { color: isDark ? '#ffffff' : '#1e293b' }]}>
-                  {unreadCount > 0 ? `You have ${unreadCount} new notification${unreadCount > 1 ? 's' : ''}` : 'No new notifications'}
-                </Text>
-                <Text style={[styles.notificationSubtext, { color: isDark ? '#94a3b8' : '#64748b' }]}>
-                  {unreadCount > 0 ? 'Tap to view all notifications' : 'You\'re all caught up!'}
-                </Text>
-              </View>
-              <ChevronRight size={20} color={isDark ? '#9ca3af' : '#9ca3af'} />
+              <LinearGradient
+                colors={isDark 
+                  ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)'] 
+                  : ['rgba(255, 255, 255, 0.98)', 'rgba(240, 247, 255, 0.98)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.notificationGradient}
+              >
+                <LinearGradient
+                  colors={['#0066cc', '#0052a3']}
+                  style={styles.notificationIconContainer}
+                >
+                  <Bell size={22} color="#ffffff" />
+                </LinearGradient>
+                <View style={styles.notificationContent}>
+                  <Text style={[styles.notificationTitle, { color: isDark ? '#ffffff' : '#1e293b' }]}>
+                    {unreadCount > 0 ? `You have ${unreadCount} new notification${unreadCount > 1 ? 's' : ''}` : 'No new notifications'}
+                  </Text>
+                  <Text style={[styles.notificationSubtext, { color: isDark ? '#94a3b8' : '#64748b' }]}>
+                    {unreadCount > 0 ? 'Tap to view all notifications' : 'You\'re all caught up!'}
+                  </Text>
+                </View>
+                <ChevronRight size={20} color={isDark ? '#9ca3af' : '#9ca3af'} />
+              </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
 
@@ -412,24 +532,31 @@ export default function HomeScreen() {
             
             <View style={styles.quickActionsGrid}>
               {[
-                { title: 'Community', route: '/(tabs)/community', icon: Users, color: '#00897b', bgColor: '#e0f2f1' },
-                { title: 'Events', route: '/(tabs)/events', icon: Calendar, color: '#0066cc', bgColor: '#e6f2ff' },
-                { title: 'Messages', route: '/(tabs)/messages', icon: MessageCircle, color: '#0066cc', bgColor: '#e6f2ff' },
-                { title: 'Profile', route: '/(tabs)/profile', icon: Users, color: '#6b7280', bgColor: '#f3f4f6' },
+                { title: 'Community', route: '/(tabs)/community', icon: Users, gradient: ['#00897b', '#00695c'] },
+                { title: 'Events', route: '/(tabs)/events', icon: Calendar, gradient: ['#0066cc', '#0052a3'] },
+                { title: 'Messages', route: '/(tabs)/messages', icon: MessageCircle, gradient: ['#3b82f6', '#2563eb'] },
+                { title: 'Profile', route: '/(tabs)/profile', icon: Users, gradient: ['#6366f1', '#4f46e5'] },
               ].map((action, index) => {
                 const Icon = action.icon;
                 return (
                   <TouchableOpacity
                     key={action.title}
                     onPress={() => router.push(action.route as any)}
-                    style={[styles.quickActionCard, isDark && styles.quickActionCardDark]}
+                    style={styles.quickActionCard}
                   >
-                    <View style={[styles.quickActionIcon, { backgroundColor: action.bgColor }]}>
-                      <Icon size={20} color={action.color} />
-                    </View>
-                    <Text style={[styles.quickActionText, { color: isDark ? '#ffffff' : '#1e293b' }]}>
-                      {action.title}
-                    </Text>
+                    <LinearGradient
+                      colors={action.gradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.quickActionGradient}
+                    >
+                      <View style={styles.quickActionIconContainer}>
+                        <Icon size={24} color="#ffffff" strokeWidth={2.5} />
+                      </View>
+                      <Text style={styles.quickActionText}>
+                        {action.title}
+                      </Text>
+                    </LinearGradient>
                   </TouchableOpacity>
                 );
               })}
@@ -437,12 +564,12 @@ export default function HomeScreen() {
           </Animated.View>
 
           {/* Sign Out Button */}
-          <View className="px-5 mt-6">
+          <View style={styles.signOutContainer}>
             <TouchableOpacity
               onPress={signOut}
-              className={`py-3.5 rounded-xl items-center ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}
+              style={[styles.signOutButton, isDark && styles.signOutButtonDark]}
             >
-              <Text className={`font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              <Text style={[styles.signOutText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
                 Sign Out
               </Text>
             </TouchableOpacity>
@@ -457,10 +584,19 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  header: {
+  headerContainer: {
+    marginBottom: 8,
+  },
+  headerGradient: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 16,
+    paddingBottom: 20,
+    borderRadius: 0,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    marginHorizontal: 0,
+  },
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -488,20 +624,23 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   notificationButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   notificationButtonDark: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   badge: {
     position: 'absolute',
@@ -542,23 +681,27 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
   },
-  streakBadge: {
+  streakBadgeGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffedd5',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
     marginLeft: 12,
-  },
-  streakBadgeDark: {
-    backgroundColor: 'rgba(249, 115, 22, 0.2)',
+    shadowColor: '#f97316',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   streakText: {
-    color: '#ea580c',
-    fontWeight: '600',
+    color: '#ffffff',
+    fontWeight: '700',
     fontSize: 13,
     marginLeft: 6,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   sectionContainer: {
     marginBottom: 32,
@@ -568,22 +711,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 20,
+    paddingVertical: 8,
   },
   sectionTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 102, 204, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginLeft: 8,
-    letterSpacing: -0.3,
+    fontSize: 19,
+    fontWeight: '800',
+    marginLeft: 10,
+    letterSpacing: -0.4,
   },
   viewAllText: {
     color: '#0066cc',
-    fontWeight: '600',
-    fontSize: 14,
+    fontWeight: '700',
+    fontSize: 15,
+    letterSpacing: 0.2,
   },
   horizontalScrollContent: {
     paddingLeft: 20,
@@ -591,44 +740,95 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   statCard: {
-    padding: 20,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    borderRadius: 24,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
-    alignItems: 'center',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  statIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
+  statGradient: {
+    padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    minHeight: 160,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  statPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.15,
+  },
+  patternCircle: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  statIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  statContent: {
+    alignItems: 'center',
+    zIndex: 1,
   },
   statValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 4,
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginBottom: 6,
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   statLabel: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.9)',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1.2,
+  },
+  statShine: {
+    position: 'absolute',
+    top: -50,
+    left: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    transform: [{ rotate: '45deg' }],
   },
   classCard: {
-    padding: 20,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    borderRadius: 24,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  classGradient: {
+    padding: 24,
+    borderRadius: 24,
   },
   classHeader: {
     flexDirection: 'row',
@@ -639,28 +839,38 @@ const styles = StyleSheet.create({
   classTimeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(241, 245, 249, 0.8)',
   },
   classTimeBadgeActive: {
-    backgroundColor: '#0066cc',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
   },
   classTime: {
     fontSize: 13,
     fontWeight: '600',
     marginLeft: 6,
-    color: '#6b7280',
   },
   classTimeActive: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginLeft: 6,
     color: '#ffffff',
   },
   nowBadge: {
-    backgroundColor: '#0066cc',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   nowBadgeText: {
     color: '#ffffff',
@@ -689,14 +899,17 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   eventCard: {
-    padding: 20,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    borderRadius: 24,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  eventGradient: {
+    padding: 24,
+    borderRadius: 24,
   },
   eventTitle: {
     fontSize: 18,
@@ -718,43 +931,57 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   eventButton: {
+    borderRadius: 14,
+    marginTop: 12,
+    shadowColor: '#0066cc',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  eventButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0066cc',
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
   },
   eventButtonText: {
     color: '#ffffff',
-    fontWeight: '600',
-    fontSize: 14,
-    marginRight: 6,
+    fontWeight: '700',
+    fontSize: 15,
+    marginRight: 8,
+    letterSpacing: 0.3,
   },
   notificationCard: {
+    marginHorizontal: 20,
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  notificationGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
-    marginHorizontal: 20,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  notificationCardDark: {
-    backgroundColor: 'rgba(30, 41, 59, 0.98)',
+    borderRadius: 24,
   },
   notificationIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
+    shadowColor: '#0066cc',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   notificationContent: {
     flex: 1,
@@ -775,28 +1002,61 @@ const styles = StyleSheet.create({
   },
   quickActionCard: {
     width: (SCREEN_WIDTH - 64) / 2, // 20px padding * 2 + 12px gap
-    padding: 20,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    borderRadius: 20,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  quickActionGradient: {
+    padding: 24,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 120,
   },
-  quickActionCardDark: {
-    backgroundColor: 'rgba(30, 41, 59, 0.98)',
-  },
-  quickActionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+  quickActionIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   quickActionText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffffff',
+    letterSpacing: 0.3,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  signOutContainer: {
+    paddingHorizontal: 20,
+    marginTop: 24,
+    marginBottom: 32,
+  },
+  signOutButton: {
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    backgroundColor: 'rgba(241, 245, 249, 0.8)',
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.2)',
+  },
+  signOutButtonDark: {
+    backgroundColor: 'rgba(30, 41, 59, 0.6)',
+    borderColor: 'rgba(148, 163, 184, 0.1)',
+  },
+  signOutText: {
     fontSize: 15,
     fontWeight: '600',
   },
