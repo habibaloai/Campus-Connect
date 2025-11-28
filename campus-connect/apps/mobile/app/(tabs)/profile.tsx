@@ -1,8 +1,9 @@
 import React, { useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, Switch, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, Switch, StyleSheet, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import BackgroundImage from '@/components/BackgroundImage';
+import ProfileHeader from '@/components/ui/ProfileHeader';
 import {
   User,
   Mail,
@@ -35,6 +36,8 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuth } from '@/providers';
 import { useColorScheme } from '@/components/useColorScheme';
 
+const { width } = Dimensions.get('window');
+
 export default function ProfileScreen() {
   const { user, profile, signOut, biometricAvailable, biometricEnabled, enableBiometric, disableBiometric, refreshProfile } = useAuth();
   const colorScheme = useColorScheme();
@@ -51,7 +54,7 @@ export default function ProfileScreen() {
   );
 
   const quickLinks = [
-    { icon: BookOpen, label: 'Academics', route: '/academics', color: '#3b82f6', bgColor: '#dbeafe' },
+    { icon: BookOpen, label: 'Academics', route: '/academics', color: '#0066cc', bgColor: '#e6f2ff' },
     { icon: Wallet, label: 'Financial', route: '/financial', color: '#10b981', bgColor: '#d1fae5' },
     { icon: Utensils, label: 'Dining', route: '/dining', color: '#f59e0b', bgColor: '#fef3c7' },
     { icon: Navigation, label: 'Navigate', route: '/transport', color: '#6366f1', bgColor: '#e0e7ff' },
@@ -63,7 +66,7 @@ export default function ProfileScreen() {
 
   const gamificationLinks = [
     { icon: Flame, label: 'Streaks', route: '/streaks', color: '#f59e0b', bgColor: '#fef3c7' },
-    { icon: TrendingUp, label: 'Leaderboards', route: '/leaderboards', color: '#3b82f6', bgColor: '#dbeafe' },
+    { icon: TrendingUp, label: 'Leaderboards', route: '/leaderboards', color: '#0066cc', bgColor: '#e6f2ff' },
     { icon: Target, label: 'Challenges', route: '/challenges', color: '#10b981', bgColor: '#d1fae5' },
   ];
 
@@ -102,253 +105,244 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <BackgroundImage>
-      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+    <BackgroundImage overlayOpacity={isDark ? 0.7 : 0.4}>
+      <SafeAreaView style={{ flex: 1 }} edges={[]}>
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        {/* Profile Header */}
-        <Animated.View
-          entering={FadeInDown.duration(500).springify()}
-          style={{
-            paddingVertical: 20,
-            paddingHorizontal: 20,
-            marginHorizontal: 20,
-            marginTop: 12,
-            borderRadius: 24,
-            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: isDark ? 0.3 : 0.15,
-            shadowRadius: 12,
-            elevation: 6,
-          }}
-        >
-          <View className="flex-row items-start">
-            {/* Profile Picture */}
-            <View className="w-24 h-24 rounded-full bg-blue-100 items-center justify-center mr-4" style={{ overflow: 'hidden' }}>
-              {profile?.avatar_url ? (
-                <Image
-                  source={{ uri: profile.avatar_url }}
-                  className="w-24 h-24 rounded-full"
-                />
-              ) : (
-                <User size={40} color="#3b82f6" />
-              )}
-            </View>
+          {/* Profile Header with Background Image */}
+          <ProfileHeader
+            username={profile?.nickname || user?.email?.split('@')[0] || 'student'}
+            name={profile?.name || 'Student'}
+            location={profile?.major ? `${profile.major}${profile.year ? ` • ${profile.year}` : ''}` : undefined}
+            avatarUrl={profile?.avatar_url}
+            followers={220}
+            following={150}
+          />
 
-            {/* Name and Info */}
-            <View className="flex-1">
-              <Text className={`text-xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                {profile?.nickname || profile?.name || 'Student'}
-              </Text>
-              {profile?.nickname && profile.nickname !== profile.name && (
-                <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  {profile.name}
-                </Text>
-              )}
-              {profile?.major && (
-                <View className="flex-row items-center mb-2">
-                  <GraduationCap size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
-                  <Text className={`text-sm ml-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {profile.major} • {profile.year || 'Student'}
-                  </Text>
-                </View>
-              )}
-
-              {/* Follow, Friend Requests, Map */}
-              <View className="flex-row items-start mt-4" style={{ gap: 20 }}>
-                <TouchableOpacity
-                  onPress={() => router.push('/connections')}
-                  className="items-center"
-                  activeOpacity={0.7}
-                >
-                  <View className={`w-10 h-10 rounded-full items-center justify-center mb-1.5 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                    <UserCheck size={18} color={isDark ? '#9ca3af' : '#6b7280'} />
-                  </View>
-                  <Text className={`text-xs text-center ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                    Follow
-                  </Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  onPress={() => router.push('/connections/requests')}
-                  className="items-center"
-                  activeOpacity={0.7}
-                >
-                  <View className={`w-10 h-10 rounded-full items-center justify-center mb-1.5 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                    <UserPlus size={18} color={isDark ? '#9ca3af' : '#6b7280'} />
-                  </View>
-                  <Text className={`text-xs text-center ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                    Requests
-                  </Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  onPress={() => router.push('/connections/map')}
-                  className="items-center"
-                  activeOpacity={0.7}
-                >
-                  <View className={`w-10 h-10 rounded-full items-center justify-center mb-1.5 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                    <MapPin size={18} color={isDark ? '#9ca3af' : '#6b7280'} />
-                  </View>
-                  <Text className={`text-xs text-center ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                    Map
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-
-          {/* Description, Hobbies, Favorite Lecture */}
-          <View className="mt-4 pt-4" style={{ borderTopWidth: 1, borderTopColor: isDark ? '#374151' : '#e5e7eb' }}>
-            <Text className={`text-sm mb-3 leading-5 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-              {profile?.bio || 'Passionate student exploring the world of technology and innovation.'}
-            </Text>
-            
-            <View className="flex-row flex-wrap" style={{ gap: 8 }}>
-              {/* Favorite Lecture - First */}
-              <View className="flex-row items-center px-3 py-1.5 rounded-full" style={{ backgroundColor: isDark ? '#374151' : '#f3f4f6' }}>
-                <BookOpen size={12} color={isDark ? '#9ca3af' : '#6b7280'} />
-                <Text className={`text-xs ml-1.5 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`} numberOfLines={1}>
-                  {profile?.favorite_lecture || 'Introduction to Computer Science'}
-                </Text>
-              </View>
-
-              {/* Interests - Second and Third */}
-              {profile?.interests && profile.interests.length > 0 ? (
-                profile.interests.slice(0, 2).map((interest, idx) => (
-                  <View key={idx} className="flex-row items-center px-3 py-1.5 rounded-full" style={{ backgroundColor: isDark ? '#374151' : '#f3f4f6' }}>
-                    <Hash size={12} color={isDark ? '#9ca3af' : '#6b7280'} />
-                    <Text className={`text-xs ml-1.5 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      {interest}
-                    </Text>
-                  </View>
-                ))
-              ) : (
-                <>
-                  <View className="flex-row items-center px-3 py-1.5 rounded-full" style={{ backgroundColor: isDark ? '#374151' : '#f3f4f6' }}>
-                    <Hash size={12} color={isDark ? '#9ca3af' : '#6b7280'} />
-                    <Text className={`text-xs ml-1.5 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Photography
-                    </Text>
-                  </View>
-                  <View className="flex-row items-center px-3 py-1.5 rounded-full" style={{ backgroundColor: isDark ? '#374151' : '#f3f4f6' }}>
-                    <Hash size={12} color={isDark ? '#9ca3af' : '#6b7280'} />
-                    <Text className={`text-xs ml-1.5 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Reading
-                    </Text>
-                  </View>
-                </>
-              )}
-            </View>
-          </View>
-
-          {/* Edit Profile Button */}
-          <TouchableOpacity
-            onPress={() => router.push('/profile/edit')}
-            className={`flex-row items-center justify-center py-2.5 mt-4 rounded-lg ${isDark ? 'bg-gray-700/50' : 'bg-gray-100'}`}
-            activeOpacity={0.7}
+          {/* Bio/Description Section */}
+          <Animated.View
+            entering={FadeInDown.duration(500).delay(100).springify()}
             style={{
-              borderWidth: 1,
-              borderColor: isDark ? '#4b5563' : '#e5e7eb',
+              paddingHorizontal: 20,
+              paddingVertical: 16,
+              marginTop: 8,
+              marginHorizontal: 20,
+              borderRadius: 16,
+              backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isDark ? 0.3 : 0.1,
+              shadowRadius: 8,
+              elevation: 4,
             }}
           >
-            <User size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
-            <Text className={`text-xs font-medium ml-1.5 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-              Edit Profile
+            <Text style={{ fontSize: 14, lineHeight: 20, color: isDark ? '#e2e8f0' : '#475569' }}>
+              {profile?.bio || 'No bio yet. Add a description in your profile settings.'}
             </Text>
-          </TouchableOpacity>
-        </Animated.View>
+          </Animated.View>
 
-        {/* Gamification Section */}
-        <Animated.View
-          entering={FadeInDown.duration(500).delay(100).springify()}
-          className="px-5 mt-5"
-        >
-          <View className="flex-row flex-wrap justify-between">
-            {gamificationLinks.map((link, index) => (
-              <TouchableOpacity
-                key={link.label}
-                onPress={() => router.push(link.route as any)}
-                style={{
-                  width: '31%',
-                  alignItems: 'center',
-                  marginBottom: 16,
-                  padding: 16,
-                  borderRadius: 16,
-                  backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: isDark ? 0.3 : 0.15,
-                  shadowRadius: 12,
-                  elevation: 6,
-                }}
-                style={{
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: isDark ? 0.3 : 0.06,
-                  shadowRadius: 6,
-                  elevation: 3,
-                }}
-                activeOpacity={0.8}
-              >
+          {/* Scrollable Interests, Hobbies, and Descriptions */}
+          <Animated.View
+            entering={FadeInDown.duration(500).delay(150).springify()}
+            style={{
+              marginTop: 12,
+              marginHorizontal: 20,
+            }}
+          >
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 4, gap: 8 }}
+            >
+              {profile?.favorite_lecture && (
                 <View
-                  className="w-12 h-12 rounded-xl items-center justify-center mb-2.5"
-                  style={{ backgroundColor: link.bgColor }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: isDark ? 0.3 : 0.1,
+                    shadowRadius: 4,
+                    elevation: 3,
+                  }}
                 >
-                  <link.icon size={22} color={link.color} />
+                  <BookOpen size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: '500',
+                      marginLeft: 8,
+                      color: isDark ? '#e2e8f0' : '#475569',
+                    }}
+                  >
+                    {profile.favorite_lecture}
+                  </Text>
                 </View>
-                <Text className={`text-xs font-semibold text-center ${isDark ? 'text-white' : 'text-gray-700'}`} numberOfLines={1}>
-                  {link.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Animated.View>
+              )}
 
-        {/* Quick Links */}
-        <Animated.View
-          entering={FadeInDown.duration(500).delay(150).springify()}
-          className="px-5 mt-2"
-        >
-          <Text className={`text-sm font-semibold mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            Quick Access
-          </Text>
-          <View className="flex-row flex-wrap justify-between">
-            {quickLinks.map((link, index) => (
-              <TouchableOpacity
-                key={link.label}
-                onPress={() => router.push(link.route as any)}
-                style={{
-                  width: '23%',
-                  alignItems: 'center',
-                  marginBottom: 16,
-                  padding: 12,
-                  borderRadius: 16,
-                  backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: isDark ? 0.3 : 0.15,
-                  shadowRadius: 12,
-                  elevation: 6,
-                }}
-                activeOpacity={0.8}
-              >
+              {profile?.interests && profile.interests.length > 0 && profile.interests.map((interest, idx) => (
                 <View
-                  className="w-10 h-10 rounded-xl items-center justify-center mb-2"
-                  style={{ backgroundColor: link.bgColor }}
+                  key={idx}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: isDark ? 0.3 : 0.1,
+                    shadowRadius: 4,
+                    elevation: 3,
+                  }}
                 >
-                  <link.icon size={20} color={link.color} />
+                  <Hash size={12} color={isDark ? '#9ca3af' : '#6b7280'} />
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: '500',
+                      marginLeft: 6,
+                      color: isDark ? '#e2e8f0' : '#475569',
+                    }}
+                  >
+                    {interest}
+                  </Text>
                 </View>
-                <Text className={`text-xs font-medium text-center ${isDark ? 'text-white' : 'text-gray-700'}`} numberOfLines={1}>
-                  {link.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Animated.View>
+              ))}
 
-        {/* Menu Sections */}
-        <View className="px-5 pt-2 pb-4">
+              {profile?.bio && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: isDark ? 0.3 : 0.1,
+                    shadowRadius: 4,
+                    elevation: 3,
+                    maxWidth: 200,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: '500',
+                      color: isDark ? '#e2e8f0' : '#475569',
+                    }}
+                    numberOfLines={1}
+                  >
+                    {profile.bio.length > 30 ? `${profile.bio.substring(0, 30)}...` : profile.bio}
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+          </Animated.View>
+
+          {/* Quick Links Section */}
+          <Animated.View
+            entering={FadeInDown.duration(500).delay(200).springify()}
+            style={{ paddingHorizontal: 20, marginTop: 24 }}
+          >
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 16, color: isDark ? '#ffffff' : '#1e293b' }}>
+              Quick Links
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+              {quickLinks.map((link, index) => (
+                <TouchableOpacity
+                  key={link.label}
+                  onPress={() => router.push(link.route as any)}
+                  style={{
+                    width: (width - 52) / 2,
+                    padding: 16,
+                    borderRadius: 16,
+                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: isDark ? 0.3 : 0.06,
+                    shadowRadius: 6,
+                    elevation: 3,
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 12,
+                      backgroundColor: link.bgColor,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 8,
+                    }}
+                  >
+                    <link.icon size={20} color={link.color} />
+                  </View>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: isDark ? '#ffffff' : '#1e293b' }}>
+                    {link.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Animated.View>
+
+          {/* Gamification Section */}
+          <Animated.View
+            entering={FadeInDown.duration(500).delay(300).springify()}
+            style={{ paddingHorizontal: 20, marginTop: 24 }}
+          >
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 16, color: isDark ? '#ffffff' : '#1e293b' }}>
+              Gamification
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              {gamificationLinks.map((link) => (
+                <TouchableOpacity
+                  key={link.label}
+                  onPress={() => router.push(link.route as any)}
+                  style={{
+                    flex: 1,
+                    padding: 16,
+                    borderRadius: 16,
+                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: isDark ? 0.3 : 0.06,
+                    shadowRadius: 6,
+                    elevation: 3,
+                    alignItems: 'center',
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 12,
+                      backgroundColor: link.bgColor,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 8,
+                    }}
+                  >
+                    <link.icon size={20} color={link.color} />
+                  </View>
+                  <Text style={{ fontSize: 12, fontWeight: '500', color: isDark ? '#ffffff' : '#1e293b', textAlign: 'center' }}>
+                    {link.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Animated.View>
+
+            {/* Menu Sections */}
+          <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
           {menuItems.map((section, sectionIndex) => (
             <Animated.View
               key={section.title}
@@ -388,7 +382,7 @@ export default function ProfileScreen() {
                         className="w-9 h-9 rounded-xl items-center justify-center"
                         style={{ backgroundColor: isDark ? '#374151' : '#f3f4f6' }}
                       >
-                        <item.icon size={18} color="#3b82f6" />
+                        <item.icon size={18} color="#0066cc" />
                       </View>
                       <Text className={`text-base font-medium ml-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                         {item.label}
@@ -399,7 +393,7 @@ export default function ProfileScreen() {
                         value={item.value}
                         onValueChange={item.onToggle}
                         trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
-                        thumbColor={item.value ? '#3b82f6' : '#f4f4f5'}
+                        thumbColor={item.value ? '#0066cc' : '#f4f4f5'}
                       />
                     ) : (
                       <ChevronRight size={20} color={isDark ? '#6b7280' : '#d1d5db'} />
@@ -410,24 +404,27 @@ export default function ProfileScreen() {
             </Animated.View>
           ))}
 
-          {/* Sign Out Button */}
-          <Animated.View entering={FadeInDown.duration(400).delay(500).springify()}>
-            <TouchableOpacity
-              onPress={signOut}
-              className={`flex-row items-center justify-center py-4 rounded-2xl ${isDark ? 'bg-red-900/30' : 'bg-red-50'}`}
-              activeOpacity={0.7}
-            >
-              <LogOut size={20} color="#ef4444" />
-              <Text className="text-red-500 font-semibold ml-2">Sign Out</Text>
-            </TouchableOpacity>
-          </Animated.View>
-
-          {/* App Version */}
-          <Text style={{ textAlign: 'center', fontSize: 12, marginTop: 24, marginBottom: 16, color: 'rgba(255, 255, 255, 0.7)' }}>
-            Campus Connect v1.0.0
-          </Text>
-        </View>
-      </ScrollView>
+            {/* Sign Out Button */}
+            <Animated.View entering={FadeInDown.duration(400).delay(500).springify()}>
+              <TouchableOpacity
+                onPress={signOut}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 16,
+                  borderRadius: 16,
+                  backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2',
+                  marginTop: 24,
+                }}
+                activeOpacity={0.7}
+              >
+                <LogOut size={20} color="#ef4444" />
+                <Text style={{ color: '#ef4444', fontWeight: '600', marginLeft: 8 }}>Sign Out</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     </BackgroundImage>
   );

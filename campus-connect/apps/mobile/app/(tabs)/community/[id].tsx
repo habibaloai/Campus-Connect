@@ -17,6 +17,7 @@ import { Heart, MessageSquare, User, Send, ChevronLeft, Share2 } from 'lucide-re
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
 import { supabase } from '@/lib/supabase';
+import BackgroundImage from '@/components/BackgroundImage';
 
 interface Author {
   id: string;
@@ -216,31 +217,36 @@ export default function PostDetailsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className={`flex-1 items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <ActivityIndicator size="large" color="#1a73e8" />
-        <Text className={`mt-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Loading post...</Text>
-      </SafeAreaView>
+      <BackgroundImage overlayOpacity={isDark ? 0.7 : 0.4}>
+        <SafeAreaView className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#1a73e8" />
+          <Text className={`mt-4 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>Loading post...</Text>
+        </SafeAreaView>
+      </BackgroundImage>
     );
   }
 
   if (error || !post) {
     return (
-      <SafeAreaView className={`flex-1 items-center justify-center px-6 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <MessageSquare size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
-        <Text className={`mt-4 text-center ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-          {error || 'Post not found'}
-        </Text>
-        <TouchableOpacity onPress={() => router.back()} className="mt-4 bg-blue-500 px-6 py-2 rounded-lg">
-          <Text className="text-white font-medium">Go Back</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
+      <BackgroundImage overlayOpacity={isDark ? 0.7 : 0.4}>
+        <SafeAreaView className="flex-1 items-center justify-center px-6">
+          <MessageSquare size={48} color={isDark ? '#9ca3af' : '#64748b'} />
+          <Text className={`mt-4 text-center ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+            {error || 'Post not found'}
+          </Text>
+          <TouchableOpacity onPress={() => router.back()} className="mt-4 bg-blue-500 px-6 py-2 rounded-lg">
+            <Text className="text-white font-medium">Go Back</Text>
+          </TouchableOpacity>
+        </SafeAreaView>
+      </BackgroundImage>
     );
   }
 
   const categoryColor = categoryColors[post.category] || '#546e7a';
 
   return (
-    <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`} edges={['bottom']}>
+    <BackgroundImage overlayOpacity={isDark ? 0.7 : 0.4}>
+      <SafeAreaView className="flex-1" edges={['bottom']}>
       <Stack.Screen
         options={{
           title: 'Post',
@@ -403,5 +409,6 @@ export default function PostDetailsScreen() {
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </BackgroundImage>
   );
 }

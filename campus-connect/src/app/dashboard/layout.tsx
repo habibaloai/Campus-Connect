@@ -21,12 +21,12 @@ import {
   Bell,
   Settings,
   LogOut,
-  Sparkles,
   Menu,
   X,
   ChevronRight,
   Users,
 } from 'lucide-react';
+import Image from 'next/image';
 import styles from './layout.module.css';
 
 interface NavItem {
@@ -181,7 +181,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <div className={styles.headerContent}>
           <div className={styles.headerLeft}>
             <div className={styles.logoIcon}>
-              <Sparkles size={18} />
+              <Image 
+                src="/images/tum-logo.png" 
+                alt="TUM Logo" 
+                width={36} 
+                height={36}
+                style={{ objectFit: 'contain' }}
+              />
             </div>
             <h1 className={styles.headerTitle}>Campus Connect</h1>
           </div>
