@@ -5,23 +5,36 @@
 
 export const DesignSystem = {
   colors: {
-    primary: '#3b82f6',
-    primaryDark: '#2563eb',
-    primaryLight: '#60a5fa',
+    // Primary blue matching login page
+    primary: '#0066cc',
+    primaryDark: '#0052a3',
+    primaryLight: '#3385d6',
+    primaryLighter: '#66a3e0',
+    // Background colors
     background: '#f8fafc',
     backgroundDark: '#0f172a',
+    // Card colors
     card: '#ffffff',
     cardDark: '#1e293b',
+    cardOverlay: 'rgba(255, 255, 255, 0.95)',
+    cardOverlayDark: 'rgba(30, 41, 59, 0.95)',
+    // Overlay colors
     overlay: 'rgba(0, 0, 0, 0.5)',
     overlayLight: 'rgba(255, 255, 255, 0.95)',
+    // Text colors
     text: '#1e293b',
     textSecondary: '#64748b',
     textLight: '#ffffff',
+    textMuted: '#a09f99',
+    // Border colors
     border: '#e2e8f0',
     borderDark: '#334155',
+    inputBg: '#d8d8dd',
+    // Status colors
     error: '#ef4444',
     success: '#10b981',
     warning: '#f59e0b',
+    info: '#0066cc',
   },
   
   spacing: {

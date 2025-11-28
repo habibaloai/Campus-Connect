@@ -24,11 +24,16 @@ import {
   List,
   Plus,
   X,
+  Image as ImageIcon,
+  Camera,
 } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
 import { api, supabase } from '@/lib/supabase';
+import EventCard from '@/components/ui/EventCard';
+import PageHeader from '@/components/ui/PageHeader';
 
 interface Event {
   id: string;
@@ -42,6 +47,8 @@ interface Event {
   is_attending: boolean;
   max_attendees?: number;
   organizer_id?: string;
+  image_url?: string;
+  is_private?: boolean;
 }
 
 interface Attendee {
@@ -57,6 +64,7 @@ interface NewEventForm {
   date: string;
   max_attendees: string;
   description: string;
+  is_private: boolean;
 }
 
 const eventCategories = [
@@ -69,7 +77,7 @@ const eventCategories = [
 
 const categoryColors: Record<string, { bg: string; text: string }> = {
   Career: { bg: '#dcfce7', text: '#16a34a' },
-  Academic: { bg: '#dbeafe', text: '#2563eb' },
+  Academic: { bg: '#e6f2ff', text: '#0066cc' },
   Sports: { bg: '#ffedd5', text: '#ea580c' },
   Social: { bg: '#f3e8ff', text: '#9333ea' },
   Workshop: { bg: '#cffafe', text: '#0891b2' },
@@ -111,7 +119,9 @@ export default function EventsScreen() {
     date: '',
     max_attendees: '',
     description: '',
+    is_private: false,
   });
+  const [eventImageUri, setEventImageUri] = useState<string | null>(null);
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -137,6 +147,13 @@ export default function EventsScreen() {
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
+
+  // Refresh events when screen comes into focus (e.g., after deleting an event)
+  useFocusEffect(
+    useCallback(() => {
+      fetchEvents();
+    }, [fetchEvents])
+  );
 
   // Fetch attendees for all events
   useEffect(() => {
@@ -206,6 +223,30 @@ export default function EventsScreen() {
     event.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handlePickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant permission to access your photos.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setEventImageUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
   const handleCreateEvent = async () => {
     if (!user?.id) {
       Alert.alert('Sign In Required', 'Please sign in to create an event');
@@ -228,7 +269,8 @@ export default function EventsScreen() {
       // Get organizer name from profile or user email
       const organizerName = profile?.name || user.email?.split('@')[0] || 'Event Organizer';
       
-      const { data, error } = await supabase
+      // Create event first
+      const { data: eventData, error: eventError } = await supabase
         .from('events')
         .insert({
           title: newEvent.title.trim(),
@@ -239,14 +281,71 @@ export default function EventsScreen() {
           category: newEvent.category,
           max_attendees: newEvent.max_attendees ? parseInt(newEvent.max_attendees) : null,
           organizer: organizerName,
+          is_private: newEvent.is_private,
+          organizer_id: user.id,
         })
         .select()
         .single();
 
-      if (error) {
-        console.error('Error creating event:', error);
-        Alert.alert('Error', error.message || 'Failed to create event. Please try again.');
+      if (eventError) {
+        console.error('Error creating event:', eventError);
+        
+        // Check if error is due to missing columns
+        if (eventError.message?.includes('is_private') || eventError.message?.includes('organizer_id') || eventError.message?.includes('column') || eventError.message?.includes('schema cache')) {
+          Alert.alert(
+            'Database Schema Update Required',
+            'The events table is missing required columns. Please run this SQL in your Supabase SQL Editor:\n\n' +
+            'ALTER TABLE events ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT false;\n' +
+            'ALTER TABLE events ADD COLUMN IF NOT EXISTS organizer_id UUID REFERENCES profiles(id) ON DELETE SET NULL;\n\n' +
+            'Or see ADD_EVENT_COLUMNS.sql file for the complete script.',
+            [{ text: 'OK' }]
+          );
+        } else {
+          Alert.alert('Error', eventError.message || 'Failed to create event. Please try again.');
+        }
         return;
+      }
+
+      // Upload image if provided
+      let imageUrl = null;
+      if (eventImageUri && eventData.id) {
+        const fileExt = eventImageUri.split('.').pop() || 'jpg';
+        const { url, error: uploadError } = await api.uploadEventImage(eventData.id, eventImageUri, fileExt);
+        
+        if (uploadError) {
+          console.error('Error uploading event image:', uploadError);
+          // Show user-friendly error message
+          if (uploadError.code === 'BUCKET_NOT_FOUND') {
+            Alert.alert(
+              'Storage Not Configured',
+              'The storage bucket for event images is not set up. Please create an "events" bucket in your Supabase Storage. The event was created successfully without an image.',
+              [{ text: 'OK' }]
+            );
+          } else {
+            Alert.alert(
+              'Upload Failed',
+              'Failed to upload event image. The event was created successfully without an image.',
+              [{ text: 'OK' }]
+            );
+          }
+          // Continue without image - event is already created
+        } else if (url) {
+          imageUrl = url;
+          // Update event with image URL
+          await supabase
+            .from('events')
+            .update({ image_url: imageUrl })
+            .eq('id', eventData.id);
+        }
+      }
+
+      // Automatically add creator as attendee
+      if (eventData.id && user.id) {
+        const { error: attendeeError } = await api.joinEvent(eventData.id, user.id);
+        if (attendeeError) {
+          console.error('Error adding creator as attendee:', attendeeError);
+          // Don't fail the event creation if this fails, just log it
+        }
       }
 
       setShowCreateModal(false);
@@ -257,7 +356,9 @@ export default function EventsScreen() {
         date: '',
         max_attendees: '',
         description: '',
+        is_private: false,
       });
+      setEventImageUri(null);
       await fetchEvents();
       Alert.alert('Success', 'Event created successfully!');
     } catch (err) {
@@ -285,14 +386,27 @@ export default function EventsScreen() {
           )
         );
       } else {
-        await api.joinEvent(eventId, user.id);
-        setEvents((prev) =>
-          prev.map((e) =>
-            e.id === eventId
-              ? { ...e, is_attending: true, attendee_count: e.attendee_count + 1 }
-              : e
-          )
-        );
+        // Check if event is private
+        const event = events.find(e => e.id === eventId);
+        if (event?.is_private) {
+          // Send join request for private events
+          const { error } = await api.requestToJoinEvent(eventId, user.id);
+          if (error) {
+            Alert.alert('Error', error.message || 'Failed to send join request');
+            return;
+          }
+          Alert.alert('Request Sent', 'Your request to join this private event has been sent to the organizer.');
+        } else {
+          // Direct join for public events
+          await api.joinEvent(eventId, user.id);
+          setEvents((prev) =>
+            prev.map((e) =>
+              e.id === eventId
+                ? { ...e, is_attending: true, attendee_count: e.attendee_count + 1 }
+                : e
+            )
+          );
+        }
       }
       
       // Refresh attendees for this event
@@ -318,10 +432,10 @@ export default function EventsScreen() {
 
   if (loading) {
     return (
-      <BackgroundImage>
+      <BackgroundImage overlayOpacity={isDark ? 0.7 : 0.4}>
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#3b82f6" />
+            <ActivityIndicator size="large" color="#0066cc" />
             <Text style={styles.loadingText}>Loading events...</Text>
           </View>
         </SafeAreaView>
@@ -330,7 +444,7 @@ export default function EventsScreen() {
   }
 
   return (
-    <BackgroundImage>
+    <BackgroundImage overlayOpacity={isDark ? 0.7 : 0.4}>
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       {/* Header with Create Event and View Toggle */}
       <Animated.View
@@ -415,6 +529,7 @@ export default function EventsScreen() {
             </Text>
           </View>
         ) : (
+<<<<<<< HEAD
           <View className="mt-2">
             {filteredEvents.map((event, index) => {
               const colors = categoryColors[event.category] || defaultColors;
@@ -566,7 +681,19 @@ export default function EventsScreen() {
                 Create Event
               </Text>
               <TouchableOpacity
-                onPress={() => setShowCreateModal(false)}
+                onPress={() => {
+                  setShowCreateModal(false);
+                  setEventImageUri(null);
+                  setNewEvent({
+                    title: '',
+                    category: 'social',
+                    location: '',
+                    date: '',
+                    max_attendees: '',
+                    description: '',
+                    is_private: false,
+                  });
+                }}
                 className="p-2"
               >
                 <X size={24} color={isDark ? '#9ca3af' : '#6b7280'} />
@@ -586,6 +713,51 @@ export default function EventsScreen() {
                   value={newEvent.title}
                   onChangeText={(text) => setNewEvent({ ...newEvent, title: text })}
                 />
+              </View>
+
+              {/* Event Image */}
+              <View className="mb-4">
+                <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Event Photo (optional)
+                </Text>
+                <TouchableOpacity
+                  onPress={handlePickImage}
+                  style={{
+                    height: 150,
+                    borderRadius: 12,
+                    backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
+                    borderWidth: 2,
+                    borderColor: isDark ? '#334155' : '#e2e8f0',
+                    borderStyle: eventImageUri ? 'solid' : 'dashed',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                  }}
+                  activeOpacity={0.7}
+                >
+                  {eventImageUri ? (
+                    <Image
+                      source={{ uri: eventImageUri }}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={{ alignItems: 'center' }}>
+                      <Camera size={32} color={isDark ? '#64748b' : '#94a3b8'} />
+                      <Text style={{ marginTop: 8, color: isDark ? '#94a3b8' : '#64748b', fontSize: 14 }}>
+                        Tap to add photo
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                {eventImageUri && (
+                  <TouchableOpacity
+                    onPress={() => setEventImageUri(null)}
+                    style={{ marginTop: 8, alignSelf: 'flex-start' }}
+                  >
+                    <Text style={{ color: '#ef4444', fontSize: 12 }}>Remove photo</Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               {/* Category */}
@@ -646,7 +818,7 @@ export default function EventsScreen() {
               </View>
 
               {/* Description */}
-              <View className="mb-6">
+              <View className="mb-4">
                 <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   Description (optional)
                 </Text>
@@ -661,6 +833,44 @@ export default function EventsScreen() {
                   value={newEvent.description}
                   onChangeText={(text) => setNewEvent({ ...newEvent, description: text })}
                 />
+              </View>
+
+              {/* Privacy Toggle */}
+              <View className="mb-6">
+                <View className="flex-row items-center justify-between py-3">
+                  <View className="flex-1">
+                    <Text className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Private Event
+                    </Text>
+                    <Text className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                      {newEvent.is_private 
+                        ? 'Users must request to join' 
+                        : 'Anyone can join directly'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setNewEvent({ ...newEvent, is_private: !newEvent.is_private })}
+                    style={{
+                      width: 50,
+                      height: 30,
+                      borderRadius: 15,
+                      backgroundColor: newEvent.is_private ? '#0066cc' : (isDark ? '#374151' : '#d1d5db'),
+                      justifyContent: 'center',
+                      paddingHorizontal: 2,
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: 13,
+                        backgroundColor: '#ffffff',
+                        transform: [{ translateX: newEvent.is_private ? 20 : 0 }],
+                      }}
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* Create Button */}

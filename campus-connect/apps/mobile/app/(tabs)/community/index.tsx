@@ -31,6 +31,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
 import { api, supabase } from '@/lib/supabase';
+import PageHeader from '@/components/ui/PageHeader';
 
 interface Post {
   id: string;
@@ -51,16 +52,16 @@ interface Post {
 }
 
 const categoryColors: Record<string, { bg: string; text: string; border: string }> = {
-  Question: { bg: '#dbeafe', text: '#2563eb', border: '#93c5fd' },
-  question: { bg: '#dbeafe', text: '#2563eb', border: '#93c5fd' },
+  Question: { bg: '#e6f2ff', text: '#0066cc', border: '#99c2ff' },
+  question: { bg: '#e6f2ff', text: '#0066cc', border: '#99c2ff' },
   Help: { bg: '#dcfce7', text: '#16a34a', border: '#86efac' },
   help: { bg: '#dcfce7', text: '#16a34a', border: '#86efac' },
   Discussion: { bg: '#fce7f3', text: '#db2777', border: '#f9a8d4' },
   discussion: { bg: '#fce7f3', text: '#db2777', border: '#f9a8d4' },
   Announcement: { bg: '#ffedd5', text: '#ea580c', border: '#fdba74' },
   announcement: { bg: '#ffedd5', text: '#ea580c', border: '#fdba74' },
-  Academic: { bg: '#dbeafe', text: '#2563eb', border: '#93c5fd' },
-  academic: { bg: '#dbeafe', text: '#2563eb', border: '#93c5fd' },
+  Academic: { bg: '#e6f2ff', text: '#0066cc', border: '#99c2ff' },
+  academic: { bg: '#e6f2ff', text: '#0066cc', border: '#99c2ff' },
   'Campus Life': { bg: '#f3e8ff', text: '#9333ea', border: '#d8b4fe' },
   campus_life: { bg: '#f3e8ff', text: '#9333ea', border: '#d8b4fe' },
   Events: { bg: '#ffedd5', text: '#ea580c', border: '#fdba74' },
@@ -295,10 +296,10 @@ export default function CommunityScreen() {
 
   if (loading) {
     return (
-      <BackgroundImage overlayOpacity={0.6}>
+      <BackgroundImage overlayOpacity={isDark ? 0.7 : 0.4}>
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#3b82f6" />
+            <ActivityIndicator size="large" color="#0066cc" />
             <Text style={styles.loadingText}>Loading posts...</Text>
           </View>
         </SafeAreaView>
@@ -307,8 +308,28 @@ export default function CommunityScreen() {
   }
 
   return (
-    <BackgroundImage>
+    <BackgroundImage overlayOpacity={isDark ? 0.7 : 0.4}>
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+      {/* Header */}
+      <PageHeader
+        title="Community"
+        showBack={false}
+        rightAction={
+          <TouchableOpacity
+            onPress={() => setShowCreateModal(true)}
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 8,
+              backgroundColor: '#0066cc',
+            }}
+            activeOpacity={0.8}
+          >
+            <Plus size={20} color="#ffffff" />
+          </TouchableOpacity>
+        }
+      />
+
       {/* Search Bar */}
       <Animated.View
         key={`search-${animationKey}`}
@@ -360,7 +381,7 @@ export default function CommunityScreen() {
                 onPress={() => setSelectedCategory(category.id)}
                 className={`px-4 py-2 rounded-full ${
                   isSelected
-                    ? 'bg-[#1E3A5F]'
+                    ? 'bg-[#0066cc]'
                     : isDark
                     ? 'bg-gray-800 border border-gray-700'
                     : 'bg-white border border-gray-200'
@@ -389,15 +410,18 @@ export default function CommunityScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0066cc" />
         }
       >
         {error ? (
           <View className="items-center justify-center py-12">
             <Users size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
             <Text className={`mt-4 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{error}</Text>
-            <TouchableOpacity onPress={onRefresh} className="mt-4 bg-blue-500 px-6 py-2.5 rounded-xl">
-              <Text className="text-white font-semibold">Retry</Text>
+            <TouchableOpacity 
+              onPress={onRefresh} 
+              style={{ marginTop: 16, backgroundColor: '#0066cc', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 }}
+            >
+              <Text style={{ color: '#ffffff', fontWeight: '600' }}>Retry</Text>
             </TouchableOpacity>
           </View>
         ) : filteredPosts.length === 0 ? (
@@ -434,6 +458,7 @@ export default function CommunityScreen() {
                   >
                     {/* Author Info */}
                     <View className="flex-row items-center mb-3">
+<<<<<<< HEAD
                       <View className="w-11 h-11 rounded-full bg-blue-100 items-center justify-center overflow-hidden">
                         {post.author?.avatar_url ? (
                           <Image
@@ -505,7 +530,7 @@ export default function CommunityScreen() {
                           activeOpacity={0.7}
                         >
                           {replyingToId === post.id ? (
-                            <ActivityIndicator size="small" color="#3b82f6" />
+                            <ActivityIndicator size="small" color="#0066cc" />
                           ) : (
                             <>
                               <MessageCircle size={18} color={isDark ? '#9ca3af' : '#6b7280'} />
@@ -534,11 +559,11 @@ export default function CommunityScreen() {
           right: 24,
           width: 56,
           height: 56,
-          backgroundColor: '#3b82f6',
+          backgroundColor: '#0066cc',
           borderRadius: 28,
           alignItems: 'center',
           justifyContent: 'center',
-          shadowColor: '#3b82f6',
+          shadowColor: '#0066cc',
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.4,
           shadowRadius: 8,

@@ -30,7 +30,7 @@ export const auth = {
       // First, check if a profile with this email already exists
       // This prevents duplicate signups even if Supabase doesn't return an error
       const normalizedEmail = email.toLowerCase().trim();
-      
+
       // Try to check for existing profile, but don't fail if check fails (RLS might prevent it)
       let existingProfile = null;
       try {
@@ -54,12 +54,12 @@ export const auth = {
       if (existingProfile) {
         // User already exists
         console.log('Duplicate signup attempt detected for email:', normalizedEmail);
-        return { 
-          data: null, 
-          error: { 
+        return {
+          data: null,
+          error: {
             message: 'An account with this email already exists. Please sign in instead.',
-            status: 400 
-          } 
+            status: 400
+          }
         };
       }
 
@@ -80,19 +80,19 @@ export const auth = {
         },
       });
 
-      console.log('SignUp response:', { 
-        hasUser: !!data?.user, 
-        hasSession: !!data?.session, 
+      console.log('SignUp response:', {
+        hasUser: !!data?.user,
+        hasSession: !!data?.session,
         hasError: !!error,
-        errorMessage: error?.message 
+        errorMessage: error?.message
       });
 
       if (error) {
         // Check if error is due to user already existing
         // Supabase returns different error messages for duplicate users
         const errorMessage = error.message?.toLowerCase() || '';
-        const isDuplicateUser = 
-          errorMessage.includes('already registered') || 
+        const isDuplicateUser =
+          errorMessage.includes('already registered') ||
           errorMessage.includes('user already registered') ||
           errorMessage.includes('email address is already registered') ||
           errorMessage.includes('user with this email already exists') ||
@@ -101,12 +101,12 @@ export const auth = {
           error.status === 400;
 
         if (isDuplicateUser) {
-          return { 
-            data: null, 
-            error: { 
+          return {
+            data: null,
+            error: {
               message: 'An account with this email already exists. Please sign in instead.',
-              status: error.status || 400 
-            } 
+              status: error.status || 400
+            }
           };
         }
         return { data: null, error };
@@ -131,18 +131,18 @@ export const auth = {
           // If profile upsert fails due to duplicate email constraint, user already exists
           // Only fail if it's specifically an email unique constraint violation
           const errorMsg = profileError.message?.toLowerCase() || '';
-          const isEmailDuplicate = 
-            profileError.code === '23505' && 
+          const isEmailDuplicate =
+            profileError.code === '23505' &&
             (errorMsg.includes('email') || errorMsg.includes('profiles_email_key') || errorMsg.includes('profiles_email'));
-          
+
           if (isEmailDuplicate) {
             console.log('Profile duplicate email error detected:', profileError.message);
-            return { 
-              data: null, 
-              error: { 
+            return {
+              data: null,
+              error: {
                 message: 'An account with this email already exists. Please sign in instead.',
-                status: 400 
-              } 
+                status: 400
+              }
             };
           }
           // Other profile errors are warnings, not failures
@@ -157,25 +157,25 @@ export const auth = {
       return { data, error: null };
     } catch (err: any) {
       console.error('SignUp error:', err);
-      
+
       // Check for duplicate user error in catch block
       const errorMessage = err.message?.toLowerCase() || '';
-      const isDuplicateUser = 
-        errorMessage.includes('already registered') || 
+      const isDuplicateUser =
+        errorMessage.includes('already registered') ||
         errorMessage.includes('user already registered') ||
         errorMessage.includes('email address is already registered') ||
         err.status === 422;
-      
+
       if (isDuplicateUser) {
-        return { 
-          data: null, 
-          error: { 
+        return {
+          data: null,
+          error: {
             message: 'An account with this email already exists. Please sign in instead.',
-            status: 400 
-          } 
+            status: 400
+          }
         };
       }
-      
+
       return { data: null, error: { message: err.message || 'Signup failed' } };
     }
   },
@@ -222,12 +222,12 @@ export const auth = {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         console.error('Invalid email format:', email);
-        return { 
-          data: null, 
-          error: { 
+        return {
+          data: null,
+          error: {
             message: 'Please enter a valid email address',
-            status: 400 
-          } 
+            status: 400
+          }
         };
       }
 
@@ -311,13 +311,35 @@ export const api = {
   // Profile
   getProfile: async (userId: string) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+
+    if (data) {
+      // Fetch interests
+      const { data: interestsData } = await supabase
+        .from('user_interests')
+        .select('interests(name)')
+        .eq('user_id', userId);
+
+      if (interestsData) {
+        // Transform from [{interests: {name: "foo"}}, ...] to ["foo", ...]
+        data.interests = interestsData.map((item: any) => item.interests?.name).filter(Boolean);
+      }
+    }
+
     return { data, error };
+  },
+
+  updateUserInterests: async (userId: string, interests: string[]) => {
+    const { error } = await supabase.rpc('update_user_interests', {
+      p_user_id: userId,
+      p_interests: interests
+    });
+    return { error };
   },
 
   updateProfile: async (userId: string, updates: any) => {
     // Remove undefined values and ensure proper types
     const cleanUpdates: any = {};
-    
+
     Object.entries(updates).forEach(([key, value]) => {
       if (value !== undefined) {
         // Handle interests array - ensure it's properly formatted for PostgreSQL
@@ -328,20 +350,20 @@ export const api = {
         }
       }
     });
-    
+
     console.log('[API] updateProfile called with:', {
       userId,
       updates: cleanUpdates,
       updates_stringified: JSON.stringify(cleanUpdates),
     });
-    
+
     const { data, error } = await supabase
       .from('profiles')
       .update(cleanUpdates)
       .eq('id', userId)
       .select()
       .single();
-    
+
     if (error) {
       console.error('[API] Supabase update error:', error);
       console.error('[API] Error code:', error.code);
@@ -351,7 +373,7 @@ export const api = {
     } else {
       console.log('[API] Profile updated successfully:', data);
     }
-    
+
     return { data, error };
   },
 
@@ -488,6 +510,502 @@ export const api = {
     return { data, error };
   },
 
+  // Event management (for organizers)
+  updateEvent: async (eventId: string, updates: any) => {
+    const { data, error } = await supabase
+      .from('events')
+      .update(updates)
+      .eq('id', eventId)
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  deleteEvent: async (eventId: string) => {
+    // Delete all related data first (cascade should handle this, but being explicit)
+    // Delete event attendees
+    await supabase.from('event_attendees').delete().eq('event_id', eventId);
+    // Delete event photos
+    await supabase.from('event_photos').delete().eq('event_id', eventId);
+    // Delete event comments
+    await supabase.from('event_comments').delete().eq('event_id', eventId);
+    // Delete event reactions
+    await supabase.from('event_reactions').delete().eq('event_id', eventId);
+    // Delete event messages
+    await supabase.from('event_group_chat').delete().eq('event_id', eventId);
+    // Delete join requests
+    await supabase.from('event_join_requests').delete().eq('event_id', eventId);
+    
+    // Finally delete the event itself
+    const { error } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', eventId);
+    return { error };
+  },
+
+  removeAttendee: async (eventId: string, userId: string) => {
+    const { error } = await supabase
+      .from('event_attendees')
+      .delete()
+      .eq('event_id', eventId)
+      .eq('user_id', userId);
+    return { error };
+  },
+
+  searchUsers: async (searchTerm: string, limit: number = 20) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, name, avatar_url, major, year, email')
+      .or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
+      .limit(limit);
+    return { data, error };
+  },
+
+  // Event join requests for private events
+  requestToJoinEvent: async (eventId: string, userId: string) => {
+    // Check if user is already attending the event
+    const { data: existingAttendee } = await supabase
+      .from('event_attendees')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('user_id', userId)
+      .single();
+
+    if (existingAttendee) {
+      return { 
+        data: null, 
+        error: { message: 'You are already attending this event', code: 'ALREADY_ATTENDING' } 
+      };
+    }
+
+    // Check if request already exists
+    const { data: existing } = await supabase
+      .from('event_join_requests')
+      .select('*')
+      .eq('event_id', eventId)
+      .eq('user_id', userId)
+      .single();
+
+    if (existing) {
+      // If request exists and is pending, return it
+      if (existing.status === 'pending') {
+        return { data: existing, error: null };
+      }
+      // If request was rejected or accepted, delete it and create a new one
+      await supabase
+        .from('event_join_requests')
+        .delete()
+        .eq('id', existing.id);
+    }
+
+    // Verify event exists and is private
+    const { data: eventData, error: eventError } = await supabase
+      .from('events')
+      .select('id, title, organizer_id, is_private')
+      .eq('id', eventId)
+      .single();
+
+    if (eventError || !eventData) {
+      return { data: null, error: { message: 'Event not found', code: 'EVENT_NOT_FOUND' } };
+    }
+
+    if (!eventData.is_private) {
+      return { 
+        data: null, 
+        error: { message: 'This event is public. You can join directly.', code: 'NOT_PRIVATE' } 
+      };
+    }
+
+    // Get user profile for notification
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .eq('id', userId)
+      .single();
+
+    const { data, error } = await supabase
+      .from('event_join_requests')
+      .insert({ event_id: eventId, user_id: userId, status: 'pending' })
+      .select()
+      .single();
+
+    // Send notification to organizer if request was created successfully
+    if (!error && data && eventData?.organizer_id && eventData.organizer_id !== userId) {
+      await supabase.from('notifications').insert({
+        user_id: eventData.organizer_id,
+        type: 'event',
+        title: 'New Join Request',
+        message: `${userProfile?.name || 'Someone'} wants to join "${eventData.title}"`,
+        action_url: `/(tabs)/events/${eventId}`,
+        read: false,
+      }).catch(err => {
+        console.error('Error creating notification:', err);
+        // Don't fail the request if notification fails
+      });
+    }
+
+    return { data, error };
+  },
+
+  getEventJoinRequests: async (eventId: string) => {
+    const { data, error } = await supabase
+      .from('event_join_requests')
+      .select(`
+        *,
+        user:profiles(id, name, avatar_url, major, year)
+      `)
+      .eq('event_id', eventId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    return { data, error };
+  },
+
+  cancelJoinRequest: async (eventId: string, userId: string) => {
+    const { error } = await supabase
+      .from('event_join_requests')
+      .delete()
+      .eq('event_id', eventId)
+      .eq('user_id', userId)
+      .eq('status', 'pending');
+    return { error };
+  },
+
+  respondToJoinRequest: async (requestId: string, accept: boolean, eventId: string, userId: string) => {
+    // Get event details for notification
+    const { data: eventData } = await supabase
+      .from('events')
+      .select('id, title')
+      .eq('id', eventId)
+      .single();
+
+    if (accept) {
+      // Update request status to accepted
+      const { error: updateError } = await supabase
+        .from('event_join_requests')
+        .update({ status: 'accepted' })
+        .eq('id', requestId);
+
+      if (updateError) {
+        return { error: updateError };
+      }
+
+      // Add user to event attendees
+      const { error: joinError } = await supabase
+        .from('event_attendees')
+        .insert({ event_id: eventId, user_id: userId });
+      
+      if (joinError) {
+        return { error: joinError };
+      }
+
+      // Send notification to user that they were accepted
+      if (eventData) {
+        await supabase.from('notifications').insert({
+          user_id: userId,
+          type: 'event',
+          title: 'Request Accepted',
+          message: `Your request to join "${eventData.title}" has been accepted!`,
+          action_url: `/(tabs)/events/${eventId}`,
+          read: false,
+        }).catch(err => {
+          console.error('Error creating notification:', err);
+        });
+      }
+    } else {
+      // Delete the request (rejected requests are removed)
+      const { error: deleteError } = await supabase
+        .from('event_join_requests')
+        .delete()
+        .eq('id', requestId);
+
+      if (deleteError) {
+        return { error: deleteError };
+      }
+
+      // Send notification to user that they were rejected
+      if (eventData) {
+        await supabase.from('notifications').insert({
+          user_id: userId,
+          type: 'event',
+          title: 'Request Declined',
+          message: `Your request to join "${eventData.title}" was declined.`,
+          action_url: `/(tabs)/events/${eventId}`,
+          read: false,
+        }).catch(err => {
+          console.error('Error creating notification:', err);
+        });
+      }
+    }
+
+    return { error: null };
+  },
+
+  // Event photos
+  addEventPhoto: async (eventId: string, userId: string, photoUrl: string, description?: string) => {
+    const { data, error } = await supabase
+      .from('event_photos')
+      .insert({ event_id: eventId, user_id: userId, photo_url: photoUrl, description })
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  getEventPhotos: async (eventId: string) => {
+    const { data, error } = await supabase
+      .from('event_photos')
+      .select(`
+        *,
+        user:profiles(id, name, avatar_url)
+      `)
+      .eq('event_id', eventId)
+      .order('created_at', { ascending: false });
+    return { data, error };
+  },
+
+  deleteEventPhoto: async (photoId: string) => {
+    const { error } = await supabase.from('event_photos').delete().eq('id', photoId);
+    return { error };
+  },
+
+  // Event comments
+  addEventComment: async (eventId: string, userId: string, content: string) => {
+    const { data, error } = await supabase
+      .from('event_comments')
+      .insert({ event_id: eventId, user_id: userId, content })
+      .select(`
+        *,
+        user:profiles(id, name, avatar_url)
+      `)
+      .single();
+    return { data, error };
+  },
+
+  getEventComments: async (eventId: string) => {
+    const { data, error } = await supabase
+      .from('event_comments')
+      .select(`
+        *,
+        user:profiles(id, name, avatar_url)
+      `)
+      .eq('event_id', eventId)
+      .order('created_at', { ascending: true });
+    return { data, error };
+  },
+
+  deleteEventComment: async (commentId: string) => {
+    const { error } = await supabase.from('event_comments').delete().eq('id', commentId);
+    return { error };
+  },
+
+  // Event reactions
+  toggleEventReaction: async (eventId: string, userId: string, reactionType: string) => {
+    // Check if reaction exists
+    const { data: existing } = await supabase
+      .from('event_reactions')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('user_id', userId)
+      .eq('reaction_type', reactionType)
+      .single();
+
+    if (existing) {
+      // Remove reaction
+      const { error } = await supabase
+        .from('event_reactions')
+        .delete()
+        .eq('id', existing.id);
+      return { data: null, error };
+    } else {
+      // Add reaction
+      const { data, error } = await supabase
+        .from('event_reactions')
+        .insert({ event_id: eventId, user_id: userId, reaction_type: reactionType })
+        .select()
+        .single();
+      return { data, error };
+    }
+  },
+
+  getEventReactions: async (eventId: string) => {
+    const { data, error } = await supabase
+      .from('event_reactions')
+      .select(`
+        *,
+        user:profiles(id, name, avatar_url)
+      `)
+      .eq('event_id', eventId)
+      .order('created_at', { ascending: false });
+    return { data, error };
+  },
+
+  // Event group chat
+  sendEventMessage: async (eventId: string, userId: string, message: string) => {
+    const { data, error } = await supabase
+      .from('event_group_chat')
+      .insert({ event_id: eventId, user_id: userId, message })
+      .select(`
+        *,
+        user:profiles(id, name, avatar_url)
+      `)
+      .single();
+    return { data, error };
+  },
+
+  getEventMessages: async (eventId: string) => {
+    const { data, error } = await supabase
+      .from('event_group_chat')
+      .select(`
+        *,
+        user:profiles(id, name, avatar_url)
+      `)
+      .eq('event_id', eventId)
+      .order('created_at', { ascending: true });
+    return { data, error };
+  },
+
+  deleteEventMessage: async (messageId: string) => {
+    const { error } = await supabase.from('event_group_chat').delete().eq('id', messageId);
+    return { error };
+  },
+
+  // Photo comments
+  addPhotoComment: async (photoId: string, userId: string, content: string) => {
+    const { data, error } = await supabase
+      .from('photo_comments')
+      .insert({ photo_id: photoId, user_id: userId, content })
+      .select(`
+        *,
+        user:profiles(id, name, avatar_url)
+      `)
+      .single();
+    return { data, error };
+  },
+
+  getPhotoComments: async (photoId: string) => {
+    const { data, error } = await supabase
+      .from('photo_comments')
+      .select(`
+        *,
+        user:profiles(id, name, avatar_url)
+      `)
+      .eq('photo_id', photoId)
+      .order('created_at', { ascending: true });
+    return { data, error };
+  },
+
+  // Photo reactions
+  togglePhotoReaction: async (photoId: string, userId: string, reactionType: string = 'like') => {
+    const { data: existing } = await supabase
+      .from('photo_reactions')
+      .select('id')
+      .eq('photo_id', photoId)
+      .eq('user_id', userId)
+      .eq('reaction_type', reactionType)
+      .single();
+
+    if (existing) {
+      const { error } = await supabase.from('photo_reactions').delete().eq('id', existing.id);
+      return { data: null, error };
+    } else {
+      const { data, error } = await supabase
+        .from('photo_reactions')
+        .insert({ photo_id: photoId, user_id: userId, reaction_type: reactionType })
+        .select()
+        .single();
+      return { data, error };
+    }
+  },
+
+  getPhotoReactions: async (photoId: string) => {
+    const { data, error } = await supabase
+      .from('photo_reactions')
+      .select(`
+        *,
+        user:profiles(id, name, avatar_url)
+      `)
+      .eq('photo_id', photoId);
+    return { data, error };
+  },
+
+  // Comment reactions
+  toggleCommentReaction: async (commentId: string, userId: string) => {
+    const { data: existing } = await supabase
+      .from('comment_reactions')
+      .select('id')
+      .eq('comment_id', commentId)
+      .eq('user_id', userId)
+      .single();
+
+    if (existing) {
+      const { error } = await supabase.from('comment_reactions').delete().eq('id', existing.id);
+      return { data: null, error };
+    } else {
+      const { data, error } = await supabase
+        .from('comment_reactions')
+        .insert({ comment_id: commentId, user_id: userId })
+        .select()
+        .single();
+      return { data, error };
+    }
+  },
+
+  getCommentReactions: async (commentId: string) => {
+    const { data, error } = await supabase
+      .from('comment_reactions')
+      .select('*')
+      .eq('comment_id', commentId);
+    return { data, error };
+  },
+
+  // Collections
+  getCollections: async (userId: string) => {
+    const { data, error } = await supabase
+      .from('collections')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    return { data, error };
+  },
+
+  createCollection: async (userId: string, name: string, coverPhotoUrl?: string) => {
+    const { data, error } = await supabase
+      .from('collections')
+      .insert({ user_id: userId, name, cover_photo_url: coverPhotoUrl })
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  addPhotoToCollection: async (collectionId: string, photoId: string) => {
+    const { data, error } = await supabase
+      .from('collection_photos')
+      .insert({ collection_id: collectionId, photo_id: photoId })
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  removePhotoFromCollection: async (collectionId: string, photoId: string) => {
+    const { error } = await supabase
+      .from('collection_photos')
+      .delete()
+      .eq('collection_id', collectionId)
+      .eq('photo_id', photoId);
+    return { error };
+  },
+
+  getCollectionPhotos: async (collectionId: string) => {
+    const { data, error } = await supabase
+      .from('collection_photos')
+      .select(`
+        *,
+        photo:event_photos(*)
+      `)
+      .eq('collection_id', collectionId);
+    return { data, error };
+  },
+
   // Posts
   getPosts: async (userId?: string) => {
     // First, get all posts
@@ -527,7 +1045,7 @@ export const api = {
     // Get reply counts for all posts
     const postIds = data.map((post: any) => post.id);
     let replyCounts: Record<string, number> = {};
-    
+
     if (postIds.length > 0) {
       const { data: replies, error: repliesError } = await supabase
         .from('post_replies')
@@ -811,9 +1329,9 @@ export const api = {
 
     const transformedData = data
       ? {
-          ...data,
-          sender: Array.isArray(data.sender) ? data.sender[0] : data.sender,
-        }
+        ...data,
+        sender: Array.isArray(data.sender) ? data.sender[0] : data.sender,
+      }
       : null;
 
     return { data: transformedData, error: null };
@@ -822,7 +1340,7 @@ export const api = {
   markMessagesAsRead: async (conversationId: string, userId: string) => {
     const { error } = await supabase
       .from('messages')
-      .update({ 
+      .update({
         read: true,
         status: 'read',
         read_at: new Date().toISOString(),
@@ -981,7 +1499,7 @@ export const api = {
     // Get or create typing channel for this conversation
     const channelName = `typing:${conversationId}`;
     let channel = supabase.channel(channelName);
-    
+
     // Ensure channel is subscribed before sending
     channel.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
@@ -1656,16 +2174,16 @@ export const api = {
       .eq('user_id', userId)
       .eq('streak_type', streakType)
       .maybeSingle();
-    
+
     const today = activityDate || new Date().toISOString().split('T')[0];
     const yesterday = new Date(new Date(today).getTime() - 86400000).toISOString().split('T')[0];
-    
+
     let newStreak = 1;
     let streakStartDate = today;
 
     if (currentStreak) {
       const lastActivity = currentStreak.last_activity_date;
-      
+
       if (lastActivity === yesterday) {
         // Continue streak
         newStreak = currentStreak.current_streak + 1;
@@ -1765,7 +2283,7 @@ export const api = {
     if (stats) {
       const newTotal = stats.total_points + points;
       const { data: levelConfig } = await api.getLevelForPoints(newTotal);
-      
+
       await api.updateUserStats(userId, {
         total_points: newTotal,
         level: levelConfig?.level || stats.level,
@@ -1802,7 +2320,7 @@ export const api = {
   // Achievements
   getAchievements: async (category?: string) => {
     let query = supabase.from('achievements').select('*');
-    
+
     if (category) {
       query = query.eq('category', category);
     }
@@ -2072,6 +2590,84 @@ export const api = {
     } catch (error) {
       console.error('Error extracting filename from URL:', error);
       return null;
+    }
+  },
+
+  // Upload event image (new feature from main)
+  uploadEventImage: async (eventId: string, fileUri: string, fileExt: string = 'jpg'): Promise<{ url: string | null; error: any }> => {
+    try {
+      const fileName = `event-${eventId}-${Date.now()}.${fileExt}`;
+      const filePath = fileName;
+
+      // Read file as base64
+      const base64 = await readAsStringAsync(fileUri, {
+        encoding: 'base64',
+      });
+
+      // Convert base64 to Uint8Array
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+      const lookup = new Uint8Array(256);
+      for (let i = 0; i < chars.length; i++) {
+        lookup[chars.charCodeAt(i)] = i;
+      }
+
+      let bufferLength = base64.length * 0.75;
+      if (base64[base64.length - 1] === '=') {
+        bufferLength--;
+        if (base64[base64.length - 2] === '=') {
+          bufferLength--;
+        }
+      }
+
+      const bytes = new Uint8Array(bufferLength);
+      let p = 0;
+      for (let i = 0; i < base64.length; i += 4) {
+        const encoded1 = lookup[base64.charCodeAt(i)];
+        const encoded2 = lookup[base64.charCodeAt(i + 1)];
+        const encoded3 = lookup[base64.charCodeAt(i + 2)];
+        const encoded4 = lookup[base64.charCodeAt(i + 3)];
+
+        bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
+        bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
+        bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
+      }
+
+      // Try to upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('events')
+        .upload(filePath, bytes, {
+          contentType: `image/${fileExt}`,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        // Check if it's a bucket not found error
+        if (uploadError.message?.includes('Bucket not found') || uploadError.message?.includes('bucket')) {
+          console.warn('Storage bucket "events" not found. Please create it in Supabase Storage.');
+          return {
+            url: null,
+            error: {
+              message: 'Storage bucket not configured. Please create an "events" bucket in Supabase Storage.',
+              code: 'BUCKET_NOT_FOUND',
+            },
+          };
+        }
+        console.error('Event image upload error:', uploadError);
+        return { url: null, error: uploadError };
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage.from('events').getPublicUrl(filePath);
+      return { url: urlData.publicUrl, error: null };
+    } catch (error: any) {
+      console.error('Error uploading event image:', error);
+      return {
+        url: null,
+        error: {
+          message: error.message || 'Failed to upload event image',
+          code: 'UPLOAD_ERROR',
+        },
+      };
     }
   },
 

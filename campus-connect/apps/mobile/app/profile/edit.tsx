@@ -48,7 +48,7 @@ export default function EditProfileScreen() {
       console.log('[Edit Profile] Fetching profile data for user:', user.id);
       try {
         const { data: profileData, error } = await api.getProfile(user.id);
-        
+
         if (!isMounted) return;
 
         if (error) {
@@ -60,7 +60,7 @@ export default function EditProfileScreen() {
           }
           return;
         }
-        
+
         if (profileData) {
           console.log('[Edit Profile] Profile data loaded:', {
             id: profileData.id,
@@ -72,12 +72,12 @@ export default function EditProfileScreen() {
             favorite_lecture: profileData.favorite_lecture || '(empty)',
             avatar_url: profileData.avatar_url ? 'exists' : 'null',
           });
-          
+
           // Populate form with current profile data
           if (isMounted) {
             const currentBio = profileData.bio || '';
-            const currentInterests = Array.isArray(profileData.interests) 
-              ? profileData.interests 
+            const currentInterests = Array.isArray(profileData.interests)
+              ? profileData.interests
               : (profileData.interests ? [profileData.interests] : []);
             const currentLecture = profileData.favorite_lecture || 'Introduction to Computer Science';
             const currentAvatar = profileData.avatar_url || null;
@@ -98,7 +98,7 @@ export default function EditProfileScreen() {
             setFavoriteLecture(currentLecture);
             setAvatarUri(currentAvatar);
             setDataLoaded(true);
-            
+
             console.log('[Edit Profile] Form values set, dataLoaded = true');
           }
         } else {
@@ -327,12 +327,11 @@ export default function EditProfileScreen() {
       // Add bio - explicitly set to null if empty to clear it
       updates.bio = bio.trim() || null;
 
-      // Add interests - must be array or null for PostgreSQL TEXT[] type
-      if (interests.length > 0) {
-        updates.interests = interests; // Already an array
-      } else {
-        updates.interests = null; // Explicitly set to null to clear
-      }
+      // Add bio - explicitly set to null if empty to clear it
+      updates.bio = bio.trim() || null;
+
+      // Interests are handled separately via updateUserInterests
+      // We don't add them to 'updates' object for the profiles table
 
       // Add favorite lecture
       updates.favorite_lecture = favoriteLecture.trim() || null;
@@ -362,11 +361,22 @@ export default function EditProfileScreen() {
         console.error('[Edit Profile] Update error:', error);
         console.error('[Edit Profile] Error details:', JSON.stringify(error, null, 2));
         Alert.alert(
-          'Error', 
+          'Error',
           error.message || error.code || 'Failed to update profile. Please check the console for details.'
         );
         setLoading(false);
         return;
+      }
+
+      // Save interests separately
+      console.log('[Edit Profile] Saving interests:', interests);
+      const { error: interestError } = await api.updateUserInterests(user.id, interests);
+
+      if (interestError) {
+        console.error('[Edit Profile] Interest update error:', interestError);
+        // We don't return here, as the main profile update succeeded
+        // But we should probably warn the user
+        Alert.alert('Warning', 'Profile updated, but failed to save interests.');
       }
 
       console.log('[Edit Profile] Profile updated successfully:', JSON.stringify(data, null, 2));
@@ -392,7 +402,7 @@ export default function EditProfileScreen() {
       // Update the profile in context
       console.log('[Edit Profile] Refreshing profile context...');
       await refreshProfile();
-      
+
       // Additional delay to ensure all state updates propagate
       await new Promise(resolve => setTimeout(resolve, 300));
       
@@ -417,7 +427,7 @@ export default function EditProfileScreen() {
   return (
     <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`} edges={['top']}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      
+
       <Stack.Screen
         options={{
           headerShown: false,
@@ -487,157 +497,157 @@ export default function EditProfileScreen() {
               </TouchableOpacity>
             </Animated.View>
 
-        {/* Nickname */}
-        <Animated.View
-          entering={FadeInDown.duration(500).delay(50)}
-          className={`mx-5 mt-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
-          style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: isDark ? 0.3 : 0.06,
-            shadowRadius: 8,
-            elevation: 3,
-          }}
-        >
-          <Text className={`text-sm font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            Nickname
-          </Text>
-          <View className="flex-row items-center px-3 py-2 rounded-xl" style={{ backgroundColor: isDark ? '#374151' : '#f3f4f6' }}>
-            <AtSign size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
-            <TextInput
-              value={nickname}
-              onChangeText={setNickname}
-              placeholder="Enter your nickname..."
-              placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
-              className={`flex-1 ml-2 text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}
-            />
-          </View>
-        </Animated.View>
-
-        {/* Description */}
-        <Animated.View
-          entering={FadeInDown.duration(500).delay(100)}
-          className={`mx-5 mt-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
-          style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: isDark ? 0.3 : 0.06,
-            shadowRadius: 8,
-            elevation: 3,
-          }}
-        >
-          <Text className={`text-sm font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            Description
-          </Text>
-          <TextInput
-            value={bio}
-            onChangeText={setBio}
-            placeholder="Tell us about yourself..."
-            placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
-            multiline
-            numberOfLines={4}
-            className={`text-sm rounded-xl p-3 ${isDark ? 'bg-gray-700 text-white' : 'bg-gray-50 text-gray-900'}`}
-            style={{
-              minHeight: 100,
-              textAlignVertical: 'top',
-            }}
-          />
-        </Animated.View>
-
-        {/* Interests */}
-        <Animated.View
-          entering={FadeInDown.duration(500).delay(200)}
-          className={`mx-5 mt-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
-          style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: isDark ? 0.3 : 0.06,
-            shadowRadius: 8,
-            elevation: 3,
-          }}
-        >
-          <Text className={`text-sm font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            Interests
-          </Text>
-          
-          {/* Current Interests */}
-          {interests.length > 0 && (
-            <View className="flex-row flex-wrap mb-3" style={{ gap: 8 }}>
-              {interests.map((interest, index) => (
-                <View
-                  key={index}
-                  className="flex-row items-center px-3 py-1.5 rounded-full"
-                  style={{ backgroundColor: isDark ? '#374151' : '#f3f4f6' }}
-                >
-                  <Hash size={12} color={isDark ? '#9ca3af' : '#6b7280'} />
-                  <Text className={`text-xs ml-1.5 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    {interest}
-                  </Text>
-                  <TouchableOpacity onPress={() => removeInterest(index)} className="ml-2">
-                    <X size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Add Interest */}
-          {interests.length < 5 && (
-            <View className="flex-row items-center" style={{ gap: 8 }}>
-              <View className="flex-1 flex-row items-center px-3 py-2 rounded-xl" style={{ backgroundColor: isDark ? '#374151' : '#f3f4f6' }}>
-                <Hash size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
+            {/* Nickname */}
+            <Animated.View
+              entering={FadeInDown.duration(500).delay(50)}
+              className={`mx-5 mt-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+              style={{
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: isDark ? 0.3 : 0.06,
+                shadowRadius: 8,
+                elevation: 3,
+              }}
+            >
+              <Text className={`text-sm font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Nickname
+              </Text>
+              <View className="flex-row items-center px-3 py-2 rounded-xl" style={{ backgroundColor: isDark ? '#374151' : '#f3f4f6' }}>
+                <AtSign size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
                 <TextInput
-                  value={newInterest}
-                  onChangeText={setNewInterest}
-                  placeholder="Add interest..."
+                  value={nickname}
+                  onChangeText={setNickname}
+                  placeholder="Enter your nickname..."
                   placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
-                  onSubmitEditing={addInterest}
                   className={`flex-1 ml-2 text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}
                 />
               </View>
-              <TouchableOpacity
-                onPress={addInterest}
-                className={`px-4 py-2 rounded-xl ${isDark ? 'bg-blue-600' : 'bg-blue-500'}`}
-              >
-                <Text className="text-white font-semibold text-sm">Add</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {interests.length >= 5 && (
-            <Text className={`text-xs mt-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-              Maximum 5 interests
-            </Text>
-          )}
-        </Animated.View>
+            </Animated.View>
 
-        {/* Favorite Lecture */}
-        <Animated.View
-          entering={FadeInDown.duration(500).delay(300)}
-          className={`mx-5 mt-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
-          style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: isDark ? 0.3 : 0.06,
-            shadowRadius: 8,
-            elevation: 3,
-          }}
-        >
-          <Text className={`text-sm font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            Favorite Lecture
-          </Text>
-          <View className="flex-row items-center px-3 py-2 rounded-xl" style={{ backgroundColor: isDark ? '#374151' : '#f3f4f6' }}>
-            <BookOpen size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
-            <TextInput
-              value={favoriteLecture}
-              onChangeText={setFavoriteLecture}
-              placeholder="Enter your favorite lecture..."
-              placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
-              className={`flex-1 ml-2 text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}
-            />
-          </View>
-        </Animated.View>
+            {/* Description */}
+            <Animated.View
+              entering={FadeInDown.duration(500).delay(100)}
+              className={`mx-5 mt-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+              style={{
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: isDark ? 0.3 : 0.06,
+                shadowRadius: 8,
+                elevation: 3,
+              }}
+            >
+              <Text className={`text-sm font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Description
+              </Text>
+              <TextInput
+                value={bio}
+                onChangeText={setBio}
+                placeholder="Tell us about yourself..."
+                placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+                multiline
+                numberOfLines={4}
+                className={`text-sm rounded-xl p-3 ${isDark ? 'bg-gray-700 text-white' : 'bg-gray-50 text-gray-900'}`}
+                style={{
+                  minHeight: 100,
+                  textAlignVertical: 'top',
+                }}
+              />
+            </Animated.View>
 
-        <View className="h-8" />
+            {/* Interests */}
+            <Animated.View
+              entering={FadeInDown.duration(500).delay(200)}
+              className={`mx-5 mt-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+              style={{
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: isDark ? 0.3 : 0.06,
+                shadowRadius: 8,
+                elevation: 3,
+              }}
+            >
+              <Text className={`text-sm font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Interests
+              </Text>
+
+              {/* Current Interests */}
+              {interests.length > 0 && (
+                <View className="flex-row flex-wrap mb-3" style={{ gap: 8 }}>
+                  {interests.map((interest, index) => (
+                    <View
+                      key={index}
+                      className="flex-row items-center px-3 py-1.5 rounded-full"
+                      style={{ backgroundColor: isDark ? '#374151' : '#f3f4f6' }}
+                    >
+                      <Hash size={12} color={isDark ? '#9ca3af' : '#6b7280'} />
+                      <Text className={`text-xs ml-1.5 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {interest}
+                      </Text>
+                      <TouchableOpacity onPress={() => removeInterest(index)} className="ml-2">
+                        <X size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Add Interest */}
+              {interests.length < 5 && (
+                <View className="flex-row items-center" style={{ gap: 8 }}>
+                  <View className="flex-1 flex-row items-center px-3 py-2 rounded-xl" style={{ backgroundColor: isDark ? '#374151' : '#f3f4f6' }}>
+                    <Hash size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
+                    <TextInput
+                      value={newInterest}
+                      onChangeText={setNewInterest}
+                      placeholder="Add interest..."
+                      placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+                      onSubmitEditing={addInterest}
+                      className={`flex-1 ml-2 text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}
+                    />
+                  </View>
+                  <TouchableOpacity
+                    onPress={addInterest}
+                    className={`px-4 py-2 rounded-xl ${isDark ? 'bg-blue-600' : 'bg-blue-500'}`}
+                  >
+                    <Text className="text-white font-semibold text-sm">Add</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {interests.length >= 5 && (
+                <Text className={`text-xs mt-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Maximum 5 interests
+                </Text>
+              )}
+            </Animated.View>
+
+            {/* Favorite Lecture */}
+            <Animated.View
+              entering={FadeInDown.duration(500).delay(300)}
+              className={`mx-5 mt-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+              style={{
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: isDark ? 0.3 : 0.06,
+                shadowRadius: 8,
+                elevation: 3,
+              }}
+            >
+              <Text className={`text-sm font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Favorite Lecture
+              </Text>
+              <View className="flex-row items-center px-3 py-2 rounded-xl" style={{ backgroundColor: isDark ? '#374151' : '#f3f4f6' }}>
+                <BookOpen size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
+                <TextInput
+                  value={favoriteLecture}
+                  onChangeText={setFavoriteLecture}
+                  placeholder="Enter your favorite lecture..."
+                  placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+                  className={`flex-1 ml-2 text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}
+                />
+              </View>
+            </Animated.View>
+
+            <View className="h-8" />
           </>
         )}
       </ScrollView>
