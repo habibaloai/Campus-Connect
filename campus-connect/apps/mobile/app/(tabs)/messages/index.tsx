@@ -12,10 +12,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  ImageBackground,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import BackgroundImage from '@/components/BackgroundImage';
+import { StatusBar } from 'expo-status-bar';
 import { Search, Edit, User, Users, MessageCircle, X, UserPlus } from 'lucide-react-native';
 import { Image } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -276,21 +278,76 @@ export default function MessagesScreen() {
 
   if (loading) {
     return (
-      <BackgroundImage overlayOpacity={0.6}>
+      <ImageBackground
+        source={require('@/assets/images/splash-screen.png')}
+        style={styles.background}
+        resizeMode="cover"
+      >
+        {/* Blurred Background Overlay */}
+        <View style={[styles.blurOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)' }]} />
+        
+        {/* Gradient Overlay */}
+        <LinearGradient
+          colors={isDark 
+            ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']
+            : ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.05)']}
+          style={styles.gradientOverlay}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+        />
+
+        {/* Bottom gradient */}
+        <LinearGradient
+          colors={isDark
+            ? ['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']
+            : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.4)']}
+          locations={[0, 0.4424, 1]}
+          style={styles.bottomGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+        />
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#3b82f6" />
-            <Text style={styles.loadingText}>Loading messages...</Text>
+            <ActivityIndicator size="large" color="#0066cc" />
+            <Text style={[styles.loadingText, { color: isDark ? '#ffffff' : '#1e293b' }]}>Loading messages...</Text>
           </View>
         </SafeAreaView>
-      </BackgroundImage>
+      </ImageBackground>
     );
   }
 
   return (
-    <BackgroundImage>
+    <ImageBackground
+      source={require('@/assets/images/splash-screen.png')}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      {/* Blurred Background Overlay */}
+      <View style={[styles.blurOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)' }]} />
+      
+      {/* Gradient Overlay */}
+      <LinearGradient
+        colors={isDark 
+          ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']
+          : ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.05)']}
+        style={styles.gradientOverlay}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+
+      {/* Bottom gradient */}
+      <LinearGradient
+        colors={isDark
+          ? ['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']
+          : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.4)']}
+        locations={[0, 0.4424, 1]}
+        style={styles.bottomGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-      <PageHeader title="Messages" showBack={false} />
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <PageHeader title="Messages" showBack={false} />
       {/* Search Bar */}
       <Animated.View
         entering={FadeInDown.duration(400).springify()}
@@ -572,11 +629,25 @@ export default function MessagesScreen() {
         </KeyboardAvoidingView>
       </Modal>
       </SafeAreaView>
-    </BackgroundImage>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  blurOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bottomGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
   safeArea: {
     flex: 1,
   },
@@ -587,7 +658,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    color: '#ffffff',
     fontSize: 16,
   },
 });

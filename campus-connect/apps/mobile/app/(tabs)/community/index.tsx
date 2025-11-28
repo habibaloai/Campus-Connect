@@ -13,10 +13,12 @@ import {
   Platform,
   StyleSheet,
   Image,
+  ImageBackground,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import BackgroundImage from '@/components/BackgroundImage';
+import { StatusBar } from 'expo-status-bar';
 import {
   Search,
   Plus,
@@ -293,52 +295,114 @@ export default function CommunityScreen() {
     }
   };
 
+  // Use splash screen image as background (same as login page)
+  const backgroundSource = require('@/assets/images/splash-screen.png');
+
   if (loading) {
     return (
-      <BackgroundImage overlayOpacity={0.6}>
+      <ImageBackground
+        source={backgroundSource}
+        style={styles.background}
+        resizeMode="cover"
+      >
+        {/* Blurred Background Overlay */}
+        <View style={[styles.blurOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)' }]} />
+        
+        {/* Gradient Overlay */}
+        <LinearGradient
+          colors={isDark 
+            ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']
+            : ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.05)']}
+          style={styles.gradientOverlay}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+        />
+
+        {/* Bottom gradient */}
+        <LinearGradient
+          colors={isDark
+            ? ['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']
+            : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.4)']}
+          locations={[0, 0.4424, 1]}
+          style={styles.bottomGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+        />
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#3b82f6" />
-            <Text style={styles.loadingText}>Loading posts...</Text>
+            <ActivityIndicator size="large" color="#0066cc" />
+            <Text style={[styles.loadingText, { color: isDark ? '#ffffff' : '#1e293b' }]}>Loading posts...</Text>
           </View>
         </SafeAreaView>
-      </BackgroundImage>
+      </ImageBackground>
     );
   }
 
   return (
-    <BackgroundImage>
+    <ImageBackground
+      source={backgroundSource}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      {/* Blurred Background Overlay */}
+      <View style={[styles.blurOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)' }]} />
+      
+      {/* Gradient Overlay */}
+      <LinearGradient
+        colors={isDark 
+          ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']
+          : ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.05)']}
+        style={styles.gradientOverlay}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+
+      {/* Bottom gradient */}
+      <LinearGradient
+        colors={isDark
+          ? ['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']
+          : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.4)']}
+        locations={[0, 0.4424, 1]}
+        style={styles.bottomGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <StatusBar style={isDark ? "light" : "dark"} />
       {/* Search Bar */}
       <Animated.View
         key={`search-${animationKey}`}
         entering={FadeInDown.duration(400).springify()}
         className="px-5 py-3"
       >
-        <View
+        <LinearGradient
+          colors={isDark
+            ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)']
+            : ['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.85)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={{
             flexDirection: 'row',
             alignItems: 'center',
             paddingHorizontal: 16,
             paddingVertical: 14,
             borderRadius: 24,
-            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: isDark ? 0.3 : 0.15,
+            shadowOpacity: 0.15,
             shadowRadius: 12,
             elevation: 6,
           }}
         >
-          <Search size={20} color={isDark ? '#9ca3af' : '#9ca3af'} />
+          <Search size={20} color={isDark ? '#ffffff' : '#64748b'} />
           <TextInput
-            className={`flex-1 ml-3 text-base ${isDark ? 'text-white' : 'text-gray-900'}`}
+            style={{ flex: 1, marginLeft: 12, fontSize: 16, color: isDark ? '#ffffff' : '#1e293b' }}
             placeholder="Search requests..."
-            placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+            placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.6)' : '#94a3b8'}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-        </View>
+        </LinearGradient>
       </Animated.View>
 
       {/* Category Filters */}
@@ -421,17 +485,24 @@ export default function CommunityScreen() {
                     onPress={() => router.push(`/(tabs)/community/${post.id}` as any)}
                     style={{
                       marginBottom: 12,
-                      padding: 16,
                       borderRadius: 24,
-                      backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                      overflow: 'hidden',
                       shadowColor: '#000',
                       shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: isDark ? 0.3 : 0.15,
+                      shadowOpacity: 0.15,
                       shadowRadius: 12,
                       elevation: 6,
                     }}
                     activeOpacity={0.8}
                   >
+                    <LinearGradient
+                      colors={isDark
+                        ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)']
+                        : ['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.85)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={{ padding: 16, borderRadius: 24 }}
+                    >
                     {/* Author Info */}
                     <View className="flex-row items-center mb-3">
                       <View className="w-11 h-11 rounded-full bg-blue-100 items-center justify-center overflow-hidden">
@@ -517,6 +588,7 @@ export default function CommunityScreen() {
                         </TouchableOpacity>
                       )}
                     </View>
+                    </LinearGradient>
                   </TouchableOpacity>
                 </Animated.View>
               );
@@ -667,11 +739,25 @@ export default function CommunityScreen() {
         </KeyboardAvoidingView>
       </Modal>
       </SafeAreaView>
-    </BackgroundImage>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  blurOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bottomGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
   safeArea: {
     flex: 1,
   },
@@ -682,7 +768,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    color: '#ffffff',
     fontSize: 16,
   },
 });

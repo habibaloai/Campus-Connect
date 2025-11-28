@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, ImageBackground, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useColorScheme } from '@/components/useColorScheme';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -33,86 +33,75 @@ export default function ProfileHeader({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  // Use splash screen image as background
-  const backgroundSource = require('../../assets/images/splash-screen.png');
-
   return (
     <Animated.View entering={FadeInDown.duration(600).springify()} style={styles.container}>
-      {/* Background Image with Curved White Overlay */}
       <View style={styles.headerContainer}>
-        <ImageBackground
-          source={backgroundSource}
-          style={styles.backgroundImage}
-          resizeMode="cover"
+        <LinearGradient
+          colors={isDark
+            ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)']
+            : ['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.85)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradientCard}
         >
-          {/* Dark gradient overlay */}
-          <LinearGradient
-            colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.5)']}
-            style={StyleSheet.absoluteFillObject}
-          />
-          
           {/* Profile icon button in top right */}
           <View style={styles.profileIconButton}>
             <TouchableOpacity
               onPress={() => router.push('/profile/edit')}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+              style={[
+                styles.editButton,
+                { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 102, 204, 0.1)' }
+              ]}
               activeOpacity={0.7}
             >
-              <User size={20} color="#ffffff" />
+              <User size={20} color={isDark ? "#ffffff" : "#0066cc"} />
             </TouchableOpacity>
           </View>
           
-          {/* Curved black section overlay */}
-          <View style={styles.curvedOverlay}>
-            <LinearGradient
-              colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)']}
-              style={styles.curvedGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-            />
-            
-            {/* Profile Content */}
-            <View style={styles.profileContent}>
-              {/* Profile Picture */}
-              <View style={styles.avatarContainer}>
-                {avatarUrl ? (
-                  <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-                ) : (
-                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                    <Text style={styles.avatarText}>{name[0]?.toUpperCase() || 'U'}</Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Username */}
-              <Text style={styles.username}>@{username}</Text>
-
-              {/* Location */}
-              {location && <Text style={styles.location}>{location}</Text>}
-
-              {/* Followers/Following Bar */}
-              <View style={styles.statsBar}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>{followers}</Text>
-                  <Text style={styles.statLabel}>Followers</Text>
+          {/* Profile Content */}
+          <View style={styles.profileContent}>
+            {/* Profile Picture */}
+            <View style={styles.avatarContainer}>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                  <Text style={styles.avatarText}>{name[0]?.toUpperCase() || 'U'}</Text>
                 </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>{following}</Text>
-                  <Text style={styles.statLabel}>Following</Text>
-                </View>
-              </View>
+              )}
+            </View>
 
+            {/* Username */}
+            <Text style={[styles.username, { color: isDark ? '#ffffff' : '#1e293b' }]}>@{username}</Text>
+
+            {/* Name */}
+            <Text style={[styles.name, { color: isDark ? '#ffffff' : '#1e293b' }]}>{name}</Text>
+
+            {/* Location */}
+            {location && <Text style={[styles.location, { color: isDark ? 'rgba(255, 255, 255, 0.8)' : '#64748b' }]}>{location}</Text>}
+
+            {/* Followers/Following Bar */}
+            <View style={styles.statsBar}>
+              <TouchableOpacity
+                style={styles.statItem}
+                onPress={() => router.push('/connections?tab=followers')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.statNumber, { color: isDark ? '#ffffff' : '#1e293b' }]}>{followers}</Text>
+                <Text style={[styles.statLabel, { color: isDark ? 'rgba(255, 255, 255, 0.8)' : '#64748b' }]}>Followers</Text>
+              </TouchableOpacity>
+              <View style={[styles.statDivider, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)' }]} />
+              <TouchableOpacity
+                style={styles.statItem}
+                onPress={() => router.push('/connections?tab=following')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.statNumber, { color: isDark ? '#ffffff' : '#1e293b' }]}>{following}</Text>
+                <Text style={[styles.statLabel, { color: isDark ? 'rgba(255, 255, 255, 0.8)' : '#64748b' }]}>Following</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </ImageBackground>
+        </LinearGradient>
       </View>
     </Animated.View>
   );
@@ -121,45 +110,45 @@ export default function ProfileHeader({
 const styles = StyleSheet.create({
   container: {
     width: width,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
   },
   headerContainer: {
-    width: width,
-    height: 320,
-  },
-  backgroundImage: {
     width: '100%',
-    height: '100%',
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  gradientCard: {
+    width: '100%',
+    padding: 24,
+    paddingTop: 60,
+    alignItems: 'center',
   },
   profileIconButton: {
     position: 'absolute',
-    top: 50,
+    top: 20,
     right: 20,
     zIndex: 10,
   },
-  curvedOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 220,
-  },
-  curvedGradient: {
-    flex: 1,
-    borderTopLeftRadius: 60,
-    borderTopRightRadius: 60,
+  editButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   profileContent: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    width: '100%',
     alignItems: 'center',
-    paddingTop: 20,
-    paddingBottom: 20,
   },
   avatarContainer: {
-    marginTop: -70,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   avatar: {
     width: 100,
@@ -181,24 +170,21 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
     marginBottom: 4,
   },
   name: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   location: {
     fontSize: 14,
-    color: '#e2e8f0',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   statsBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    width: '100%',
     paddingHorizontal: 40,
   },
   statItem: {
@@ -208,28 +194,15 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#ffffff',
     marginBottom: 2,
   },
   statLabel: {
     fontSize: 12,
-    color: '#e2e8f0',
   },
   statDivider: {
     width: 1,
     height: 30,
-    backgroundColor: '#e2e8f0',
     marginHorizontal: 20,
-  },
-  socialIcons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  socialDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#cbd5e1',
   },
 });
 
