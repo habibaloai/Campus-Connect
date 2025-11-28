@@ -18,9 +18,9 @@ interface ButtonProps {
 
 const variantStyles = {
   primary: {
-    container: 'bg-primary-500',
+    container: 'bg-blue-500',
     text: 'text-white',
-    disabled: 'bg-primary-300',
+    disabled: 'bg-blue-300',
   },
   secondary: {
     container: 'bg-gray-100 dark:bg-gray-800',
@@ -88,7 +88,18 @@ export function Button({
         ${disabled ? variantStyle.disabled : variantStyle.container}
         ${fullWidth ? 'w-full' : ''}
       `}
-      style={style}
+      style={[
+        variant === 'primary' && !disabled
+          ? {
+              shadowColor: '#3b82f6',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 5,
+            }
+          : {},
+        style,
+      ]}
     >
       {loading ? (
         <ActivityIndicator color={variant === 'primary' ? '#ffffff' : '#1a73e8'} />

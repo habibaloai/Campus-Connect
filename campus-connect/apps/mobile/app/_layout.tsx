@@ -16,7 +16,7 @@ export {
 } from 'expo-router';
 
 export const unstable_settings = {
-  initialRouteName: '(auth)',
+  initialRouteName: 'index',
 };
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -35,6 +35,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (loaded) {
+      // Hide native splash screen immediately so our custom splash can show
       SplashScreen.hideAsync();
     }
   }, [loaded]);
@@ -58,6 +59,11 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (loading) return;
+
+    // Skip navigation logic if we're on the splash screen (index route)
+    if (segments.length === 0 || segments[0] === 'index') {
+      return;
+    }
 
     const inAuthGroup = segments[0] === '(auth)';
 
@@ -100,6 +106,7 @@ function RootLayoutNav() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? CampusConnectDarkTheme : CampusConnectLightTheme}>
       <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />

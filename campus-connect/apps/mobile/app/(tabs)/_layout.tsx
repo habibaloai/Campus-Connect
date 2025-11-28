@@ -12,8 +12,8 @@ export default function TabLayout() {
 
   const activeColor = '#3b82f6';
   const inactiveColor = isDark ? '#9ca3af' : '#6b7280';
-  const bgColor = isDark ? '#111827' : '#ffffff';
-  const borderColor = isDark ? '#1f2937' : '#f3f4f6';
+  const bgColor = isDark ? '#1e293b' : 'rgba(255, 255, 255, 0.95)';
+  const borderColor = isDark ? '#334155' : '#e2e8f0';
 
   return (
     <Tabs
@@ -27,8 +27,11 @@ export default function TabLayout() {
           paddingTop: 8,
           paddingBottom: 8,
           height: 70,
-          elevation: 0,
-          shadowOpacity: 0,
+          elevation: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
         },
         tabBarLabelStyle: {
           fontSize: 11,

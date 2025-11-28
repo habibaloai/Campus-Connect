@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,112 +19,100 @@ import {
   BookOpen,
   Calendar,
   MessageCircle,
+  TrendingUp,
+  Shield,
 } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useAuth } from '@/providers';
-
-// Mock achievements data
-const achievements = [
-  {
-    id: '1',
-    title: 'Early Bird',
-    description: 'Log in before 8 AM for 7 consecutive days',
-    icon: '🌅',
-    progress: 5,
-    total: 7,
-    points: 50,
-    unlocked: false,
-    category: 'engagement',
-  },
-  {
-    id: '2',
-    title: 'Social Butterfly',
-    description: 'Connect with 10 other students',
-    icon: '🦋',
-    progress: 10,
-    total: 10,
-    points: 100,
-    unlocked: true,
-    unlockedDate: '2024-10-01',
-    category: 'social',
-  },
-  {
-    id: '3',
-    title: 'Event Enthusiast',
-    description: 'Attend 5 campus events',
-    icon: '🎉',
-    progress: 3,
-    total: 5,
-    points: 75,
-    unlocked: false,
-    category: 'events',
-  },
-  {
-    id: '4',
-    title: 'Bookworm',
-    description: 'Reserve study rooms 10 times',
-    icon: '📚',
-    progress: 10,
-    total: 10,
-    points: 100,
-    unlocked: true,
-    unlockedDate: '2024-09-15',
-    category: 'academic',
-  },
-  {
-    id: '5',
-    title: 'Community Leader',
-    description: 'Create 5 posts with 10+ replies each',
-    icon: '👑',
-    progress: 2,
-    total: 5,
-    points: 150,
-    unlocked: false,
-    category: 'social',
-  },
-  {
-    id: '6',
-    title: 'Wellness Warrior',
-    description: 'Complete 30 wellness activities',
-    icon: '💪',
-    progress: 12,
-    total: 30,
-    points: 200,
-    unlocked: false,
-    category: 'wellness',
-  },
-];
-
-const leaderboard = [
-  { rank: 1, name: 'Alex Thompson', points: 2450, avatar: '😎' },
-  { rank: 2, name: 'Sarah Johnson', points: 2380, avatar: '🌟' },
-  { rank: 3, name: 'Michael Chen', points: 2210, avatar: '🚀' },
-  { rank: 4, name: 'Emily Davis', points: 2100, avatar: '✨' },
-  { rank: 5, name: 'James Wilson', points: 1950, avatar: '🎯' },
-];
+import { useColorScheme } from '@/components/useColorScheme';
+import { api } from '@/lib/supabase';
+import { Achievement, UserAchievement, UserStats, LeaderboardEntry } from '@/types';
 
 const categoryIcons: Record<string, any> = {
-  engagement: Flame,
-  social: Users,
-  events: Calendar,
   academic: BookOpen,
+  social: Users,
   wellness: Zap,
+  special: Trophy,
+  streak: Flame,
+};
+
+const rarityColors: Record<string, string> = {
+  common: '#6B7280',
+  rare: '#3B82F6',
+  epic: '#8B5CF6',
+  legendary: '#F59E0B',
 };
 
 export default function AchievementsScreen() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'achievements' | 'leaderboard'>('achievements');
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [userRank, setUserRank] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const totalPoints = 450; // User's current points
-  const userRank = 12;
-  const unlockedCount = achievements.filter((a) => a.unlocked).length;
+  useEffect(() => {
+    if (user?.id) {
+      loadData();
+    }
+  }, [user?.id]);
+
+  const loadData = async () => {
+    if (!user?.id) return;
+
+    try {
+      setLoading(true);
+      const [achievementsRes, userAchievementsRes, statsRes, leaderboardRes] = await Promise.all([
+        api.getAchievements(),
+        api.getUserAchievements(user.id),
+        api.getUserStats(user.id),
+        api.getLeaderboard('weekly', 'points'),
+      ]);
+
+      if (achievementsRes.data) {
+        setAchievements(achievementsRes.data);
+      }
+      if (userAchievementsRes.data) {
+        setUserAchievements(userAchievementsRes.data);
+      }
+      if (statsRes.data) {
+        setUserStats(statsRes.data);
+      }
+      if (leaderboardRes.data?.entries) {
+        setLeaderboard(leaderboardRes.data.entries);
+        const userEntry = leaderboardRes.data.entries.find((e: LeaderboardEntry) => e.user_id === user.id);
+        setUserRank(userEntry?.rank || null);
+      }
+    } catch (error) {
+      console.error('Error loading achievements:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await loadData();
     setRefreshing(false);
   };
+
+  const isUnlocked = (achievementId: string) => {
+    return userAchievements.some((ua) => ua.achievement_id === achievementId && ua.is_completed);
+  };
+
+  const getUserProgress = (achievementId: string) => {
+    const userAchievement = userAchievements.find((ua) => ua.achievement_id === achievementId);
+    return userAchievement?.progress || 0;
+  };
+
+  const totalPoints = userStats?.total_points || 0;
+  const unlockedCount = userAchievements.filter((ua) => ua.is_completed).length;
 
   const getRankColor = (rank: number) => {
     if (rank === 1) return '#FFD700';
@@ -134,13 +122,13 @@ export default function AchievementsScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <Stack.Screen
         options={{
           title: 'Achievements',
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} className="p-2">
-              <ChevronLeft size={24} color="#374151" />
+              <ChevronLeft size={24} color={isDark ? '#fff' : '#374151'} />
             </TouchableOpacity>
           ),
         }}
@@ -155,19 +143,21 @@ export default function AchievementsScreen() {
       >
         {/* Stats Card */}
         <Animated.View entering={FadeInDown.duration(500)} className="px-4 pt-4">
-          <View className="bg-gradient-to-r from-yellow-400 to-orange-500 bg-yellow-500 rounded-2xl p-5">
+          <View className={`rounded-2xl p-5 ${isDark ? 'bg-gradient-to-r from-yellow-600 to-orange-600' : 'bg-gradient-to-r from-yellow-400 to-orange-500'}`}>
             <View className="flex-row items-center justify-between">
               <View>
                 <Text className="text-white/80 text-sm">Your Points</Text>
                 <View className="flex-row items-center">
-                  <Text className="text-white text-4xl font-bold">{totalPoints}</Text>
+                  <Text className="text-white text-4xl font-bold">{totalPoints.toLocaleString()}</Text>
                   <Star size={24} color="#FFFFFF" className="ml-2" fill="#FFFFFF" />
                 </View>
               </View>
               <View className="items-end">
-                <View className="bg-white/20 rounded-full px-4 py-2 mb-2">
-                  <Text className="text-white font-semibold">Rank #{userRank}</Text>
-                </View>
+                {userRank && (
+                  <View className="bg-white/20 rounded-full px-4 py-2 mb-2">
+                    <Text className="text-white font-semibold">Rank #{userRank}</Text>
+                  </View>
+                )}
                 <Text className="text-white/80 text-sm">
                   {unlockedCount}/{achievements.length} unlocked
                 </Text>
@@ -175,34 +165,68 @@ export default function AchievementsScreen() {
             </View>
 
             {/* Progress to next level */}
-            <View className="mt-4">
-              <View className="flex-row justify-between mb-2">
-                <Text className="text-white/80 text-sm">Progress to Level 5</Text>
-                <Text className="text-white font-medium">450/500</Text>
+            {userStats && (
+              <View className="mt-4">
+                <View className="flex-row justify-between mb-2">
+                  <Text className="text-white/80 text-sm">
+                    Level {userStats.level} - {userStats.level === 1 ? 'Freshman' :
+                    userStats.level === 2 ? 'Sophomore' :
+                    userStats.level === 3 ? 'Junior' :
+                    userStats.level === 4 ? 'Senior' :
+                    userStats.level === 5 ? 'Graduate' :
+                    userStats.level === 6 ? 'Master' :
+                    userStats.level === 7 ? 'Doctor' : 'Legend'}
+                  </Text>
+                </View>
+                <View className="h-3 bg-white/30 rounded-full overflow-hidden">
+                  <View className="h-full bg-white rounded-full" style={{ width: '75%' }} />
+                </View>
               </View>
-              <View className="h-3 bg-white/30 rounded-full overflow-hidden">
-                <View className="h-full bg-white rounded-full" style={{ width: '90%' }} />
-              </View>
+            )}
+
+            {/* Quick Links */}
+            <View className="flex-row mt-4" style={{ gap: 8 }}>
+              <TouchableOpacity
+                onPress={() => router.push('/streaks')}
+                className="flex-1 bg-white/20 rounded-xl py-2 items-center"
+              >
+                <Flame size={18} color="#FFFFFF" />
+                <Text className="text-white text-xs font-medium mt-1">Streaks</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push('/leaderboards')}
+                className="flex-1 bg-white/20 rounded-xl py-2 items-center"
+              >
+                <Trophy size={18} color="#FFFFFF" />
+                <Text className="text-white text-xs font-medium mt-1">Leaderboards</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push('/challenges')}
+                className="flex-1 bg-white/20 rounded-xl py-2 items-center"
+              >
+                <Target size={18} color="#FFFFFF" />
+                <Text className="text-white text-xs font-medium mt-1">Challenges</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Animated.View>
 
         {/* Tab Switcher */}
         <Animated.View entering={FadeInDown.duration(500).delay(50)} className="px-4 mt-6">
-          <View className="bg-gray-200 rounded-xl p-1 flex-row">
+          <View className={`rounded-xl p-1 flex-row ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
             <TouchableOpacity
               onPress={() => setSelectedTab('achievements')}
               className={`flex-1 flex-row items-center justify-center py-3 rounded-lg ${
-                selectedTab === 'achievements' ? 'bg-white' : ''
+                selectedTab === 'achievements' ? (isDark ? 'bg-gray-600' : 'bg-white') : ''
               }`}
             >
               <Trophy
                 size={18}
-                color={selectedTab === 'achievements' ? '#F59E0B' : '#6B7280'}
+                color={selectedTab === 'achievements' ? '#F59E0B' : (isDark ? '#9ca3af' : '#6B7280')}
               />
               <Text
                 className={`ml-2 font-medium ${
-                  selectedTab === 'achievements' ? 'text-yellow-600' : 'text-gray-500'
+                  selectedTab === 'achievements' ? (isDark ? 'text-yellow-400' : 'text-yellow-600') : (isDark ? 'text-gray-400' : 'text-gray-500')
                 }`}
               >
                 Achievements
@@ -211,13 +235,13 @@ export default function AchievementsScreen() {
             <TouchableOpacity
               onPress={() => setSelectedTab('leaderboard')}
               className={`flex-1 flex-row items-center justify-center py-3 rounded-lg ${
-                selectedTab === 'leaderboard' ? 'bg-white' : ''
+                selectedTab === 'leaderboard' ? (isDark ? 'bg-gray-600' : 'bg-white') : ''
               }`}
             >
-              <Award size={18} color={selectedTab === 'leaderboard' ? '#3B82F6' : '#6B7280'} />
+              <Award size={18} color={selectedTab === 'leaderboard' ? '#3B82F6' : (isDark ? '#9ca3af' : '#6B7280')} />
               <Text
                 className={`ml-2 font-medium ${
-                  selectedTab === 'leaderboard' ? 'text-blue-500' : 'text-gray-500'
+                  selectedTab === 'leaderboard' ? (isDark ? 'text-blue-400' : 'text-blue-500') : (isDark ? 'text-gray-400' : 'text-gray-500')
                 }`}
               >
                 Leaderboard
@@ -230,57 +254,92 @@ export default function AchievementsScreen() {
           /* Achievements List */
           <Animated.View entering={FadeIn.duration(300)} className="px-4 mt-6">
             {achievements.map((achievement, index) => {
-              const CategoryIcon = categoryIcons[achievement.category] || Target;
+              const CategoryIcon = categoryIcons[achievement.category || 'academic'] || Target;
+              const unlocked = isUnlocked(achievement.id);
+              const progress = getUserProgress(achievement.id);
+              const maxProgress = achievement.requirement_value || 1;
+              const progressPercentage = (progress / maxProgress) * 100;
+
               return (
                 <Animated.View
                   key={achievement.id}
                   entering={FadeInDown.duration(400).delay(100 + index * 50)}
                 >
                   <TouchableOpacity
-                    className={`bg-white rounded-xl p-4 mb-3 shadow-sm ${
-                      !achievement.unlocked ? 'opacity-80' : ''
-                    }`}
+                    className={`rounded-xl p-4 mb-3 ${
+                      unlocked ? (isDark ? 'bg-gray-800 border border-yellow-500' : 'bg-white border border-yellow-200') : (isDark ? 'bg-gray-800' : 'bg-white')
+                    } ${!unlocked ? 'opacity-80' : ''}`}
                     activeOpacity={0.7}
+                    style={{
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: isDark ? 0.3 : 0.06,
+                      shadowRadius: 8,
+                      elevation: 3,
+                    }}
                   >
                     <View className="flex-row items-start">
                       <View
                         className={`w-14 h-14 rounded-xl items-center justify-center mr-4 ${
-                          achievement.unlocked ? 'bg-yellow-100' : 'bg-gray-100'
+                          unlocked ? (isDark ? 'bg-yellow-600/20' : 'bg-yellow-100') : (isDark ? 'bg-gray-700' : 'bg-gray-100')
                         }`}
                       >
-                        <Text className="text-2xl">{achievement.icon}</Text>
+                        {achievement.icon ? (
+                          <Text className="text-2xl">{achievement.icon}</Text>
+                        ) : (
+                          <CategoryIcon size={24} color={unlocked ? '#F59E0B' : (isDark ? '#6b7280' : '#9ca3af')} />
+                        )}
                       </View>
                       <View className="flex-1">
                         <View className="flex-row items-center justify-between">
                           <Text
                             className={`text-base font-semibold ${
-                              achievement.unlocked ? 'text-gray-800' : 'text-gray-500'
+                              unlocked ? (isDark ? 'text-white' : 'text-gray-800') : (isDark ? 'text-gray-400' : 'text-gray-500')
                             }`}
                           >
-                            {achievement.title}
+                            {achievement.name}
                           </Text>
-                          {achievement.unlocked && (
-                            <View className="bg-green-100 px-2 py-1 rounded-full">
-                              <Text className="text-green-700 text-xs font-medium">Unlocked</Text>
+                          {unlocked && (
+                            <View className={`px-2 py-1 rounded-full ${isDark ? 'bg-green-600/30' : 'bg-green-100'}`}>
+                              <Text className={`text-xs font-medium ${isDark ? 'text-green-300' : 'text-green-700'}`}>
+                                Unlocked
+                              </Text>
+                            </View>
+                          )}
+                          {achievement.rarity && (
+                            <View
+                              className="px-2 py-1 rounded-full"
+                              style={{ backgroundColor: `${rarityColors[achievement.rarity]}20` }}
+                            >
+                              <Text
+                                className="text-xs font-medium capitalize"
+                                style={{ color: rarityColors[achievement.rarity] }}
+                              >
+                                {achievement.rarity}
+                              </Text>
                             </View>
                           )}
                         </View>
-                        <Text className="text-sm text-gray-500 mt-1">{achievement.description}</Text>
+                        <Text className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {achievement.description}
+                        </Text>
 
                         {/* Progress bar */}
-                        {!achievement.unlocked && (
+                        {!unlocked && maxProgress > 1 && (
                           <View className="mt-3">
                             <View className="flex-row justify-between mb-1">
-                              <Text className="text-xs text-gray-400">Progress</Text>
-                              <Text className="text-xs text-gray-600 font-medium">
-                                {achievement.progress}/{achievement.total}
+                              <Text className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                                Progress
+                              </Text>
+                              <Text className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                                {progress}/{maxProgress}
                               </Text>
                             </View>
-                            <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <View className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
                               <View
                                 className="h-full bg-yellow-500 rounded-full"
                                 style={{
-                                  width: `${(achievement.progress / achievement.total) * 100}%`,
+                                  width: `${progressPercentage}%`,
                                 }}
                               />
                             </View>
@@ -289,7 +348,7 @@ export default function AchievementsScreen() {
 
                         <View className="flex-row items-center mt-2">
                           <Star size={14} color="#F59E0B" fill="#F59E0B" />
-                          <Text className="text-sm text-yellow-600 ml-1 font-medium">
+                          <Text className={`text-sm ml-1 font-medium ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>
                             {achievement.points} points
                           </Text>
                         </View>
@@ -303,60 +362,106 @@ export default function AchievementsScreen() {
         ) : (
           /* Leaderboard */
           <Animated.View entering={FadeIn.duration(300)} className="px-4 mt-6">
-            <View className="bg-white rounded-xl shadow-sm overflow-hidden">
-              {leaderboard.map((user, index) => (
+            {leaderboard.length === 0 ? (
+              <View className={`rounded-xl p-8 items-center ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+                <Trophy size={48} color={isDark ? '#4b5563' : '#9ca3af'} />
+                <Text className={`text-lg font-semibold mt-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  No leaderboard data yet
+                </Text>
+                <Text className={`text-sm mt-2 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Start earning points to appear on the leaderboard!
+                </Text>
                 <TouchableOpacity
-                  key={user.rank}
-                  className={`flex-row items-center p-4 ${
-                    index !== leaderboard.length - 1 ? 'border-b border-gray-100' : ''
-                  }`}
+                  onPress={() => router.push('/leaderboards')}
+                  className={`mt-4 px-6 py-3 rounded-xl ${isDark ? 'bg-blue-600' : 'bg-blue-500'}`}
                 >
-                  <View
-                    className="w-8 h-8 rounded-full items-center justify-center mr-3"
-                    style={{
-                      backgroundColor:
-                        user.rank <= 3 ? getRankColor(user.rank) + '20' : '#F3F4F6',
-                    }}
-                  >
-                    <Text
-                      className="font-bold"
-                      style={{ color: getRankColor(user.rank) }}
-                    >
-                      {user.rank}
-                    </Text>
-                  </View>
-                  <View className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center mr-3">
-                    <Text className="text-xl">{user.avatar}</Text>
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-base font-medium text-gray-800">{user.name}</Text>
-                  </View>
-                  <View className="flex-row items-center">
-                    <Star size={16} color="#F59E0B" fill="#F59E0B" />
-                    <Text className="text-base font-semibold text-gray-800 ml-1">
-                      {user.points.toLocaleString()}
-                    </Text>
-                  </View>
+                  <Text className="text-white font-semibold">View Full Leaderboard</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
+              </View>
+            ) : (
+              <>
+                <View className={`rounded-xl overflow-hidden ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+                  {leaderboard.slice(0, 5).map((entry, index) => {
+                    const profile = entry.user as any;
+                    return (
+                      <TouchableOpacity
+                        key={entry.id}
+                        className={`flex-row items-center p-4 ${
+                          index !== Math.min(leaderboard.length - 1, 4) ? (isDark ? 'border-b border-gray-700' : 'border-b border-gray-100') : ''
+                        }`}
+                      >
+                        <View
+                          className="w-8 h-8 rounded-full items-center justify-center mr-3"
+                          style={{
+                            backgroundColor:
+                              entry.rank <= 3 ? getRankColor(entry.rank) + '20' : (isDark ? '#374151' : '#F3F4F6'),
+                          }}
+                        >
+                          <Text
+                            className="font-bold"
+                            style={{ color: getRankColor(entry.rank) }}
+                          >
+                            {entry.rank}
+                          </Text>
+                        </View>
+                        <View className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                          {profile?.avatar_url ? (
+                            <Text className="text-xl">👤</Text>
+                          ) : (
+                            <Users size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
+                          )}
+                        </View>
+                        <View className="flex-1">
+                          <Text className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                            {profile?.name || 'Unknown User'}
+                          </Text>
+                        </View>
+                        <View className="flex-row items-center">
+                          <Star size={16} color="#F59E0B" fill="#F59E0B" />
+                          <Text className={`text-base font-semibold ml-1 ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                            {entry.score.toLocaleString()}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
 
-            {/* Your Position */}
-            <View className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4 flex-row items-center">
-              <View className="w-8 h-8 rounded-full bg-blue-100 items-center justify-center mr-3">
-                <Text className="font-bold text-blue-600">{userRank}</Text>
-              </View>
-              <View className="w-10 h-10 rounded-full bg-blue-200 items-center justify-center mr-3">
-                <Text className="text-xl">🎯</Text>
-              </View>
-              <View className="flex-1">
-                <Text className="text-base font-medium text-blue-800">You</Text>
-              </View>
-              <View className="flex-row items-center">
-                <Star size={16} color="#3B82F6" fill="#3B82F6" />
-                <Text className="text-base font-semibold text-blue-800 ml-1">{totalPoints}</Text>
-              </View>
-            </View>
+                {/* Your Position */}
+                {userRank && (
+                  <View className={`mt-4 rounded-xl p-4 flex-row items-center ${
+                    isDark ? 'bg-blue-900/30 border border-blue-600' : 'bg-blue-50 border border-blue-200'
+                  }`}>
+                    <View className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${isDark ? 'bg-blue-600' : 'bg-blue-100'}`}>
+                      <Text className={`font-bold ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>{userRank}</Text>
+                    </View>
+                    <View className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${isDark ? 'bg-blue-700' : 'bg-blue-200'}`}>
+                      <Text className="text-xl">🎯</Text>
+                    </View>
+                    <View className="flex-1">
+                      <Text className={`text-base font-medium ${isDark ? 'text-blue-200' : 'text-blue-800'}`}>
+                        You
+                      </Text>
+                    </View>
+                    <View className="flex-row items-center">
+                      <Star size={16} color="#3B82F6" fill="#3B82F6" />
+                      <Text className={`text-base font-semibold ml-1 ${isDark ? 'text-blue-200' : 'text-blue-800'}`}>
+                        {totalPoints.toLocaleString()}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  onPress={() => router.push('/leaderboards')}
+                  className={`mt-4 rounded-xl py-3 items-center ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+                >
+                  <Text className={`font-semibold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                    View Full Leaderboard →
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
           </Animated.View>
         )}
 

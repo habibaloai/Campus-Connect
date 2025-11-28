@@ -9,9 +9,11 @@ import {
   ActivityIndicator,
   Modal,
   Alert,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import BackgroundImage from '@/components/BackgroundImage';
 import {
   Calendar,
   CalendarDays,
@@ -307,15 +309,20 @@ export default function EventsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className={`flex-1 items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-[#f8fafc]'}`}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text className={`mt-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Loading events...</Text>
-      </SafeAreaView>
+      <BackgroundImage>
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#3b82f6" />
+            <Text style={styles.loadingText}>Loading events...</Text>
+          </View>
+        </SafeAreaView>
+      </BackgroundImage>
     );
   }
 
   return (
-    <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-[#f8fafc]'}`} edges={['bottom']}>
+    <BackgroundImage>
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       {/* Header with Create Event and View Toggle */}
       <Animated.View
         entering={FadeInDown.duration(400).springify()}
@@ -325,15 +332,27 @@ export default function EventsScreen() {
           {/* Create Event Button */}
           <TouchableOpacity
             onPress={() => setShowCreateModal(true)}
-            className="flex-row items-center px-4 py-2.5 bg-[#14b8a6] rounded-lg"
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 16,
+              paddingVertical: 10,
+              backgroundColor: '#3b82f6',
+              borderRadius: 12,
+              shadowColor: '#3b82f6',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 5,
+            }}
             activeOpacity={0.8}
           >
             <Plus size={18} color="#ffffff" strokeWidth={2.5} />
-            <Text className="text-white font-semibold ml-1.5">Create Event</Text>
+            <Text style={{ color: '#ffffff', fontWeight: '600', marginLeft: 6 }}>Create Event</Text>
           </TouchableOpacity>
 
           {/* View Toggle */}
-          <View className="flex-row bg-gray-100 rounded-lg p-1">
+          <View style={{ flexDirection: 'row', backgroundColor: isDark ? 'rgba(30, 41, 59, 0.3)' : 'rgba(255, 255, 255, 0.3)', borderRadius: 12, padding: 4 }}>
             <TouchableOpacity
               onPress={() => setViewMode('list')}
               className={`flex-row items-center px-3 py-1.5 rounded-md ${
@@ -398,18 +417,21 @@ export default function EventsScreen() {
                 >
                   <TouchableOpacity
                     onPress={() => router.push(`/(tabs)/events/${event.id}` as any)}
-                    className={`mb-4 rounded-2xl overflow-hidden ${isDark ? 'bg-gray-800' : 'bg-white'}`}
                     style={{
+                      marginBottom: 16,
+                      borderRadius: 24,
+                      overflow: 'hidden',
+                      backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                       shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: isDark ? 0.3 : 0.08,
-                      shadowRadius: 10,
-                      elevation: 4,
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: isDark ? 0.3 : 0.15,
+                      shadowRadius: 12,
+                      elevation: 6,
                     }}
                     activeOpacity={0.8}
                   >
                     {/* Event Header with Date and Icon */}
-                    <View className={`p-4 ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                    <View style={{ padding: 16, backgroundColor: '#f8fafc' }}>
                       <View className="flex-row items-start">
                         {/* Date Badge */}
                         <View className="bg-white rounded-lg p-2 mr-4 items-center" style={{ minWidth: 50 }}>
@@ -519,7 +541,7 @@ export default function EventsScreen() {
         onRequestClose={() => setShowCreateModal(false)}
       >
         <View className="flex-1 bg-black/50 justify-end">
-          <View className={`rounded-t-3xl ${isDark ? 'bg-gray-900' : 'bg-white'}`} style={{ maxHeight: '90%' }}>
+          <View style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: isDark ? 'rgba(30, 41, 59, 0.98)' : 'rgba(255, 255, 255, 0.98)', maxHeight: '90%' }}>
             {/* Modal Header */}
             <View className={`flex-row items-center justify-between px-5 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
               <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -642,6 +664,23 @@ export default function EventsScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </BackgroundImage>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    color: '#ffffff',
+    fontSize: 16,
+  },
+});

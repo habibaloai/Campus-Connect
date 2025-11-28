@@ -8,16 +8,24 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  ImageBackground,
+  StyleSheet,
+  Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Lock, ArrowLeft } from 'lucide-react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { auth } from '@/lib/supabase';
+
+const { width, height } = Dimensions.get('window');
 
 export default function ResetPasswordScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
@@ -74,157 +82,280 @@ export default function ResetPasswordScreen() {
     }
   };
 
+  const backgroundSource = require('../../assets/images/splash-screen.png');
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-[#f8fafc]"
+    <ImageBackground
+      source={backgroundSource}
+      style={styles.background}
+      resizeMode="cover"
     >
-      <StatusBar style="dark" />
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-        className="flex-1"
+      {/* Gradient Overlay */}
+      <LinearGradient
+        colors={['rgba(0,0,0,0.5)', 'rgba(0,0,0,0.1)']}
+        style={styles.gradientOverlay}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+
+      {/* Dark gradient at bottom */}
+      <LinearGradient
+        colors={['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']}
+        locations={[0, 0.4424, 1]}
+        style={styles.bottomGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
       >
-        <View className="flex-1 px-6 pt-12 pb-10">
-          {/* Back Button */}
-          <Animated.View entering={FadeInUp.duration(400)}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              className="w-10 h-10 items-center justify-center rounded-full bg-white mb-6"
-              style={{
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.06,
-                shadowRadius: 4,
-                elevation: 2,
-              }}
+        <StatusBar style="light" />
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.content}>
+            {/* Title */}
+            <Animated.View
+              entering={FadeInUp.duration(800).springify()}
+              style={styles.titleContainer}
             >
-              <ArrowLeft size={22} color="#374151" />
-            </TouchableOpacity>
-          </Animated.View>
+              <Text style={styles.title}>Reset Password</Text>
+            </Animated.View>
 
-          {/* Header */}
-          <Animated.View
-            entering={FadeInUp.duration(800).springify()}
-            className="mb-8"
-          >
-            <Text className="text-3xl font-bold text-gray-900">Reset Your Password</Text>
-            <Text className="text-base text-gray-500 mt-2">
-              Enter your new password below.
-            </Text>
-          </Animated.View>
+            {/* Message Display */}
+            {message && (
+              <Animated.View
+                entering={FadeInDown.duration(400)}
+                style={[
+                  styles.messageContainer,
+                  message.type === 'error' ? styles.errorMessage : styles.successMessage,
+                ]}
+              >
+                <Text style={[
+                  styles.messageText,
+                  message.type === 'error' ? styles.errorText : styles.successText,
+                ]}>
+                  {message.text}
+                </Text>
+              </Animated.View>
+            )}
 
-          {/* Message Display */}
-          {message && (
-            <View
-              style={{
-                backgroundColor: message.type === 'error' ? '#fef2f2' : '#f0fdf4',
-                borderWidth: 1,
-                borderColor: message.type === 'error' ? '#fecaca' : '#bbf7d0',
-                borderRadius: 12,
-                padding: 16,
-                marginBottom: 16,
-              }}
+            {/* Form */}
+            <Animated.View
+              entering={FadeInDown.duration(800).delay(150).springify()}
+              style={styles.formContainer}
             >
-              <Text
-                style={{
-                  color: message.type === 'error' ? '#dc2626' : '#16a34a',
-                  fontSize: 14,
-                  fontWeight: '600',
-                  textAlign: 'center',
-                }}
-              >
-                {message.text}
-              </Text>
-            </View>
-          )}
-
-          {/* Form */}
-          <Animated.View entering={FadeInDown.duration(800).delay(150).springify()}>
-            {/* New Password Input */}
-            <View className="mb-4">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">New Password</Text>
-              <View
-                className="flex-row items-center bg-white border border-gray-200 rounded-2xl px-4 py-3.5"
-                style={{
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.04,
-                  shadowRadius: 4,
-                  elevation: 2,
-                }}
-              >
-                <Lock size={20} color="#9ca3af" />
-                <TextInput
-                  className="flex-1 ml-3 text-base text-gray-900"
-                  placeholder="Enter new password"
-                  placeholderTextColor="#9ca3af"
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  secureTextEntry
-                />
+              {/* New Password Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>New Password</Text>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="New Password"
+                    placeholderTextColor="#a09f99"
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    secureTextEntry={!showPassword}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={styles.visibilityToggle}
+                  >
+                    {showPassword ? (
+                      <EyeOff size={24} color="#a09f99" />
+                    ) : (
+                      <Eye size={24} color="#a09f99" />
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
-              <Text className="text-xs text-gray-400 mt-1.5 ml-1">
-                Must be at least 6 characters
-              </Text>
-            </View>
 
-            {/* Confirm Password Input */}
-            <View className="mb-6">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">Confirm Password</Text>
-              <View
-                className="flex-row items-center bg-white border border-gray-200 rounded-2xl px-4 py-3.5"
-                style={{
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.04,
-                  shadowRadius: 4,
-                  elevation: 4,
-                }}
-              >
-                <Lock size={20} color="#9ca3af" />
-                <TextInput
-                  className="flex-1 ml-3 text-base text-gray-900"
-                  placeholder="Confirm new password"
-                  placeholderTextColor="#9ca3af"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry
-                />
+              {/* Confirm Password Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Confirm Password</Text>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Confirm Password"
+                    placeholderTextColor="#a09f99"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry={!showConfirmPassword}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={styles.visibilityToggle}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff size={24} color="#a09f99" />
+                    ) : (
+                      <Eye size={24} color="#a09f99" />
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            </Animated.View>
 
             {/* Reset Password Button */}
-            <TouchableOpacity
-              onPress={handleResetPassword}
-              disabled={isLoading}
-              style={{
-                backgroundColor: '#3b82f6',
-                paddingVertical: 16,
-                borderRadius: 16,
-                alignItems: 'center',
-                marginBottom: 16,
-                opacity: isLoading ? 0.7 : 1,
-                shadowColor: '#3b82f6',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                elevation: 4,
-              }}
-              activeOpacity={0.8}
+            <Animated.View
+              entering={FadeInDown.duration(800).delay(250).springify()}
+              style={styles.buttonContainer}
             >
-              {isLoading ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
-                  Reset Password
-                </Text>
-              )}
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+              <TouchableOpacity
+                onPress={handleResetPassword}
+                disabled={isLoading}
+                style={[styles.resetButton, isLoading && styles.resetButtonDisabled]}
+                activeOpacity={0.8}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Text style={styles.resetButtonText}>Reset Password</Text>
+                )}
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Progress Indicator - At bottom of screen */}
+      <View style={styles.progressIndicator} />
+    </ImageBackground>
   );
 }
+
+const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+    width: width,
+    height: height,
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bottomGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: height * 0.525,
+  },
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  content: {
+    paddingHorizontal: 39,
+    paddingVertical: 20,
+  },
+  titleContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  messageContainer: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    width: '100%',
+  },
+  errorMessage: {
+    backgroundColor: 'rgba(254, 242, 242, 0.95)',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  successMessage: {
+    backgroundColor: 'rgba(240, 253, 244, 0.95)',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+  },
+  messageText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  errorText: {
+    color: '#dc2626',
+  },
+  successText: {
+    color: '#16a34a',
+  },
+  formContainer: {
+    marginBottom: 16,
+  },
+  inputGroup: {
+    marginBottom: 15,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#d8d8dd',
+    borderRadius: 6,
+    height: 55,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1e293b',
+    letterSpacing: 0.16,
+  },
+  visibilityToggle: {
+    padding: 4,
+  },
+  buttonContainer: {
+    marginBottom: 24,
+  },
+  resetButton: {
+    backgroundColor: '#0066cc',
+    borderRadius: 6,
+    height: 55,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2.767 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2.214,
+    elevation: 4,
+  },
+  resetButtonDisabled: {
+    opacity: 0.7,
+  },
+  resetButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  progressIndicator: {
+    position: 'absolute',
+    bottom: 7,
+    left: '50%',
+    marginLeft: -67.5, // Half of 135px width to center it
+    width: 135,
+    height: 5,
+    backgroundColor: '#0066cc',
+    borderRadius: 100,
+  },
+});
 

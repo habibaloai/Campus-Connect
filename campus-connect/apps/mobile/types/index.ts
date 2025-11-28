@@ -6,7 +6,16 @@ export interface Profile {
   id: string;
   email: string;
   name: string;
+  nickname?: string;
   avatar_url?: string;
+  banner_url?: string;
+  bio?: string;
+  interests?: string[];
+  favorite_lecture?: string;
+  availability_status?: 'free' | 'studying' | 'busy' | 'available' | 'away';
+  show_study_stats?: boolean;
+  study_hours?: number;
+  favorite_study_spots?: string[];
   student_id?: string;
   major?: string;
   minor?: string;
@@ -212,7 +221,11 @@ export interface Achievement {
   name: string;
   description?: string;
   icon?: string;
+  category?: 'academic' | 'social' | 'wellness' | 'special' | 'streak';
   points: number;
+  rarity?: 'common' | 'rare' | 'epic' | 'legendary';
+  requirement_type?: string;
+  requirement_value?: number;
   max_progress?: number;
   user_progress?: number;
   unlocked?: boolean;
@@ -224,7 +237,124 @@ export interface UserStats {
   user_id: string;
   total_points: number;
   level: number;
-  streak: number;
+  current_streak: number;
+  longest_streak: number;
+  updated_at?: string;
+}
+
+export interface Streak {
+  id: string;
+  user_id: string;
+  streak_type: 'attendance' | 'grade' | 'submission' | 'study_hours' | 'early_bird' | 'event_attendance' | 'workout' | 'mensa' | 'friend_meetup';
+  current_streak: number;
+  longest_streak: number;
+  last_activity_date?: string;
+  streak_start_date?: string;
+  updated_at?: string;
+}
+
+export interface StreakActivity {
+  id: string;
+  user_id: string;
+  streak_type: string;
+  activity_date: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
+export interface UserAchievement {
+  id: string;
+  user_id: string;
+  achievement_id: string;
+  unlocked_at: string;
+  progress: number;
+  is_completed: boolean;
+  achievement?: Achievement;
+}
+
+export interface PointTransaction {
+  id: string;
+  user_id: string;
+  points: number;
+  source: string;
+  description?: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
+export interface Leaderboard {
+  id: string;
+  type: 'weekly' | 'monthly' | 'semester' | 'course' | 'challenge';
+  category?: string;
+  course_id?: string;
+  period_start?: string;
+  period_end?: string;
+  created_at: string;
+}
+
+export interface LeaderboardEntry {
+  id: string;
+  leaderboard_id: string;
+  user_id: string;
+  rank: number;
+  score: number;
+  metadata?: Record<string, any>;
+  updated_at: string;
+  user?: Profile;
+}
+
+export interface Challenge {
+  id: string;
+  name: string;
+  description?: string;
+  type: 'study' | 'fitness' | 'social' | 'academic' | 'custom';
+  duration_days: number;
+  start_date: string;
+  end_date: string;
+  target_value: number;
+  target_type: string;
+  reward_points: number;
+  reward_achievement_id?: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ChallengeParticipant {
+  id: string;
+  challenge_id: string;
+  user_id: string;
+  progress: number;
+  joined_at: string;
+  completed_at?: string;
+  challenge?: Challenge;
+  user?: Profile;
+}
+
+export interface StreakRecovery {
+  id: string;
+  user_id: string;
+  streak_type: string;
+  used_at: string;
+  recovery_month: string;
+}
+
+export interface LevelConfig {
+  level: number;
+  level_name: string;
+  points_required: number;
+  rewards?: Record<string, any>;
+}
+
+export interface SurpriseReward {
+  id: string;
+  user_id: string;
+  reward_type: 'points' | 'achievement' | 'badge' | 'perk';
+  reward_value?: number;
+  achievement_id?: string;
+  message?: string;
+  claimed: boolean;
+  expires_at?: string;
+  created_at: string;
 }
 
 export interface Conversation {
@@ -264,6 +394,87 @@ export interface SleepEntry {
   user_id: string;
   hours: number;
   date: string;
+}
+
+// =============================================
+// SOCIAL CONNECTIONS TYPES
+// =============================================
+
+export interface FriendRequest {
+  id: string;
+  requester_id: string;
+  recipient_id: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
+  created_at: string;
+  updated_at: string;
+  requester?: Profile;
+  recipient?: Profile;
+}
+
+export interface Friendship {
+  id: string;
+  user_id: string;
+  friend_id: string;
+  is_close_friend: boolean;
+  created_at: string;
+  friend?: Profile;
+  user?: Profile;
+}
+
+export interface Follow {
+  id: string;
+  follower_id: string;
+  following_id: string;
+  created_at: string;
+  follower?: Profile;
+  following?: Profile;
+}
+
+export interface ConnectionStory {
+  id: string;
+  user_id: string;
+  connected_user_id: string;
+  story: string;
+  location?: string;
+  context?: string;
+  created_at: string;
+  connected_user?: Profile;
+}
+
+export interface CourseClassmate {
+  id: string;
+  user_id: string;
+  classmate_id: string;
+  course_id: string;
+  semester?: string;
+  discovered_at: string;
+  classmate?: Profile;
+  course?: Course;
+}
+
+export interface FriendLocation {
+  id: string;
+  user_id: string;
+  latitude?: number;
+  longitude?: number;
+  location_name?: string;
+  is_visible: boolean;
+  updated_at: string;
+  user?: Profile;
+}
+
+export interface MutualConnection {
+  user: Profile;
+  mutual_friends_count: number;
+  mutual_courses_count: number;
+}
+
+export interface SocialStats {
+  friends_count: number;
+  followers_count: number;
+  following_count: number;
+  close_friends_count: number;
+  mutual_connections_count: number;
 }
 
 // =============================================

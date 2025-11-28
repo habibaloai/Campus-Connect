@@ -38,24 +38,32 @@ export function Input({
         </Text>
       )}
       <View
-        className={`
-          flex-row items-center px-4 py-3 rounded-xl border
-          ${isDark ? 'bg-gray-800' : 'bg-gray-50'}
-          ${
-            error
-              ? 'border-red-500'
-              : isFocused
-              ? 'border-primary-500'
-              : isDark
-              ? 'border-gray-700'
-              : 'border-gray-200'
-          }
-        `}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          paddingVertical: 14,
+          borderRadius: 12,
+          borderWidth: 1,
+          backgroundColor: isDark ? 'rgba(30, 41, 59, 0.8)' : '#f8fafc',
+          borderColor: error
+            ? '#ef4444'
+            : isFocused
+            ? '#3b82f6'
+            : isDark
+            ? 'rgba(255, 255, 255, 0.2)'
+            : '#e2e8f0',
+        }}
       >
         {icon && <View className="mr-3">{icon}</View>}
         <TextInput
-          className={`flex-1 text-base ${isDark ? 'text-white' : 'text-gray-900'}`}
-          placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+          style={{
+            flex: 1,
+            marginLeft: icon ? 12 : 0,
+            fontSize: 16,
+            color: isDark ? '#ffffff' : '#1e293b',
+          }}
+          placeholderTextColor={isDark ? '#64748b' : '#9ca3af'}
           secureTextEntry={isPassword && !showPassword}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
