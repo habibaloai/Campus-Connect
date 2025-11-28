@@ -8,12 +8,17 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  ImageBackground,
+  StyleSheet,
+  Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Mail, ArrowLeft } from 'lucide-react-native';
+import { Mail } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { auth } from '@/lib/supabase';
+
+const { width, height } = Dimensions.get('window');
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
@@ -21,19 +26,14 @@ export default function ForgotPasswordScreen() {
   const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
   const handleResetPassword = async () => {
-    // Clear previous message
     setMessage(null);
-
-    // Trim and lowercase email
     const trimmedEmail = email.trim().toLowerCase();
 
-    // Validate email is not empty
     if (!trimmedEmail) {
       setMessage({ type: 'error', text: 'Please enter your email address' });
       return;
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmedEmail)) {
       setMessage({ type: 'error', text: 'Please enter a valid email address' });
@@ -44,15 +44,12 @@ export default function ForgotPasswordScreen() {
 
     try {
       const { error } = await auth.resetPassword(trimmedEmail);
-
-      // Always show success message (for security, never reveal if email exists)
       setMessage({
         type: 'success',
         text: 'If an account exists, a password reset link has been sent to your email. Please check your inbox and spam folder.',
       });
     } catch (err: any) {
       console.error('Password reset error:', err);
-      // Still show success for security
       setMessage({
         type: 'success',
         text: 'If an account exists, a password reset link has been sent to your email. Please check your inbox and spam folder.',
@@ -62,142 +59,254 @@ export default function ForgotPasswordScreen() {
     }
   };
 
+  const backgroundSource = require('../../assets/images/splash-screen.png');
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-[#f8fafc]"
+    <ImageBackground
+      source={backgroundSource}
+      style={styles.background}
+      resizeMode="cover"
     >
-      <StatusBar style="dark" />
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-        className="flex-1"
+      <View style={styles.overlay} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
       >
-        <View className="flex-1 px-6 pt-12 pb-10">
-          {/* Back Button */}
-          <Animated.View entering={FadeInUp.duration(400)}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              className="w-10 h-10 items-center justify-center rounded-full bg-white mb-6"
-              style={{
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.06,
-                shadowRadius: 4,
-                elevation: 2,
-              }}
+        <StatusBar style="light" />
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.content}>
+            {/* Header */}
+            <Animated.View
+              entering={FadeInUp.duration(800).springify()}
+              style={styles.header}
             >
-              <ArrowLeft size={22} color="#374151" />
-            </TouchableOpacity>
-          </Animated.View>
-
-          {/* Header */}
-          <Animated.View
-            entering={FadeInUp.duration(800).springify()}
-            className="mb-8"
-          >
-            <Text className="text-3xl font-bold text-gray-900">Forgot Password?</Text>
-            <Text className="text-base text-gray-500 mt-2">
-              Enter your email address and we'll send you a link to reset your password.
-            </Text>
-          </Animated.View>
-
-          {/* Message Display */}
-          {message && (
-            <View
-              style={{
-                backgroundColor: message.type === 'error' ? '#fef2f2' : '#f0fdf4',
-                borderWidth: 1,
-                borderColor: message.type === 'error' ? '#fecaca' : '#bbf7d0',
-                borderRadius: 12,
-                padding: 16,
-                marginBottom: 16,
-              }}
-            >
-              <Text
-                style={{
-                  color: message.type === 'error' ? '#dc2626' : '#16a34a',
-                  fontSize: 14,
-                  fontWeight: '600',
-                  textAlign: 'center',
-                }}
-              >
-                {message.text}
+              <Text style={styles.title}>Forgot Password?</Text>
+              <Text style={styles.subtitle}>
+                Enter your email address and we'll send you a link to reset your password.
               </Text>
-            </View>
-          )}
+            </Animated.View>
 
-          {/* Form */}
-          <Animated.View entering={FadeInDown.duration(800).delay(150).springify()}>
-            {/* Email Input */}
-            <View className="mb-6">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">Email</Text>
-              <View
-                className="flex-row items-center bg-white border border-gray-200 rounded-2xl px-4 py-3.5"
-                style={{
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.04,
-                  shadowRadius: 4,
-                  elevation: 2,
-                }}
+            {/* Message Display */}
+            {message && (
+              <Animated.View
+                entering={FadeInDown.duration(400)}
+                style={[
+                  styles.messageContainer,
+                  message.type === 'error' ? styles.errorMessage : styles.successMessage,
+                ]}
               >
-                <Mail size={20} color="#9ca3af" />
-                <TextInput
-                  className="flex-1 ml-3 text-base text-gray-900"
-                  placeholder="your.email@university.edu"
-                  placeholderTextColor="#9ca3af"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-            </View>
-
-            {/* Send Reset Link Button */}
-            <TouchableOpacity
-              onPress={handleResetPassword}
-              disabled={isLoading}
-              style={{
-                backgroundColor: '#3b82f6',
-                paddingVertical: 16,
-                borderRadius: 16,
-                alignItems: 'center',
-                marginBottom: 16,
-                opacity: isLoading ? 0.7 : 1,
-                shadowColor: '#3b82f6',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                elevation: 4,
-              }}
-              activeOpacity={0.8}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
-                  Send Reset Link
+                <Text style={[
+                  styles.messageText,
+                  message.type === 'error' ? styles.errorText : styles.successText,
+                ]}>
+                  {message.text}
                 </Text>
-              )}
-            </TouchableOpacity>
-          </Animated.View>
+              </Animated.View>
+            )}
 
-          {/* Back to Login Link */}
-          <Animated.View
-            entering={FadeInDown.duration(800).delay(300).springify()}
-            className="flex-row justify-center mt-auto"
-          >
-            <Text className="text-gray-500">Remember your password? </Text>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Text className="text-blue-500 font-bold">Back to Login</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {/* Form Container */}
+            <Animated.View 
+              entering={FadeInDown.duration(800).delay(150).springify()}
+              style={styles.formContainer}
+            >
+              {/* Email Input */}
+              <View style={styles.inputWrapper}>
+                <View style={styles.inputContainer}>
+                  <Mail size={20} color="#9ca3af" />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Email"
+                    placeholderTextColor="#9ca3af"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+              </View>
+
+              {/* Send Reset Link Button */}
+              <TouchableOpacity
+                onPress={handleResetPassword}
+                disabled={isLoading}
+                style={[styles.resetButton, isLoading && styles.resetButtonDisabled]}
+                activeOpacity={0.9}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Text style={styles.resetButtonText}>Send Reset Link</Text>
+                )}
+              </TouchableOpacity>
+            </Animated.View>
+
+            {/* Back to Login Link */}
+            <Animated.View
+              entering={FadeInDown.duration(800).delay(300).springify()}
+              style={styles.backToLoginContainer}
+            >
+              <Text style={styles.backToLoginText}>Remember your password? </Text>
+              <TouchableOpacity onPress={() => router.back()}>
+                <Text style={styles.backToLoginLink}>Back to Login</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ImageBackground>
   );
 }
 
+const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+    width: width,
+    height: height,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  container: {
+    flex: 1,
+    width: '100%',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 8,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#e0e0e0',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  messageContainer: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    width: '100%',
+    maxWidth: 400,
+  },
+  errorMessage: {
+    backgroundColor: 'rgba(254, 242, 242, 0.95)',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  successMessage: {
+    backgroundColor: 'rgba(240, 253, 244, 0.95)',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+  },
+  messageText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  errorText: {
+    color: '#dc2626',
+  },
+  successText: {
+    color: '#16a34a',
+  },
+  formContainer: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  inputWrapper: {
+    marginBottom: 24,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  input: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  resetButton: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  resetButtonDisabled: {
+    backgroundColor: '#93c5fd',
+  },
+  resetButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  backToLoginContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 24,
+  },
+  backToLoginText: {
+    fontSize: 14,
+    color: '#ffffff',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  backToLoginLink: {
+    fontSize: 14,
+    color: '#ffffff',
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+});

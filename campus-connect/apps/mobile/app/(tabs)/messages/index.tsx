@@ -11,9 +11,11 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import BackgroundImage from '@/components/BackgroundImage';
 import { Search, Edit, User, Users, MessageCircle, X, UserPlus } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -256,28 +258,38 @@ export default function MessagesScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className={`flex-1 items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-[#f8fafc]'}`}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text className={`mt-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Loading messages...</Text>
-      </SafeAreaView>
+      <BackgroundImage overlayOpacity={0.6}>
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#3b82f6" />
+            <Text style={styles.loadingText}>Loading messages...</Text>
+          </View>
+        </SafeAreaView>
+      </BackgroundImage>
     );
   }
 
   return (
-    <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-[#f8fafc]'}`} edges={['bottom']}>
+    <BackgroundImage>
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       {/* Search Bar */}
       <Animated.View
         entering={FadeInDown.duration(400).springify()}
         className="px-5 py-3"
       >
         <View
-          className={`flex-row items-center px-4 py-3.5 rounded-2xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}
           style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            borderRadius: 24,
+            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
             shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: isDark ? 0.3 : 0.06,
-            shadowRadius: 8,
-            elevation: 3,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: isDark ? 0.3 : 0.15,
+            shadowRadius: 12,
+            elevation: 6,
           }}
         >
           <Search size={20} color={isDark ? '#9ca3af' : '#9ca3af'} />
@@ -323,13 +335,18 @@ export default function MessagesScreen() {
               >
                 <TouchableOpacity
                   onPress={() => router.push(`/(tabs)/messages/${conv.id}` as any)}
-                  className={`flex-row items-center p-4 rounded-2xl mb-3 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
                   style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: 16,
+                    borderRadius: 24,
+                    marginBottom: 12,
+                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                     shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: isDark ? 0.3 : 0.06,
-                    shadowRadius: 8,
-                    elevation: 3,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: isDark ? 0.3 : 0.15,
+                    shadowRadius: 12,
+                    elevation: 6,
                   }}
                   activeOpacity={0.8}
                 >
@@ -395,8 +412,16 @@ export default function MessagesScreen() {
       {/* FAB - New Message */}
       <TouchableOpacity
         onPress={() => setShowNewChat(true)}
-        className="absolute bottom-6 right-6 w-14 h-14 bg-blue-500 rounded-full items-center justify-center"
         style={{
+          position: 'absolute',
+          bottom: 24,
+          right: 24,
+          width: 56,
+          height: 56,
+          backgroundColor: '#3b82f6',
+          borderRadius: 28,
+          alignItems: 'center',
+          justifyContent: 'center',
           shadowColor: '#3b82f6',
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.4,
@@ -420,7 +445,7 @@ export default function MessagesScreen() {
           className="flex-1"
         >
           <View className="flex-1 bg-black/50 justify-end">
-            <View className={`rounded-t-3xl ${isDark ? 'bg-gray-900' : 'bg-white'}`} style={{ maxHeight: '80%' }}>
+            <View style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: isDark ? 'rgba(30, 41, 59, 0.98)' : 'rgba(255, 255, 255, 0.98)', maxHeight: '80%' }}>
               {/* Modal Header */}
               <View className={`flex-row items-center justify-between px-5 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                 <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -518,6 +543,23 @@ export default function MessagesScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </BackgroundImage>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    color: '#ffffff',
+    fontSize: 16,
+  },
+});

@@ -6,10 +6,12 @@ import {
   TouchableOpacity,
   RefreshControl,
   Image,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import BackgroundImage from '@/components/BackgroundImage';
 import {
   Bell,
   TrendingUp,
@@ -89,10 +91,11 @@ export default function HomeScreen() {
   const userName = profile?.name || user?.email?.split('@')[0] || 'Student';
 
   return (
-    <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-[#f8fafc]'}`}>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      
-      <ScrollView
+    <BackgroundImage>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style={isDark ? 'light' : 'light'} />
+        
+        <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
@@ -103,29 +106,30 @@ export default function HomeScreen() {
         {/* Header */}
         <Animated.View 
           entering={FadeInDown.duration(500).springify()}
-          className={`px-5 pt-3 pb-2 flex-row items-center justify-between ${isDark ? 'bg-gray-900' : 'bg-[#f8fafc]'}`}
+          style={styles.header}
         >
-          <View className="flex-row items-center">
-            <View className="w-10 h-10 rounded-xl bg-blue-500 items-center justify-center mr-3">
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ 
+              width: 40, 
+              height: 40, 
+              borderRadius: 12, 
+              backgroundColor: 'rgba(59, 130, 246, 0.9)', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              marginRight: 12 
+            }}>
               <GraduationCap size={22} color="#ffffff" />
             </View>
-            <Text className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <Text style={[styles.headerTitle, isDark && styles.headerTitleDark]}>
               Campus Connect
             </Text>
           </View>
           
           <TouchableOpacity
             onPress={() => router.push('/notifications')}
-            className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? 'bg-gray-800' : 'bg-white'}`}
-            style={{
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 4,
-              elevation: 3,
-            }}
+            style={styles.notificationButton}
           >
-            <Bell size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
+            <Bell size={20} color="#ffffff" />
             {unreadCount > 0 && (
               <View className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-red-500 rounded-full items-center justify-center px-1">
                 <Text className="text-white text-xs font-bold">
@@ -142,11 +146,25 @@ export default function HomeScreen() {
           className="px-5 pt-4 pb-2"
         >
           <View className="flex-row items-center justify-between">
-            <View className="flex-1">
-              <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ 
+                fontSize: 24, 
+                fontWeight: 'bold', 
+                color: '#ffffff',
+                textShadowColor: 'rgba(0, 0, 0, 0.3)',
+                textShadowOffset: { width: 0, height: 1 },
+                textShadowRadius: 3,
+              }}>
                 {greeting()}, {userName}! 👋
               </Text>
-              <Text className={`text-base mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              <Text style={{ 
+                fontSize: 16, 
+                marginTop: 4, 
+                color: 'rgba(255, 255, 255, 0.9)',
+                textShadowColor: 'rgba(0, 0, 0, 0.3)',
+                textShadowOffset: { width: 0, height: 1 },
+                textShadowRadius: 2,
+              }}>
                 Here's what's happening today
               </Text>
             </View>
@@ -174,13 +192,16 @@ export default function HomeScreen() {
                 className={`flex-1 ${index < 3 ? 'mr-3' : ''}`}
               >
                 <View
-                  className={`p-3 rounded-2xl items-center ${isDark ? 'bg-gray-800' : 'bg-white'}`}
                   style={{
+                    padding: 12,
+                    borderRadius: 24,
+                    alignItems: 'center',
+                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                     shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: isDark ? 0.3 : 0.06,
-                    shadowRadius: 8,
-                    elevation: 3,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: isDark ? 0.3 : 0.15,
+                    shadowRadius: 12,
+                    elevation: 6,
                   }}
                 >
                   <View
@@ -189,10 +210,10 @@ export default function HomeScreen() {
                   >
                     <stat.icon size={22} color={stat.color} />
                   </View>
-                  <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: isDark ? '#ffffff' : '#1e293b' }}>
                     {stat.value}
                   </Text>
-                  <Text className={`text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  <Text style={{ fontSize: 12, fontWeight: '500', color: isDark ? '#94a3b8' : '#64748b', marginTop: 2 }}>
                     {stat.label}
                   </Text>
                 </View>
@@ -208,17 +229,28 @@ export default function HomeScreen() {
         >
           <TouchableOpacity
             onPress={() => router.push('/notifications')}
-            className={`flex-row items-center p-4 rounded-2xl ${isDark ? 'bg-blue-900/30' : 'bg-blue-50'}`}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              padding: 16,
+              borderRadius: 24,
+              backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: isDark ? 0.3 : 0.15,
+              shadowRadius: 12,
+              elevation: 6,
+            }}
             activeOpacity={0.8}
           >
             <View className="w-11 h-11 rounded-xl bg-blue-100 items-center justify-center">
               <Bell size={22} color="#3b82f6" />
             </View>
             <View className="flex-1 ml-4">
-              <Text className={`text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: isDark ? '#ffffff' : '#1e293b' }}>
                 You have {unreadCount || 4} new notifications
               </Text>
-              <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              <Text style={{ fontSize: 14, color: isDark ? '#94a3b8' : '#64748b' }}>
                 Tap to view all
               </Text>
             </View>
@@ -234,7 +266,7 @@ export default function HomeScreen() {
           <View className="flex-row items-center justify-between mb-4">
             <View className="flex-row items-center">
               <BookOpen size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
-              <Text className={`text-lg font-semibold ml-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              <Text style={{ fontSize: 18, fontWeight: '600', marginLeft: 8, color: isDark ? '#ffffff' : '#1e293b' }}>
                 Today's Classes
               </Text>
             </View>
@@ -249,13 +281,16 @@ export default function HomeScreen() {
               entering={FadeInDown.duration(400).delay(500 + index * 80).springify()}
             >
               <TouchableOpacity
-                className={`p-4 rounded-2xl mb-3 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
                 style={{
+                  padding: 16,
+                  borderRadius: 24,
+                  marginBottom: 12,
+                  backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                   shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: isDark ? 0.3 : 0.06,
-                  shadowRadius: 8,
-                  elevation: 3,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: isDark ? 0.3 : 0.15,
+                  shadowRadius: 12,
+                  elevation: 6,
                 }}
                 activeOpacity={0.8}
               >
@@ -358,6 +393,47 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </BackgroundImage>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'transparent',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  headerTitleDark: {
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowRadius: 4,
+  },
+  notificationButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+});

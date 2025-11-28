@@ -1,7 +1,8 @@
 import React, { useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, Switch } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, Switch, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
+import BackgroundImage from '@/components/BackgroundImage';
 import {
   User,
   Mail,
@@ -101,18 +102,24 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-[#f8fafc]'}`} edges={['bottom']}>
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+    <BackgroundImage>
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {/* Profile Header */}
         <Animated.View
           entering={FadeInDown.duration(500).springify()}
-          className={`py-5 px-5 mx-5 mt-3 rounded-2xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}
           style={{
+            paddingVertical: 20,
+            paddingHorizontal: 20,
+            marginHorizontal: 20,
+            marginTop: 12,
+            borderRadius: 24,
+            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
             shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: isDark ? 0.3 : 0.06,
-            shadowRadius: 8,
-            elevation: 3,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: isDark ? 0.3 : 0.15,
+            shadowRadius: 12,
+            elevation: 6,
           }}
         >
           <View className="flex-row items-start">
@@ -262,7 +269,19 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 key={link.label}
                 onPress={() => router.push(link.route as any)}
-                className={`w-[31%] items-center mb-4 p-4 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+                style={{
+                  width: '31%',
+                  alignItems: 'center',
+                  marginBottom: 16,
+                  padding: 16,
+                  borderRadius: 16,
+                  backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: isDark ? 0.3 : 0.15,
+                  shadowRadius: 12,
+                  elevation: 6,
+                }}
                 style={{
                   shadowColor: '#000',
                   shadowOffset: { width: 0, height: 2 },
@@ -299,13 +318,18 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 key={link.label}
                 onPress={() => router.push(link.route as any)}
-                className={`w-[23%] items-center mb-4 p-3 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}
                 style={{
+                  width: '23%',
+                  alignItems: 'center',
+                  marginBottom: 16,
+                  padding: 12,
+                  borderRadius: 16,
+                  backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                   shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: isDark ? 0.3 : 0.04,
-                  shadowRadius: 4,
-                  elevation: 2,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: isDark ? 0.3 : 0.15,
+                  shadowRadius: 12,
+                  elevation: 6,
                 }}
                 activeOpacity={0.8}
               >
@@ -335,13 +359,15 @@ export default function ProfileScreen() {
                 {section.title}
               </Text>
               <View
-                className={`rounded-2xl overflow-hidden ${isDark ? 'bg-gray-800' : 'bg-white'}`}
                 style={{
+                  borderRadius: 24,
+                  overflow: 'hidden',
+                  backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                   shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: isDark ? 0.3 : 0.06,
-                  shadowRadius: 8,
-                  elevation: 3,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: isDark ? 0.3 : 0.15,
+                  shadowRadius: 12,
+                  elevation: 6,
                 }}
               >
                 {section.items.map((item: any, itemIndex) => (
@@ -397,11 +423,18 @@ export default function ProfileScreen() {
           </Animated.View>
 
           {/* App Version */}
-          <Text className={`text-center text-xs mt-6 mb-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+          <Text style={{ textAlign: 'center', fontSize: 12, marginTop: 24, marginBottom: 16, color: 'rgba(255, 255, 255, 0.7)' }}>
             Campus Connect v1.0.0
           </Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </BackgroundImage>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
+});

@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { supabase } from './supabase';
-import { secureStorage } from './storage';
+import { storage } from './storage';
 
 // Only import notifications on native platforms
 let Notifications: any = null;
