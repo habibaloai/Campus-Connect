@@ -35,6 +35,7 @@ import {
 } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuth } from '@/providers';
+import { api } from '@/lib/supabase';
 import { useColorScheme } from '@/components/useColorScheme';
 
 const { width } = Dimensions.get('window');
@@ -44,10 +45,22 @@ export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [animationKey, setAnimationKey] = useState(0);
+  const [friendsCount, setFriendsCount] = useState(0);
 
   // Track last focus time to prevent rapid re-animations
   const lastFocusTimeRef = React.useRef<number>(0);
-  
+
+  const fetchProfileData = async () => {
+    if (!user?.id) return;
+    try {
+      // Fetch friends count
+      const { data: friends } = await api.getFriends(user.id);
+      setFriendsCount(friends?.length || 0);
+    } catch (error) {
+      console.error('Error fetching profile data:', error);
+    }
+  };
+
   // Refresh profile and reset animations when screen comes into focus
   useFocusEffect(
     useCallback(() => {
@@ -58,11 +71,12 @@ export default function ProfileScreen() {
         setAnimationKey((prev) => prev + 1);
         lastFocusTimeRef.current = now;
       }
-      
+
       if (user?.id) {
         console.log('[Profile Screen] Screen focused, refreshing profile...');
         // Call refreshProfile without including it in dependencies to prevent infinite loops
         refreshProfile();
+        fetchProfileData();
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id]) // Only depend on user?.id, not refreshProfile
@@ -90,31 +104,31 @@ export default function ProfileScreen() {
       title: 'Account',
       items: [
         { icon: Bell, label: 'Notifications', onPress: () => router.push('/notifications') },
-        { icon: Settings, label: 'Preferences', onPress: () => {} },
+        { icon: Settings, label: 'Preferences', onPress: () => { } },
       ],
     },
     {
       title: 'Security',
       items: [
-        { icon: Shield, label: 'Change Password', onPress: () => {} },
+        { icon: Shield, label: 'Change Password', onPress: () => { } },
         ...(biometricAvailable
           ? [
-              {
-                icon: Fingerprint,
-                label: 'Biometric Login',
-                isToggle: true,
-                value: biometricEnabled,
-                onToggle: biometricEnabled ? disableBiometric : enableBiometric,
-              },
-            ]
+            {
+              icon: Fingerprint,
+              label: 'Biometric Login',
+              isToggle: true,
+              value: biometricEnabled,
+              onToggle: biometricEnabled ? disableBiometric : enableBiometric,
+            },
+          ]
           : []),
       ],
     },
     {
       title: 'Support',
       items: [
-        { icon: HelpCircle, label: 'Help & FAQ', onPress: () => {} },
-        { icon: Mail, label: 'Contact Us', onPress: () => {} },
+        { icon: HelpCircle, label: 'Help & FAQ', onPress: () => { } },
+        { icon: Mail, label: 'Contact Us', onPress: () => { } },
       ],
     },
   ];
@@ -130,10 +144,10 @@ export default function ProfileScreen() {
     >
       {/* Blurred Background Overlay */}
       <View style={[styles.blurOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)' }]} />
-      
+
       {/* Gradient Overlay */}
       <LinearGradient
-        colors={isDark 
+        colors={isDark
           ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']
           : ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.05)']}
         style={styles.gradientOverlay}
@@ -164,8 +178,7 @@ export default function ProfileScreen() {
               name={profile?.name || 'Student'}
               location={profile?.major ? `${profile.major}${profile.year ? ` • ${profile.year}` : ''}` : undefined}
               avatarUrl={profile?.avatar_url}
-              followers={220}
-              following={150}
+              friendsCount={friendsCount}
             />
           </Animated.View>
 
@@ -396,68 +409,67 @@ export default function ProfileScreen() {
             </View>
           </Animated.View>
 
-            {/* Menu Sections */}
+          {/* Menu Sections */}
           <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
-          {menuItems.map((section, sectionIndex) => (
-            <Animated.View
-              key={`${section.title}-${animationKey}`}
-              entering={FadeInDown.duration(400).delay(200 + 80 * sectionIndex).springify()}
-              className="mb-5"
-            >
-              <Text className={`text-sm font-semibold mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                {section.title}
-              </Text>
-              <View
-                style={{
-                  borderRadius: 24,
-                  overflow: 'hidden',
-                  backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: isDark ? 0.3 : 0.15,
-                  shadowRadius: 12,
-                  elevation: 6,
-                }}
+            {menuItems.map((section, sectionIndex) => (
+              <Animated.View
+                key={`${section.title}-${animationKey}`}
+                entering={FadeInDown.duration(400).delay(200 + 80 * sectionIndex).springify()}
+                className="mb-5"
               >
-                {section.items.map((item: any, itemIndex) => (
-                  <TouchableOpacity
-                    key={item.label}
-                    onPress={item.isToggle ? undefined : item.onPress}
-                    className={`flex-row items-center justify-between px-4 py-3.5 ${
-                      itemIndex !== section.items.length - 1
+                <Text className={`text-sm font-semibold mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  {section.title}
+                </Text>
+                <View
+                  style={{
+                    borderRadius: 24,
+                    overflow: 'hidden',
+                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: isDark ? 0.3 : 0.15,
+                    shadowRadius: 12,
+                    elevation: 6,
+                  }}
+                >
+                  {section.items.map((item: any, itemIndex) => (
+                    <TouchableOpacity
+                      key={item.label}
+                      onPress={item.isToggle ? undefined : item.onPress}
+                      className={`flex-row items-center justify-between px-4 py-3.5 ${itemIndex !== section.items.length - 1
                         ? isDark
                           ? 'border-b border-gray-700'
                           : 'border-b border-gray-100'
                         : ''
-                    }`}
-                    activeOpacity={item.isToggle ? 1 : 0.7}
-                  >
-                    <View className="flex-row items-center">
-                      <View
-                        className="w-9 h-9 rounded-xl items-center justify-center"
-                        style={{ backgroundColor: isDark ? '#374151' : '#f3f4f6' }}
-                      >
-                        <item.icon size={18} color="#0066cc" />
+                        }`}
+                      activeOpacity={item.isToggle ? 1 : 0.7}
+                    >
+                      <View className="flex-row items-center">
+                        <View
+                          className="w-9 h-9 rounded-xl items-center justify-center"
+                          style={{ backgroundColor: isDark ? '#374151' : '#f3f4f6' }}
+                        >
+                          <item.icon size={18} color="#0066cc" />
+                        </View>
+                        <Text className={`text-base font-medium ml-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {item.label}
+                        </Text>
                       </View>
-                      <Text className={`text-base font-medium ml-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {item.label}
-                      </Text>
-                    </View>
-                    {item.isToggle ? (
-                      <Switch
-                        value={item.value}
-                        onValueChange={item.onToggle}
-                        trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
-                        thumbColor={item.value ? '#0066cc' : '#f4f4f5'}
-                      />
-                    ) : (
-                      <ChevronRight size={20} color={isDark ? '#6b7280' : '#d1d5db'} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </Animated.View>
-          ))}
+                      {item.isToggle ? (
+                        <Switch
+                          value={item.value}
+                          onValueChange={item.onToggle}
+                          trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+                          thumbColor={item.value ? '#0066cc' : '#f4f4f5'}
+                        />
+                      ) : (
+                        <ChevronRight size={20} color={isDark ? '#6b7280' : '#d1d5db'} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </Animated.View>
+            ))}
 
             {/* Sign Out Button */}
             <Animated.View key={`signout-${animationKey}`} entering={FadeInDown.duration(400).delay(500).springify()}>
@@ -499,9 +511,6 @@ const styles = StyleSheet.create({
   },
   bottomGradient: {
     ...StyleSheet.absoluteFillObject,
-  },
-  safeArea: {
-    flex: 1,
   },
   safeArea: {
     flex: 1,

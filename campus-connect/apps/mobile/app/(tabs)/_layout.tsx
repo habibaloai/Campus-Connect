@@ -132,6 +132,8 @@ export default function TabLayout() {
       {/* Hide index and two from tabs - they came from template */}
       <Tabs.Screen name="index" options={{ href: null }} />
       <Tabs.Screen name="two" options={{ href: null }} />
+      <Tabs.Screen name="friends" options={{ href: null }} />
+      <Tabs.Screen name="friends/index" options={{ href: null }} />
     </Tabs>
   );
 }

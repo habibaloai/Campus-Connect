@@ -14,8 +14,7 @@ interface ProfileHeaderProps {
   name: string;
   location?: string;
   avatarUrl?: string;
-  followers?: number;
-  following?: number;
+  friendsCount?: number;
   showFollowButton?: boolean;
   onFollowPress?: () => void;
 }
@@ -25,8 +24,7 @@ export default function ProfileHeader({
   name,
   location,
   avatarUrl,
-  followers = 0,
-  following = 0,
+  friendsCount = 0,
   showFollowButton = false,
   onFollowPress,
 }: ProfileHeaderProps) {
@@ -44,20 +42,6 @@ export default function ProfileHeader({
           end={{ x: 1, y: 1 }}
           style={styles.gradientCard}
         >
-          {/* Profile icon button in top right */}
-          <View style={styles.profileIconButton}>
-            <TouchableOpacity
-              onPress={() => router.push('/profile/edit')}
-              style={[
-                styles.editButton,
-                { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 102, 204, 0.1)' }
-              ]}
-              activeOpacity={0.7}
-            >
-              <User size={20} color={isDark ? "#ffffff" : "#0066cc"} />
-            </TouchableOpacity>
-          </View>
-          
           {/* Profile Content */}
           <View style={styles.profileContent}>
             {/* Profile Picture */}
@@ -80,30 +64,21 @@ export default function ProfileHeader({
             {/* Location */}
             {location && <Text style={[styles.location, { color: isDark ? 'rgba(255, 255, 255, 0.8)' : '#64748b' }]}>{location}</Text>}
 
-            {/* Followers/Following Bar */}
-            <View style={styles.statsBar}>
-              <TouchableOpacity
-                style={styles.statItem}
-                onPress={() => router.push('/connections?tab=followers')}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.statNumber, { color: isDark ? '#ffffff' : '#1e293b' }]}>{followers}</Text>
-                <Text style={[styles.statLabel, { color: isDark ? 'rgba(255, 255, 255, 0.8)' : '#64748b' }]}>Followers</Text>
-              </TouchableOpacity>
-              <View style={[styles.statDivider, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)' }]} />
-              <TouchableOpacity
-                style={styles.statItem}
-                onPress={() => router.push('/connections?tab=following')}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.statNumber, { color: isDark ? '#ffffff' : '#1e293b' }]}>{following}</Text>
-                <Text style={[styles.statLabel, { color: isDark ? 'rgba(255, 255, 255, 0.8)' : '#64748b' }]}>Following</Text>
-              </TouchableOpacity>
-            </View>
+            {/* Friends Count */}
+            <TouchableOpacity
+              style={styles.statsBar}
+              onPress={() => router.push('/friends' as any)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.statItem}>
+                <Text style={[styles.statNumber, { color: isDark ? '#ffffff' : '#1e293b' }]}>{friendsCount}</Text>
+                <Text style={[styles.statLabel, { color: isDark ? 'rgba(255, 255, 255, 0.8)' : '#64748b' }]}>Friends</Text>
+              </View>
+            </TouchableOpacity>
           </View>
         </LinearGradient>
       </View>
-    </Animated.View>
+    </Animated.View >
   );
 }
 
