@@ -9,6 +9,12 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+# Redirect all routes to Next.js for client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/:splat"
+  status = 200
+
 
 
 

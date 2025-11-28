@@ -3,6 +3,7 @@ import { View, Text, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { CheckCircle, XCircle } from 'lucide-react-native';
+import Animated, { FadeIn, FadeInDown, FadeInUp, ZoomIn, BounceIn } from 'react-native-reanimated';
 
 export default function AuthCallbackScreen() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -18,21 +19,55 @@ export default function AuthCallbackScreen() {
         
         // Check if we have tokens in the URL (from email verification)
         // Supabase might send them as access_token, refresh_token, or in hash fragments
-        const accessToken = (params.access_token || params['#access_token'] || params.access_token) as string;
-        const refreshToken = (params.refresh_token || params['#refresh_token'] || params.refresh_token) as string;
-        const type = (params.type || params['#type']) as string;
+        // For React Native, expo-router handles URL parameters automatically
+        const accessToken = (params.access_token || params['#access_token'] || '') as string;
+        const refreshToken = (params.refresh_token || params['#refresh_token'] || '') as string;
+        const type = (params.type || params['#type'] || '') as string;
 
-        console.log('Extracted tokens:', { 
+        console.log('Callback params received:', { 
           hasAccessToken: !!accessToken, 
           hasRefreshToken: !!refreshToken, 
-          type 
+          type,
+          allParamKeys: Object.keys(params),
+          paramValues: Object.values(params).slice(0, 3) // Log first 3 values for debugging
         });
 
+        // Check if we have a code parameter (PKCE flow from Supabase)
+        const code = (params.code || params['#code']) as string;
+        
+        // If we have a code, exchange it for a session (newer Supabase flow)
+        if (code) {
+          console.log('Found code parameter, exchanging for session...');
+          const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          
+          if (exchangeError) {
+            console.error('Code exchange error:', exchangeError);
+            setStatus('error');
+            setMessage(exchangeError.message || 'Verification failed. Please try again.');
+            setTimeout(() => {
+              router.replace('/(auth)/login');
+            }, 3000);
+            return;
+          }
+          
+          if (sessionData?.session) {
+            // Successfully verified - show success page
+            setStatus('success');
+            setMessage('Email verified successfully! Your account is ready.');
+            
+            // Redirect to login after showing success animation
+            setTimeout(() => {
+              router.replace('/(auth)/login');
+            }, 4000);
+            return;
+          }
+        }
+
         // If no params at all, show error
-        if (!accessToken && !refreshToken && !type) {
+        if (!accessToken && !refreshToken && !type && !code) {
           console.warn('No callback parameters found');
           setStatus('error');
-          setMessage('Invalid reset link. Please request a new password reset.');
+          setMessage('Invalid verification link. Please request a new verification email.');
           setTimeout(() => {
             router.replace('/(auth)/login');
           }, 3000);
@@ -56,19 +91,28 @@ export default function AuthCallbackScreen() {
               setStatus('success');
               setMessage('Password reset link verified! Redirecting...');
               
-              // Redirect to reset password screen after 2 seconds
+              // Redirect to reset password screen after showing success animation
               setTimeout(() => {
                 router.replace('/(auth)/reset-password');
-              }, 2000);
+              }, 3000); // Give time for animation
+            } else if (type === 'signup') {
+              // For signup verification, show success page with animation
+              setStatus('success');
+              setMessage('Email verified successfully! Your account is ready.');
+              
+              // Redirect to login after showing success animation (longer delay for better UX)
+              setTimeout(() => {
+                router.replace('/(auth)/login');
+              }, 4000); // 4 seconds to enjoy the success animation
             } else {
-              // For signup and email_change, redirect to login
+              // For email_change, redirect to login
               setStatus('success');
               setMessage('Email verified successfully! Redirecting to login...');
               
               // Redirect to login after 2 seconds
               setTimeout(() => {
                 router.replace('/(auth)/login');
-              }, 2000);
+              }, 3000);
             }
           } else {
             // No tokens, check if already verified
@@ -127,6 +171,11 @@ export default function AuthCallbackScreen() {
         console.error('Auth callback error:', error);
         setStatus('error');
         setMessage(error.message || 'Verification failed. Please try again.');
+        
+        // Redirect to login after showing error
+        setTimeout(() => {
+          router.replace('/(auth)/login');
+        }, 4000); // Give time to see the error message
       }
     };
 
@@ -177,51 +226,88 @@ export default function AuthCallbackScreen() {
 
         {status === 'success' && (
           <>
-            <View
+            {/* Animated Success Icon */}
+            <Animated.View
+              entering={ZoomIn.duration(600).springify()}
               style={{
                 backgroundColor: '#dcfce7',
                 borderRadius: 50,
                 padding: 16,
+                marginBottom: 8,
               }}
             >
-              <CheckCircle size={48} color="#16a34a" />
-            </View>
-            <Text
+              <Animated.View entering={BounceIn.delay(200).duration(800)}>
+                <CheckCircle size={64} color="#16a34a" strokeWidth={2.5} />
+              </Animated.View>
+            </Animated.View>
+
+            {/* Animated Success Title */}
+            <Animated.Text
+              entering={FadeInDown.delay(400).duration(600)}
               style={{
                 marginTop: 24,
-                fontSize: 24,
+                fontSize: 28,
                 fontWeight: 'bold',
                 color: '#16a34a',
                 textAlign: 'center',
               }}
             >
-              Success!
-            </Text>
-            <Text
+              Successfully Verified!
+            </Animated.Text>
+
+            {/* Animated Success Message */}
+            <Animated.Text
+              entering={FadeInUp.delay(600).duration(600)}
               style={{
                 marginTop: 12,
                 fontSize: 16,
                 color: '#6b7280',
                 textAlign: 'center',
+                lineHeight: 24,
+                paddingHorizontal: 8,
               }}
             >
               {message}
-            </Text>
+            </Animated.Text>
+
+            {/* Animated Loading Indicator for Redirect */}
+            <Animated.View
+              entering={FadeIn.delay(1000).duration(400)}
+              style={{ marginTop: 32 }}
+            >
+              <ActivityIndicator size="small" color="#16a34a" />
+              <Text
+                style={{
+                  marginTop: 12,
+                  fontSize: 14,
+                  color: '#9ca3af',
+                  textAlign: 'center',
+                }}
+              >
+                Redirecting...
+              </Text>
+            </Animated.View>
           </>
         )}
 
         {status === 'error' && (
           <>
-            <View
+            {/* Animated Error Icon */}
+            <Animated.View
+              entering={ZoomIn.duration(600).springify()}
               style={{
                 backgroundColor: '#fee2e2',
                 borderRadius: 50,
                 padding: 16,
+                marginBottom: 8,
               }}
             >
-              <XCircle size={48} color="#dc2626" />
-            </View>
-            <Text
+              <XCircle size={64} color="#dc2626" strokeWidth={2.5} />
+            </Animated.View>
+
+            {/* Animated Error Title */}
+            <Animated.Text
+              entering={FadeInDown.delay(200).duration(600)}
               style={{
                 marginTop: 24,
                 fontSize: 24,
@@ -231,17 +317,40 @@ export default function AuthCallbackScreen() {
               }}
             >
               Verification Failed
-            </Text>
-            <Text
+            </Animated.Text>
+
+            {/* Animated Error Message */}
+            <Animated.Text
+              entering={FadeInUp.delay(400).duration(600)}
               style={{
                 marginTop: 12,
                 fontSize: 16,
                 color: '#6b7280',
                 textAlign: 'center',
+                lineHeight: 24,
+                paddingHorizontal: 8,
               }}
             >
               {message}
-            </Text>
+            </Animated.Text>
+
+            {/* Redirect indicator */}
+            <Animated.View
+              entering={FadeIn.delay(800).duration(400)}
+              style={{ marginTop: 32 }}
+            >
+              <ActivityIndicator size="small" color="#dc2626" />
+              <Text
+                style={{
+                  marginTop: 12,
+                  fontSize: 14,
+                  color: '#9ca3af',
+                  textAlign: 'center',
+                }}
+              >
+                Redirecting...
+              </Text>
+            </Animated.View>
           </>
         )}
       </View>

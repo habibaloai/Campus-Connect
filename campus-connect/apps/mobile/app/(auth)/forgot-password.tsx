@@ -44,10 +44,33 @@ export default function ForgotPasswordScreen() {
 
     try {
       const { error } = await auth.resetPassword(trimmedEmail);
-      setMessage({
-        type: 'success',
-        text: 'If an account exists, a password reset link has been sent to your email. Please check your inbox and spam folder.',
-      });
+
+      if (error) {
+        // Show specific error for rate limiting
+        if (error.status === 429) {
+          setMessage({
+            type: 'error',
+            text: error.message || 'Too many requests. Please wait a few minutes before trying again.',
+          });
+        } else if (error.message?.includes('valid email')) {
+          setMessage({
+            type: 'error',
+            text: 'Please enter a valid email address.',
+          });
+        } else {
+          // For other errors, show success for security (don't reveal if email exists)
+          setMessage({
+            type: 'success',
+            text: 'If an account exists, a password reset link has been sent to your email. Please check your inbox and spam folder.',
+          });
+        }
+      } else {
+        // Success - show success message
+        setMessage({
+          type: 'success',
+          text: 'If an account exists, a password reset link has been sent to your email. Please check your inbox and spam folder.',
+        });
+      }
     } catch (err: any) {
       console.error('Password reset error:', err);
       setMessage({

@@ -98,3 +98,4 @@ Once you've run the migration, you can test:
 - Verify your Supabase project has real-time enabled
 - Ensure you're connected to the correct Supabase project
 
+

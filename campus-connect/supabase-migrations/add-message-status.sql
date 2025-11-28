@@ -37,3 +37,4 @@ COMMENT ON COLUMN messages.read_at IS 'Timestamp when the message was read by th
 
 COMMIT;
 
+

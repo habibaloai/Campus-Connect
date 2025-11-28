@@ -64,24 +64,36 @@ export default function SignUpScreen() {
     setIsLoading(true);
     
     try {
-      const { error } = await signUp(trimmedEmail, trimmedPassword, trimmedName);
+      const { error, data } = await signUp(trimmedEmail, trimmedPassword, trimmedName);
       
       if (error) {
-        let errorMessage = error.message;
-        if (error.message?.includes('already registered')) {
+        // Handle specific error messages
+        let errorMessage = error.message || 'Something went wrong. Please try again.';
+        
+        // Check for duplicate user errors (multiple possible messages)
+        if (
+          error.message?.includes('already exists') ||
+          error.message?.includes('already registered') ||
+          error.message?.toLowerCase().includes('duplicate') ||
+          (error.status === 400 && error.message?.includes('email'))
+        ) {
           errorMessage = 'An account with this email already exists. Please sign in instead.';
         } else if (error.message?.includes('invalid')) {
           errorMessage = 'Please check your email address and try again.';
         }
+        
         setMessage({ type: 'error', text: errorMessage });
+        // Don't redirect on error - stay on signup screen
       } else {
+        // Success - if no error, signup succeeded (even if no session, that's normal for email confirmation)
         setMessage({ 
           type: 'success', 
-          text: 'Account created successfully! Redirecting to sign in...' 
+          text: 'Account created successfully! Please check your email to verify your account.' 
         });
+        // Navigate to login after 3 seconds (give time to read message)
         setTimeout(() => {
           router.replace('/(auth)/login');
-        }, 2000);
+        }, 3000);
       }
     } catch (err: any) {
       console.error('Signup error:', err);

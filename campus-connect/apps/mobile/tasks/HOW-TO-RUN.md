@@ -34,7 +34,7 @@ Should show: `C:\Users\Ahmed Sameh\H project\campus-connect\apps\mobile`
 
 **Check Node.js:**
 ```powershell
-node --version
+node --versionnp
 ```
 Should show: `v18.x.x` or higher
 
@@ -213,4 +213,5 @@ I'll help you fix it! 🚀
 - **Clear cache:** `npx expo start --clear`
 - **Install deps:** `npm install`
 - **Check location:** `Get-Location`
+
 

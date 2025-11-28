@@ -27,27 +27,100 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 export const auth = {
   signUp: async (email: string, password: string, name: string) => {
     try {
+      // First, check if a profile with this email already exists
+      // This prevents duplicate signups even if Supabase doesn't return an error
+      const normalizedEmail = email.toLowerCase().trim();
+      
+      // Try to check for existing profile, but don't fail if check fails (RLS might prevent it)
+      let existingProfile = null;
+      try {
+        const { data: profileData, error: checkError } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .eq('email', normalizedEmail)
+          .maybeSingle();
+
+        if (!checkError && profileData) {
+          existingProfile = profileData;
+        } else if (checkError) {
+          // If check fails (e.g., RLS policy), log but continue - Supabase will catch duplicates
+          console.warn('Could not check for existing profile (may be RLS restriction):', checkError.message);
+        }
+      } catch (err) {
+        // If check throws an error, continue with signup - Supabase will handle duplicates
+        console.warn('Error checking for existing profile:', err);
+      }
+
+      if (existingProfile) {
+        // User already exists
+        console.log('Duplicate signup attempt detected for email:', normalizedEmail);
+        return { 
+          data: null, 
+          error: { 
+            message: 'An account with this email already exists. Please sign in instead.',
+            status: 400 
+          } 
+        };
+      }
+
+      // Construct redirect URL for email verification
+      // This ensures verification links go to the app, not the web app
+      const emailRedirectTo = __DEV__
+        ? 'http://localhost:8081/auth/callback?type=signup'
+        : 'https://campusconnect.app/auth/callback?type=signup'; // Update with your actual web URL
+
       // Create the auth user
+      console.log('Attempting to sign up user with email:', normalizedEmail);
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: normalizedEmail,
         password,
         options: {
           data: { name },
+          emailRedirectTo,
         },
       });
 
+      console.log('SignUp response:', { 
+        hasUser: !!data?.user, 
+        hasSession: !!data?.session, 
+        hasError: !!error,
+        errorMessage: error?.message 
+      });
+
       if (error) {
+        // Check if error is due to user already existing
+        // Supabase returns different error messages for duplicate users
+        const errorMessage = error.message?.toLowerCase() || '';
+        const isDuplicateUser = 
+          errorMessage.includes('already registered') || 
+          errorMessage.includes('user already registered') ||
+          errorMessage.includes('email address is already registered') ||
+          errorMessage.includes('user with this email already exists') ||
+          errorMessage.includes('email already exists') ||
+          error.status === 422 ||
+          error.status === 400;
+
+        if (isDuplicateUser) {
+          return { 
+            data: null, 
+            error: { 
+              message: 'An account with this email already exists. Please sign in instead.',
+              status: error.status || 400 
+            } 
+          };
+        }
         return { data: null, error };
       }
 
       // If signup successful and we have a user, create their profile
       if (data?.user) {
+        // Create/update profile
         const { error: profileError } = await supabase
           .from('profiles')
           .upsert({
             id: data.user.id,
             name: name,
-            email: email,
+            email: normalizedEmail,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }, {
@@ -55,13 +128,54 @@ export const auth = {
           });
 
         if (profileError) {
-          console.warn('Profile creation warning:', profileError.message);
+          // If profile upsert fails due to duplicate email constraint, user already exists
+          // Only fail if it's specifically an email unique constraint violation
+          const errorMsg = profileError.message?.toLowerCase() || '';
+          const isEmailDuplicate = 
+            profileError.code === '23505' && 
+            (errorMsg.includes('email') || errorMsg.includes('profiles_email_key') || errorMsg.includes('profiles_email'));
+          
+          if (isEmailDuplicate) {
+            console.log('Profile duplicate email error detected:', profileError.message);
+            return { 
+              data: null, 
+              error: { 
+                message: 'An account with this email already exists. Please sign in instead.',
+                status: 400 
+              } 
+            };
+          }
+          // Other profile errors are warnings, not failures
+          console.warn('Profile creation warning (non-critical):', profileError.message);
+          // Don't fail signup if profile creation has issues - user can still sign in
         }
       }
 
+      // Return success - Supabase signUp succeeded
+      // Note: data.user might exist even without session if email confirmation is required
+      // This is normal behavior, not an error
       return { data, error: null };
     } catch (err: any) {
       console.error('SignUp error:', err);
+      
+      // Check for duplicate user error in catch block
+      const errorMessage = err.message?.toLowerCase() || '';
+      const isDuplicateUser = 
+        errorMessage.includes('already registered') || 
+        errorMessage.includes('user already registered') ||
+        errorMessage.includes('email address is already registered') ||
+        err.status === 422;
+      
+      if (isDuplicateUser) {
+        return { 
+          data: null, 
+          error: { 
+            message: 'An account with this email already exists. Please sign in instead.',
+            status: 400 
+          } 
+        };
+      }
+      
       return { data: null, error: { message: err.message || 'Signup failed' } };
     }
   },
@@ -104,32 +218,63 @@ export const auth = {
 
   resetPassword: async (email: string) => {
     try {
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        console.error('Invalid email format:', email);
+        return { 
+          data: null, 
+          error: { 
+            message: 'Please enter a valid email address',
+            status: 400 
+          } 
+        };
+      }
+
       // Construct redirect URL for password reset
-      // Supabase requires a web URL (https://) for email links
-      // For development, use localhost web URL that can redirect to app
-      // For production, use your app's web URL
-      // The app will handle the deep link from the web redirect
+      // Supabase sends emails with web URLs, so we need to use a web URL
+      // that will redirect to the mobile app's reset password screen
+      // The callback handler will process the tokens and redirect to reset-password screen
       const redirectTo = __DEV__
         ? 'http://localhost:8081/auth/callback?type=recovery'
         : 'https://campusconnect.app/auth/callback?type=recovery'; // Update with your actual web URL
 
-      console.log('Sending password reset email with redirectTo:', redirectTo);
+      console.log('Sending password reset email to:', email);
+      console.log('Using redirectTo:', redirectTo);
 
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo,
       });
 
-      // Always return success (never reveal if email exists) for security
       if (error) {
-        // Log error but don't expose it to user
-        console.error('Password reset error:', error);
-        // Still return success to prevent email enumeration
+        // Log the actual error for debugging
+        console.error('Password reset error details:', {
+          message: error.message,
+          status: error.status,
+          name: error.name,
+        });
+
+        // Check for specific errors that we should handle
+        if (error.message?.includes('rate limit') || error.message?.includes('too many requests')) {
+          return {
+            data: null,
+            error: {
+              message: 'Too many requests. Please wait a few minutes before trying again.',
+              status: 429,
+            },
+          };
+        }
+
+        // For other errors, still return success to prevent email enumeration
+        // But log the error so we can debug
+        console.warn('Password reset failed but returning success for security:', error.message);
         return { data: null, error: null };
       }
 
+      console.log('Password reset email sent successfully');
       return { data, error: null };
     } catch (err: any) {
-      console.error('Password reset error:', err);
+      console.error('Password reset exception:', err);
       // Return success even on error to prevent email enumeration
       return { data: null, error: null };
     }
@@ -345,28 +490,80 @@ export const api = {
 
   // Posts
   getPosts: async (userId?: string) => {
+    // First, get all posts
     const { data, error } = await supabase
       .from('posts')
-      .select(
-        `
-        *,
-        author:profiles(id, name, avatar_url, major, year),
-        reply_count:post_replies(count)
-      `
-      )
+      .select('*')
       .order('created_at', { ascending: false });
 
-    if (data && userId) {
-      const { data: likes } = await supabase.from('post_likes').select('post_id').eq('user_id', userId);
+    if (error) {
+      console.error('Error fetching posts:', error);
+      return { data: null, error };
+    }
 
-      const likedIds = new Set(likes?.map((l) => l.post_id) || []);
-      data.forEach((post: any) => {
-        post.is_liked = likedIds.has(post.id);
-        post.reply_count = post.reply_count?.[0]?.count || 0;
+    if (!data || data.length === 0) {
+      return { data: [], error: null };
+    }
+
+    // Get author profiles for all posts
+    const userIds = [...new Set(data.map((post: any) => post.user_id))];
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, name, avatar_url, major, year')
+      .in('id', userIds);
+
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+    }
+
+    // Create a map of user_id -> profile
+    const profileMap = new Map();
+    if (profiles) {
+      profiles.forEach((profile: any) => {
+        profileMap.set(profile.id, profile);
       });
     }
 
-    return { data, error };
+    // Get reply counts for all posts
+    const postIds = data.map((post: any) => post.id);
+    let replyCounts: Record<string, number> = {};
+    
+    if (postIds.length > 0) {
+      const { data: replies, error: repliesError } = await supabase
+        .from('post_replies')
+        .select('post_id')
+        .in('post_id', postIds);
+
+      if (!repliesError && replies) {
+        // Count replies per post
+        replies.forEach((reply: any) => {
+          replyCounts[reply.post_id] = (replyCounts[reply.post_id] || 0) + 1;
+        });
+      }
+    }
+
+    // Get likes for the user if userId is provided
+    let likedIds = new Set<string>();
+    if (userId) {
+      const { data: likes } = await supabase
+        .from('post_likes')
+        .select('post_id')
+        .eq('user_id', userId);
+
+      if (likes) {
+        likedIds = new Set(likes.map((l) => l.post_id));
+      }
+    }
+
+    // Combine all data
+    const postsWithCounts = data.map((post: any) => ({
+      ...post,
+      author: profileMap.get(post.user_id) || null,
+      reply_count: replyCounts[post.id] || 0,
+      is_liked: userId ? likedIds.has(post.id) : false,
+    }));
+
+    return { data: postsWithCounts, error: null };
   },
 
   createPost: async (userId: string, post: { title: string; content: string; category: string; tags?: string[] }) => {
