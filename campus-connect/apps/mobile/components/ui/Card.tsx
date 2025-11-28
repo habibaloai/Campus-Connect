@@ -32,22 +32,8 @@ export default function Card({ children, style, variant = 'default', padding = 1
   return <View style={cardStyle}>{children}</View>;
 }
 
-<<<<<<< HEAD
-export default Card;
-
-
-
-
-
-
-
-
-
-
-=======
 const styles = StyleSheet.create({
   card: {
     borderRadius: DesignSystem.borderRadius.lg,
   },
 });
->>>>>>> main
