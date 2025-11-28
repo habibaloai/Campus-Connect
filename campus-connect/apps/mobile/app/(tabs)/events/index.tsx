@@ -10,9 +10,10 @@ import {
   Modal,
   Alert,
   StyleSheet,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import BackgroundImage from '@/components/BackgroundImage';
 import {
   Calendar,
@@ -85,8 +86,16 @@ export default function EventsScreen() {
   const { user, profile } = useAuth();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const [animationKey, setAnimationKey] = useState(0);
   
   const [events, setEvents] = useState<Event[]>([]);
+  
+  // Reset animation key when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      setAnimationKey((prev) => prev + 1);
+    }, [])
+  );
   const [eventAttendees, setEventAttendees] = useState<Record<string, Attendee[]>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -325,6 +334,7 @@ export default function EventsScreen() {
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       {/* Header with Create Event and View Toggle */}
       <Animated.View
+        key={`header-${animationKey}`}
         entering={FadeInDown.duration(400).springify()}
         className="px-5 py-3"
       >
@@ -412,7 +422,7 @@ export default function EventsScreen() {
               
               return (
                 <Animated.View
-                  key={event.id}
+                  key={`${event.id}-${animationKey}`}
                   entering={FadeInDown.duration(400).delay(80 * index).springify()}
                 >
                   <TouchableOpacity
@@ -469,12 +479,20 @@ export default function EventsScreen() {
                             {eventAttendees[event.id].map((attendee, i) => (
                               <View
                                 key={attendee.id}
-                                className="w-8 h-8 rounded-full bg-[#14b8a6] items-center justify-center border-2 border-white"
+                                className="w-8 h-8 rounded-full bg-[#14b8a6] items-center justify-center border-2 border-white overflow-hidden"
                                 style={{ marginLeft: i > 0 ? -10 : 0 }}
                               >
-                                <Text className="text-white text-xs font-semibold">
-                                  {getInitials(attendee.name)}
-                                </Text>
+                                {attendee.avatar_url ? (
+                                  <Image
+                                    source={{ uri: attendee.avatar_url }}
+                                    className="w-8 h-8 rounded-full"
+                                    style={{ width: 32, height: 32 }}
+                                  />
+                                ) : (
+                                  <Text className="text-white text-xs font-semibold">
+                                    {getInitials(attendee.name)}
+                                  </Text>
+                                )}
                               </View>
                             ))}
                             {event.attendee_count > eventAttendees[event.id].length && (

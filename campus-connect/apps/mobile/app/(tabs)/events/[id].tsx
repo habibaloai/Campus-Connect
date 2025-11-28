@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -419,10 +420,18 @@ export default function EventDetailsScreen() {
                     style={{ borderBottomWidth: 1, borderBottomColor: isDark ? '#374151' : '#f3f4f6' }}
                   >
                     {/* Avatar */}
-                    <View className="w-10 h-10 rounded-full bg-[#14b8a6] items-center justify-center">
-                      <Text className="text-white font-semibold text-base">
-                        {getInitials(attendee.name)}
-                      </Text>
+                    <View className="w-10 h-10 rounded-full bg-[#14b8a6] items-center justify-center overflow-hidden">
+                      {attendee.avatar_url ? (
+                        <Image
+                          source={{ uri: attendee.avatar_url }}
+                          className="w-10 h-10 rounded-full"
+                          style={{ width: 40, height: 40 }}
+                        />
+                      ) : (
+                        <Text className="text-white font-semibold text-base">
+                          {getInitials(attendee.name)}
+                        </Text>
+                      )}
                     </View>
                     
                     {/* Info */}

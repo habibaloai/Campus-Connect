@@ -174,3 +174,4 @@ When users clicked the signup verification link in their email, they were redire
 **The email verification flow now shows a beautiful success page with animations before redirecting!** 🎉
 
 
+

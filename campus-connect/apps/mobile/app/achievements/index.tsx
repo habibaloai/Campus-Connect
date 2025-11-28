@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { router, Stack } from 'expo-router';
 import {
@@ -404,9 +405,13 @@ export default function AchievementsScreen() {
                             {entry.rank}
                           </Text>
                         </View>
-                        <View className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                        <View className={`w-10 h-10 rounded-full items-center justify-center mr-3 overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
                           {profile?.avatar_url ? (
-                            <Text className="text-xl">👤</Text>
+                            <Image
+                              source={{ uri: profile.avatar_url }}
+                              className="w-10 h-10 rounded-full"
+                              style={{ width: 40, height: 40 }}
+                            />
                           ) : (
                             <Users size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
                           )}

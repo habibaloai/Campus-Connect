@@ -12,9 +12,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import BackgroundImage from '@/components/BackgroundImage';
 import {
   Search,
@@ -95,8 +96,16 @@ export default function CommunityScreen() {
   const { user } = useAuth();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const [animationKey, setAnimationKey] = useState(0);
   
   const [posts, setPosts] = useState<Post[]>([]);
+  
+  // Reset animation key when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      setAnimationKey((prev) => prev + 1);
+    }, [])
+  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -302,6 +311,7 @@ export default function CommunityScreen() {
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       {/* Search Bar */}
       <Animated.View
+        key={`search-${animationKey}`}
         entering={FadeInDown.duration(400).springify()}
         className="px-5 py-3"
       >
@@ -333,6 +343,7 @@ export default function CommunityScreen() {
 
       {/* Category Filters */}
       <Animated.View
+        key={`categories-${animationKey}`}
         entering={FadeInDown.duration(400).delay(100).springify()}
         className="px-5 pb-3"
       >
@@ -403,7 +414,7 @@ export default function CommunityScreen() {
               
               return (
                 <Animated.View
-                  key={post.id}
+                  key={`${post.id}-${animationKey}`}
                   entering={FadeInDown.duration(400).delay(80 * index).springify()}
                 >
                   <TouchableOpacity
@@ -423,8 +434,16 @@ export default function CommunityScreen() {
                   >
                     {/* Author Info */}
                     <View className="flex-row items-center mb-3">
-                      <View className="w-11 h-11 rounded-full bg-blue-100 items-center justify-center">
-                        <User size={20} color="#3b82f6" />
+                      <View className="w-11 h-11 rounded-full bg-blue-100 items-center justify-center overflow-hidden">
+                        {post.author?.avatar_url ? (
+                          <Image
+                            source={{ uri: post.author.avatar_url }}
+                            className="w-11 h-11 rounded-full"
+                            style={{ width: 44, height: 44 }}
+                          />
+                        ) : (
+                          <User size={20} color="#3b82f6" />
+                        )}
                       </View>
                       <View className="ml-3 flex-1">
                         <Text className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>

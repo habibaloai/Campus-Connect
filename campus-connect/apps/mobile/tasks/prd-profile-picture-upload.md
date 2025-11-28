@@ -218,3 +218,4 @@ This feature will re-implement the profile picture functionality to ensure users
 5. **Image Caching**: Should we implement image caching to improve load times, or rely on Supabase CDN?
 6. **Fallback Avatar**: Should we use a default colored avatar with user initials, or just a generic user icon?
 
+

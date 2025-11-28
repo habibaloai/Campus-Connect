@@ -26,6 +26,7 @@ import {
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useAuth, useNotifications } from '@/providers';
 import { useColorScheme } from '@/components/useColorScheme';
+import { useFocusEffect } from 'expo-router';
 
 // Mock data for today's classes
 const todaysClasses = [
@@ -69,8 +70,16 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const [refreshing, setRefreshing] = useState(false);
   const [streak, setStreak] = useState(7);
+  const [animationKey, setAnimationKey] = useState(0);
 
   const isDark = colorScheme === 'dark';
+
+  // Reset animation key when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      setAnimationKey((prev) => prev + 1);
+    }, [])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -105,6 +114,7 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <Animated.View 
+          key={`header-${animationKey}`}
           entering={FadeInDown.duration(500).springify()}
           style={styles.header}
         >
@@ -142,6 +152,7 @@ export default function HomeScreen() {
 
         {/* Greeting Section */}
         <Animated.View 
+          key={`greeting-${animationKey}`}
           entering={FadeInDown.duration(500).delay(100).springify()}
           className="px-5 pt-4 pb-2"
         >
@@ -181,13 +192,14 @@ export default function HomeScreen() {
 
         {/* Stats Cards */}
         <Animated.View 
+          key={`stats-${animationKey}`}
           entering={FadeInDown.duration(500).delay(200).springify()}
           className="px-5 py-4"
         >
           <View className="flex-row justify-between">
             {statsData.map((stat, index) => (
               <Animated.View
-                key={stat.id}
+                key={`${stat.id}-${animationKey}`}
                 entering={FadeInRight.duration(400).delay(250 + index * 80).springify()}
                 className={`flex-1 ${index < 3 ? 'mr-3' : ''}`}
               >
@@ -224,6 +236,7 @@ export default function HomeScreen() {
 
         {/* Notification Banner */}
         <Animated.View 
+          key={`notification-${animationKey}`}
           entering={FadeInDown.duration(500).delay(350).springify()}
           className="px-5 py-2"
         >
@@ -260,6 +273,7 @@ export default function HomeScreen() {
 
         {/* Today's Classes */}
         <Animated.View 
+          key={`classes-${animationKey}`}
           entering={FadeInDown.duration(500).delay(450).springify()}
           className="px-5 pt-4"
         >
@@ -277,7 +291,7 @@ export default function HomeScreen() {
 
           {todaysClasses.map((classItem, index) => (
             <Animated.View
-              key={classItem.id}
+              key={`${classItem.id}-${animationKey}`}
               entering={FadeInDown.duration(400).delay(500 + index * 80).springify()}
             >
               <TouchableOpacity
@@ -340,6 +354,7 @@ export default function HomeScreen() {
 
         {/* Quick Actions */}
         <Animated.View 
+          key={`actions-${animationKey}`}
           entering={FadeInDown.duration(500).delay(700).springify()}
           className="px-5 pt-4"
         >

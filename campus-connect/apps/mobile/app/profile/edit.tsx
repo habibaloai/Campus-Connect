@@ -18,6 +18,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
 import { api } from '@/lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
+import { ActionSheetIOS, Platform } from 'react-native';
 
 export default function EditProfileScreen() {
   const { user, profile, refreshProfile } = useAuth();
@@ -127,22 +128,105 @@ export default function EditProfileScreen() {
     };
   }, [user?.id]); // Run when user ID changes (on mount)
 
-  const pickImage = async () => {
+  // Request camera permission
+  const requestCameraPermission = async (): Promise<boolean> => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Camera Permission Required',
+        'Camera access is required to take photos. Please enable it in Settings.',
+        [{ text: 'OK' }]
+      );
+      return false;
+    }
+    return true;
+  };
+
+  // Request media library permission
+  const requestMediaLibraryPermission = async (): Promise<boolean> => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'We need access to your photos to update your profile picture.');
-      return;
+      Alert.alert(
+        'Photo Library Permission Required',
+        'Photo library access is required to select photos. Please enable it in Settings.',
+        [{ text: 'OK' }]
+      );
+      return false;
     }
+    return true;
+  };
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+  // Take photo using camera
+  const takePhoto = async () => {
+    const hasPermission = await requestCameraPermission();
+    if (!hasPermission) return;
 
-    if (!result.canceled && result.assets[0]) {
-      setAvatarUri(result.assets[0].uri);
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true, // Use built-in editing for square crop
+        aspect: [1, 1], // Square aspect ratio
+        quality: 0.8, // Compress to 80% quality
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setAvatarUri(result.assets[0].uri);
+      }
+    } catch (error: any) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
+    }
+  };
+
+  // Pick image from gallery
+  const pickImage = async () => {
+    const hasPermission = await requestMediaLibraryPermission();
+    if (!hasPermission) return;
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true, // Use built-in editing for square crop
+        aspect: [1, 1], // Square aspect ratio
+        quality: 0.8, // Compress to 80% quality
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setAvatarUri(result.assets[0].uri);
+      }
+    } catch (error: any) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to select image. Please try again.');
+    }
+  };
+
+  // Show action sheet for image selection
+  const showImagePickerOptions = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Take Photo', 'Choose from Gallery'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            takePhoto();
+          } else if (buttonIndex === 2) {
+            pickImage();
+          }
+        }
+      );
+    } else {
+      // Android: Use Alert as action sheet
+      Alert.alert(
+        'Select Photo',
+        'Choose an option',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Take Photo', onPress: takePhoto },
+          { text: 'Choose from Gallery', onPress: pickImage },
+        ]
+      );
     }
   };
 
@@ -165,34 +249,69 @@ export default function EditProfileScreen() {
 
       // Upload avatar if changed
       let avatarUrl = profile?.avatar_url;
+      let avatarUploadSuccess = false;
+      
       if (avatarUri && avatarUri !== profile?.avatar_url) {
-        // Check if it's already a URL (from Supabase)
+        // Check if it's already a URL (from Supabase) - don't re-upload
         if (avatarUri.startsWith('http')) {
           avatarUrl = avatarUri;
+          avatarUploadSuccess = true;
         } else {
-          // It's a local file, try to upload to Supabase Storage
-          const fileExt = avatarUri.split('.').pop() || 'jpg';
-          const { url: uploadedUrl, error: uploadError } = await api.uploadAvatar(user.id, avatarUri, fileExt);
+          // It's a local file (processed image), upload to Supabase Storage
+          const fileExt = 'jpg'; // Always JPEG after processing
+          const oldAvatarUrl = profile?.avatar_url || null;
+          
+          try {
+            const { url: uploadedUrl, error: uploadError } = await api.uploadAvatar(
+              user.id, 
+              avatarUri, 
+              fileExt,
+              oldAvatarUrl // Pass old avatar URL for deletion (happens after successful upload)
+            );
 
-          if (uploadError) {
-            console.error('Upload error:', uploadError);
-            // Show user-friendly error message
-            if (uploadError.code === 'BUCKET_NOT_FOUND') {
+            if (uploadError) {
+              console.error('[Edit Profile] Upload error:', uploadError);
+              
+              // Only show error if upload actually failed
+              // Don't show error if we got a URL (upload succeeded)
+              if (!uploadedUrl) {
+                // Show user-friendly error message based on error code
+                let errorMessage = 'Failed to upload avatar image. Other profile changes will still be saved.';
+                
+              if (uploadError.code === 'BUCKET_NOT_FOUND') {
+                const details = uploadError.details ? `\n\nDetails: ${uploadError.details}` : '';
+                errorMessage = `Storage bucket "avatars" not found. Please create it in Supabase Storage Dashboard.${details}\n\nOther profile changes will still be saved.`;
+                } else if (uploadError.code === 'NETWORK_ERROR') {
+                  errorMessage = 'Network error. Please check your connection and try again. Other profile changes will still be saved.';
+                } else if (uploadError.message) {
+                  errorMessage = uploadError.message + ' Other profile changes will still be saved.';
+                }
+
+                Alert.alert('Upload Failed', errorMessage, [{ text: 'OK' }]);
+                // Continue without updating avatar - other profile data will still be saved
+              } else {
+                // Upload succeeded despite error (might be from old avatar deletion)
+                avatarUrl = uploadedUrl;
+                avatarUploadSuccess = true;
+              }
+            } else if (uploadedUrl) {
+              // Upload succeeded
+              avatarUrl = uploadedUrl;
+              avatarUploadSuccess = true;
+            }
+          } catch (error: any) {
+            console.error('[Edit Profile] Exception during avatar upload:', error);
+            // Only show error if we don't have a URL
+            if (!avatarUrl || avatarUrl === profile?.avatar_url) {
               Alert.alert(
-                'Storage Not Configured',
-                'The storage bucket for avatars is not set up. Please create an "avatars" bucket in your Supabase Storage. Other profile changes will still be saved.',
+                'Upload Error',
+                'An unexpected error occurred while uploading your avatar. Other profile changes will still be saved.',
                 [{ text: 'OK' }]
               );
             } else {
-              Alert.alert(
-                'Upload Failed',
-                'Failed to upload avatar image. Other profile changes will still be saved.',
-                [{ text: 'OK' }]
-              );
+              // Upload might have succeeded before exception
+              avatarUploadSuccess = true;
             }
-            // Continue without updating avatar - other profile data will still be saved
-          } else if (uploadedUrl) {
-            avatarUrl = uploadedUrl;
           }
         }
       }
@@ -277,9 +396,16 @@ export default function EditProfileScreen() {
       // Additional delay to ensure all state updates propagate
       await new Promise(resolve => setTimeout(resolve, 300));
       
-      console.log('[Edit Profile] Navigation back to profile screen');
-      // Navigate back
-      router.back();
+      // Show success message
+      if (avatarUploadSuccess && avatarUri && avatarUri !== profile?.avatar_url) {
+        Alert.alert('Success', 'Profile and avatar updated successfully!', [
+          { text: 'OK', onPress: () => router.back() }
+        ]);
+      } else {
+        Alert.alert('Success', 'Profile updated successfully!', [
+          { text: 'OK', onPress: () => router.back() }
+        ]);
+      }
     } catch (error) {
       console.error('Error updating profile:', error);
       Alert.alert('Error', 'Something went wrong. Please try again.');
@@ -350,7 +476,10 @@ export default function EditProfileScreen() {
                   <User size={48} color="#3b82f6" />
                 )}
               </View>
-              <TouchableOpacity onPress={pickImage} className="flex-row items-center">
+              <TouchableOpacity 
+                onPress={showImagePickerOptions} 
+                className="flex-row items-center"
+              >
                 <Camera size={16} color={isDark ? '#9ca3af' : '#6b7280'} />
                 <Text className={`text-sm font-medium ml-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   Change Photo

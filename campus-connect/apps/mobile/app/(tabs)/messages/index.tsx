@@ -14,9 +14,10 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import BackgroundImage from '@/components/BackgroundImage';
 import { Search, Edit, User, Users, MessageCircle, X, UserPlus } from 'lucide-react-native';
+import { Image } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth, useMessages } from '@/providers';
@@ -57,8 +58,16 @@ export default function MessagesScreen() {
   const { refreshUnreadCount } = useMessages();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const [animationKey, setAnimationKey] = useState(0);
   
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  
+  // Reset animation key when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      setAnimationKey((prev) => prev + 1);
+    }, [])
+  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -226,6 +235,14 @@ export default function MessagesScreen() {
     return otherParticipant?.name || 'Unknown';
   };
 
+  const getConversationAvatar = (conv: Conversation) => {
+    if (conv.type === 'group') {
+      return null; // Groups use Users icon
+    }
+    const otherParticipant = conv.participants.find((p) => p.id !== user?.id);
+    return otherParticipant?.avatar_url || null;
+  };
+
   const getLastMessagePreview = (conv: Conversation) => {
     if (!conv.lastMessage) return 'No messages yet';
     
@@ -330,7 +347,7 @@ export default function MessagesScreen() {
           <View className="px-5 mt-2">
             {filteredConversations.map((conv, index) => (
               <Animated.View
-                key={conv.id}
+                key={`${conv.id}-${animationKey}`}
                 entering={FadeInDown.duration(400).delay(80 * index).springify()}
               >
                 <TouchableOpacity
@@ -352,15 +369,24 @@ export default function MessagesScreen() {
                 >
                   {/* Avatar */}
                   <View
-                    className={`w-14 h-14 rounded-full items-center justify-center ${
+                    className={`w-14 h-14 rounded-full items-center justify-center overflow-hidden ${
                       conv.type === 'group' ? 'bg-blue-100' : 'bg-gray-100'
                     }`}
                   >
                     {conv.type === 'group' ? (
                       <Users size={24} color="#3b82f6" />
-                    ) : (
-                      <User size={24} color="#6b7280" />
-                    )}
+                    ) : (() => {
+                      const avatarUrl = getConversationAvatar(conv);
+                      return avatarUrl ? (
+                        <Image
+                          source={{ uri: avatarUrl }}
+                          className="w-14 h-14 rounded-full"
+                          style={{ width: 56, height: 56 }}
+                        />
+                      ) : (
+                        <User size={24} color="#6b7280" />
+                      );
+                    })()}
                   </View>
 
                   {/* Content */}

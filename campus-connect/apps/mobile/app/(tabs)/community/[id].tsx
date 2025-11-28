@@ -10,6 +10,7 @@ import {
   RefreshControl,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -272,8 +273,16 @@ export default function PostDetailsScreen() {
           {/* Post */}
           <View className={`p-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
             <View className="flex-row items-center mb-4">
-              <View className="w-12 h-12 rounded-full bg-primary-100 items-center justify-center">
-                <User size={24} color="#1a73e8" />
+              <View className="w-12 h-12 rounded-full bg-primary-100 items-center justify-center overflow-hidden">
+                {post.author?.avatar_url ? (
+                  <Image
+                    source={{ uri: post.author.avatar_url }}
+                    className="w-12 h-12 rounded-full"
+                    style={{ width: 48, height: 48 }}
+                  />
+                ) : (
+                  <User size={24} color="#1a73e8" />
+                )}
               </View>
               <View className="ml-3 flex-1">
                 <Text className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -343,8 +352,16 @@ export default function PostDetailsScreen() {
                   className={`p-4 rounded-xl mb-3 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
                 >
                   <View className="flex-row items-center mb-2">
-                    <View className="w-8 h-8 rounded-full bg-gray-200 items-center justify-center">
-                      <User size={16} color="#6b7280" />
+                    <View className="w-8 h-8 rounded-full bg-gray-200 items-center justify-center overflow-hidden">
+                      {reply.author?.avatar_url ? (
+                        <Image
+                          source={{ uri: reply.author.avatar_url }}
+                          className="w-8 h-8 rounded-full"
+                          style={{ width: 32, height: 32 }}
+                        />
+                      ) : (
+                        <User size={16} color="#6b7280" />
+                      )}
                     </View>
                     <View className="ml-2 flex-1">
                       <Text className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>

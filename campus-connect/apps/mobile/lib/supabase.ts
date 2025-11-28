@@ -2060,9 +2060,62 @@ export const api = {
   // =============================================
   // STORAGE HELPERS
   // =============================================
-  uploadAvatar: async (userId: string, fileUri: string, fileExt: string = 'jpg'): Promise<{ url: string | null; error: any }> => {
+
+  // Extract filename from Supabase Storage URL
+  extractFilenameFromUrl: (url: string): string | null => {
     try {
-      const fileName = `${userId}-${Date.now()}.${fileExt}`;
+      // Supabase Storage URLs typically look like:
+      // https://[project].supabase.co/storage/v1/object/public/avatars/[filename]
+      const urlParts = url.split('/');
+      const filename = urlParts[urlParts.length - 1];
+      return filename || null;
+    } catch (error) {
+      console.error('Error extracting filename from URL:', error);
+      return null;
+    }
+  },
+
+  // Delete old avatar from storage
+  deleteOldAvatar: async (userId: string, oldAvatarUrl: string | null): Promise<void> => {
+    if (!oldAvatarUrl) return;
+
+    try {
+      const filename = api.extractFilenameFromUrl(oldAvatarUrl);
+      if (!filename) {
+        console.warn('Could not extract filename from old avatar URL:', oldAvatarUrl);
+        return;
+      }
+
+      // Verify the filename belongs to this user (security check)
+      if (!filename.startsWith(userId + '-') && !filename.startsWith(userId + '_')) {
+        console.warn('Filename does not match user ID, skipping deletion:', filename);
+        return;
+      }
+
+      const { error: deleteError } = await supabase.storage
+        .from('avatars')
+        .remove([filename]);
+
+      if (deleteError) {
+        // Log but don't throw - deletion failure shouldn't block upload
+        console.warn('Error deleting old avatar (non-blocking):', deleteError);
+      } else {
+        console.log('Old avatar deleted successfully:', filename);
+      }
+    } catch (error) {
+      // Log but don't throw - deletion failure shouldn't block upload
+      console.warn('Error deleting old avatar (non-blocking):', error);
+    }
+  },
+
+  uploadAvatar: async (userId: string, fileUri: string, fileExt: string = 'jpg', oldAvatarUrl?: string | null): Promise<{ url: string | null; error: any }> => {
+    try {
+      // Debug: Log Supabase configuration (without exposing full keys)
+      console.log('[Avatar Upload] Supabase URL:', supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'NOT SET');
+      console.log('[Avatar Upload] User ID:', userId);
+      console.log('[Avatar Upload] Attempting to upload to bucket: avatars');
+
+      const fileName = `${userId}_${Date.now()}.${fileExt}`;
       const filePath = fileName; // Store directly in bucket root, not in subfolder
 
       // Read file as base64 using legacy API (for compatibility)
@@ -2098,39 +2151,115 @@ export const api = {
         bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
       }
 
-      // Try to upload to Supabase Storage
+      // Try to upload to Supabase Storage first (verify bucket exists)
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, bytes, {
-          contentType: `image/${fileExt}`,
-          upsert: true,
+          contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
+          upsert: false, // Don't upsert - we want unique filenames
         });
 
       if (uploadError) {
-        // Check if it's a bucket not found error
-        if (uploadError.message?.includes('Bucket not found') || uploadError.message?.includes('bucket')) {
-          console.warn('Storage bucket "avatars" not found. Please create it in Supabase Storage.');
+        // Check if it's a bucket not found or permission error
+        const errorMessage = (uploadError.message || '').toLowerCase();
+        const statusCode = uploadError.statusCode || uploadError.status;
+        
+        console.error('[Avatar Upload] Upload error details:', {
+          message: uploadError.message,
+          statusCode: statusCode,
+          error: uploadError,
+        });
+
+        // Check for bucket not found (404) or permission denied (403)
+        if (statusCode === 404 || errorMessage.includes('bucket') || errorMessage.includes('not found')) {
           return {
             url: null,
             error: {
-              message: 'Storage bucket not configured. Please create an "avatars" bucket in Supabase Storage.',
+              message: 'Storage bucket "avatars" not found or not accessible. Please verify:\n1. Bucket exists in Supabase Storage\n2. Bucket is set to Public\n3. RLS policies are configured correctly',
               code: 'BUCKET_NOT_FOUND',
+              originalError: uploadError,
             },
           };
         }
+
+        // Check for permission errors (403)
+        if (statusCode === 403 || errorMessage.includes('permission') || errorMessage.includes('policy') || errorMessage.includes('row-level security')) {
+          return {
+            url: null,
+            error: {
+              message: 'Permission denied. Please check:\n1. You are signed in\n2. RLS policies allow uploads\n3. Run the SQL migration to set up policies',
+              code: 'PERMISSION_ERROR',
+              originalError: uploadError,
+            },
+          };
+        }
+
+        // Check for network errors
+        if (uploadError.message?.includes('network') || uploadError.message?.includes('Network')) {
+          console.error('Network error during avatar upload:', uploadError);
+          return {
+            url: null,
+            error: {
+              message: 'Network error. Please check your connection and try again.',
+              code: 'NETWORK_ERROR',
+            },
+          };
+        }
+
+        // Check for permission errors
+        if (uploadError.message?.includes('permission') || uploadError.message?.includes('Permission')) {
+          console.error('Permission error during avatar upload:', uploadError);
+          return {
+            url: null,
+            error: {
+              message: 'Storage error. Please try again or contact support.',
+              code: 'PERMISSION_ERROR',
+            },
+          };
+        }
+
         console.error('Avatar upload error:', uploadError);
-        return { url: null, error: uploadError };
+        return {
+          url: null,
+          error: {
+            message: uploadError.message || 'Storage error. Please try again or contact support.',
+            code: 'UPLOAD_ERROR',
+          },
+        };
       }
 
       // Get public URL
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
-      return { url: urlData.publicUrl, error: null };
+      const publicUrl = urlData.publicUrl;
+
+      // Only delete old avatar AFTER successful upload
+      if (oldAvatarUrl && publicUrl) {
+        // Delete old avatar in background (don't block or fail if this errors)
+        api.deleteOldAvatar(userId, oldAvatarUrl).catch((err) => {
+          // Silently log - deletion failure shouldn't affect the upload success
+          console.log('[Avatar Upload] Old avatar deletion failed (non-critical):', err);
+        });
+      }
+
+      return { url: publicUrl, error: null };
     } catch (error: any) {
       console.error('Error uploading avatar:', error);
+      
+      // Check for network errors in catch block
+      if (error.message?.includes('network') || error.message?.includes('Network') || error.message?.includes('fetch')) {
+        return {
+          url: null,
+          error: {
+            message: 'Network error. Please check your connection and try again.',
+            code: 'NETWORK_ERROR',
+          },
+        };
+      }
+
       return {
         url: null,
         error: {
-          message: error.message || 'Failed to upload avatar',
+          message: error.message || 'Failed to upload avatar. Please try again.',
           code: 'UPLOAD_ERROR',
         },
       };

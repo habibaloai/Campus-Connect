@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Image, Text } from 'react-native';
+import React, { useState } from 'react';
+import { View, Image, Text, ImageErrorEventData, NativeSyntheticEvent } from 'react-native';
 import { User } from 'lucide-react-native';
 
 interface AvatarProps {
@@ -26,6 +26,7 @@ export function Avatar({
   badgeColor = '#22c55e',
 }: AvatarProps) {
   const dimensions = sizeMap[size];
+  const [imageError, setImageError] = useState(false);
 
   const getInitials = (name: string) => {
     return name
@@ -36,13 +37,26 @@ export function Avatar({
       .slice(0, 2);
   };
 
+  const handleImageError = (error: NativeSyntheticEvent<ImageErrorEventData>) => {
+    console.warn('Avatar image failed to load:', error.nativeEvent.error);
+    setImageError(true);
+  };
+
+  // Reset error state when source changes
+  React.useEffect(() => {
+    setImageError(false);
+  }, [source]);
+
+  const hasValidSource = source && !imageError && (source.startsWith('http') || source.startsWith('file://'));
+
   return (
     <View style={{ width: dimensions.container, height: dimensions.container }}>
-      {source ? (
+      {hasValidSource ? (
         <Image
           source={{ uri: source }}
           className="rounded-full"
           style={{ width: dimensions.container, height: dimensions.container }}
+          onError={handleImageError}
         />
       ) : name ? (
         <View

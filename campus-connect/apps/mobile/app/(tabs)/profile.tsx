@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, Switch, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -39,15 +39,29 @@ export default function ProfileScreen() {
   const { user, profile, signOut, biometricAvailable, biometricEnabled, enableBiometric, disableBiometric, refreshProfile } = useAuth();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const [animationKey, setAnimationKey] = useState(0);
 
-  // Refresh profile when screen comes into focus (e.g., returning from edit)
+  // Track last focus time to prevent rapid re-animations
+  const lastFocusTimeRef = React.useRef<number>(0);
+  
+  // Refresh profile and reset animations when screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      const now = Date.now();
+      // Only animate if it's been at least 500ms since last animation
+      // This prevents infinite loops while still allowing animations on tab switches
+      if (now - lastFocusTimeRef.current > 500) {
+        setAnimationKey((prev) => prev + 1);
+        lastFocusTimeRef.current = now;
+      }
+      
       if (user?.id) {
         console.log('[Profile Screen] Screen focused, refreshing profile...');
+        // Call refreshProfile without including it in dependencies
+        // to prevent infinite loops
         refreshProfile();
       }
-    }, [user?.id, refreshProfile])
+    }, [user?.id]) // Only depend on user?.id, not refreshProfile
   );
 
   const quickLinks = [
@@ -107,6 +121,7 @@ export default function ProfileScreen() {
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {/* Profile Header */}
         <Animated.View
+          key={`header-${animationKey}`}
           entering={FadeInDown.duration(500).springify()}
           style={{
             paddingVertical: 20,
@@ -261,6 +276,7 @@ export default function ProfileScreen() {
 
         {/* Gamification Section */}
         <Animated.View
+          key={`gamification-${animationKey}`}
           entering={FadeInDown.duration(500).delay(100).springify()}
           className="px-5 mt-5"
         >
@@ -307,6 +323,7 @@ export default function ProfileScreen() {
 
         {/* Quick Links */}
         <Animated.View
+          key={`quicklinks-${animationKey}`}
           entering={FadeInDown.duration(500).delay(150).springify()}
           className="px-5 mt-2"
         >
@@ -351,7 +368,7 @@ export default function ProfileScreen() {
         <View className="px-5 pt-2 pb-4">
           {menuItems.map((section, sectionIndex) => (
             <Animated.View
-              key={section.title}
+              key={`${section.title}-${animationKey}`}
               entering={FadeInDown.duration(400).delay(200 + 80 * sectionIndex).springify()}
               className="mb-5"
             >
@@ -411,7 +428,7 @@ export default function ProfileScreen() {
           ))}
 
           {/* Sign Out Button */}
-          <Animated.View entering={FadeInDown.duration(400).delay(500).springify()}>
+          <Animated.View key={`signout-${animationKey}`} entering={FadeInDown.duration(400).delay(500).springify()}>
             <TouchableOpacity
               onPress={signOut}
               className={`flex-row items-center justify-center py-4 rounded-2xl ${isDark ? 'bg-red-900/30' : 'bg-red-50'}`}
