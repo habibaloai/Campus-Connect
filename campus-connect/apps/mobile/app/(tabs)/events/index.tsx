@@ -49,6 +49,7 @@ interface Event {
   organizer_id?: string;
   image_url?: string;
   is_private?: boolean;
+  has_pending_request?: boolean;
 }
 
 interface Attendee {
@@ -94,23 +95,14 @@ export default function EventsScreen() {
   const { user, profile } = useAuth();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const [animationKey, setAnimationKey] = useState(0);
   
   const [events, setEvents] = useState<Event[]>([]);
-  
-  // Reset animation key when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      setAnimationKey((prev) => prev + 1);
-    }, [])
-  );
   const [eventAttendees, setEventAttendees] = useState<Record<string, Attendee[]>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newEvent, setNewEvent] = useState<NewEventForm>({
@@ -123,6 +115,7 @@ export default function EventsScreen() {
     is_private: false,
   });
   const [eventImageUri, setEventImageUri] = useState<string | null>(null);
+  const [animationKey, setAnimationKey] = useState(0);
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -152,6 +145,7 @@ export default function EventsScreen() {
   // Refresh events when screen comes into focus (e.g., after deleting an event)
   useFocusEffect(
     useCallback(() => {
+      setAnimationKey(prev => prev + 1); // Re-trigger animations
       fetchEvents();
     }, [fetchEvents])
   );
@@ -218,13 +212,11 @@ export default function EventsScreen() {
     return name.charAt(0).toUpperCase();
   };
 
-  const filteredEvents = events.filter((event) => {
-    const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.category.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = !selectedCategory || event.category.toLowerCase() === selectedCategory.toLowerCase();
-    return matchesSearch && matchesCategory;
-  });
+  const filteredEvents = events.filter((event) =>
+    event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    event.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    event.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handlePickImage = async () => {
     try {
@@ -379,6 +371,13 @@ export default function EventsScreen() {
     }
 
     try {
+      // Check if user is the organizer
+      const event = events.find(e => e.id === eventId);
+      if (event?.organizer_id === user.id) {
+        Alert.alert('Cannot Join', 'You are the organizer of this event');
+        return;
+      }
+
       if (isAttending) {
         await api.leaveEvent(eventId, user.id);
         setEvents((prev) =>
@@ -390,7 +389,6 @@ export default function EventsScreen() {
         );
       } else {
         // Check if event is private
-        const event = events.find(e => e.id === eventId);
         if (event?.is_private) {
           // Send join request for private events
           const { error } = await api.requestToJoinEvent(eventId, user.id);
@@ -398,10 +396,22 @@ export default function EventsScreen() {
             Alert.alert('Error', error.message || 'Failed to send join request');
             return;
           }
+          // Update event to show pending request
+          setEvents((prev) =>
+            prev.map((e) =>
+              e.id === eventId
+                ? { ...e, has_pending_request: true }
+                : e
+            )
+          );
           Alert.alert('Request Sent', 'Your request to join this private event has been sent to the organizer.');
         } else {
           // Direct join for public events
-          await api.joinEvent(eventId, user.id);
+          const { error } = await api.joinEvent(eventId, user.id);
+          if (error) {
+            Alert.alert('Error', error.message || 'Failed to join event');
+            return;
+          }
           setEvents((prev) =>
             prev.map((e) =>
               e.id === eventId
@@ -449,342 +459,82 @@ export default function EventsScreen() {
   return (
     <BackgroundImage overlayOpacity={isDark ? 0.7 : 0.4}>
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-      {/* Header with Create Event and View Toggle */}
+      {/* Header */}
       <Animated.View
-        key={`header-${animationKey}`}
+        key={`events-header-${animationKey}`}
         entering={FadeInDown.duration(400).springify()}
-        className="px-5 py-3"
       >
-        <View className="flex-row items-center justify-between mb-3">
-          {/* Create Event Button */}
-          <TouchableOpacity
-            onPress={() => setShowCreateModal(true)}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingHorizontal: 16,
-              paddingVertical: 10,
-              backgroundColor: '#3b82f6',
-              borderRadius: 12,
-              shadowColor: '#3b82f6',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 5,
-            }}
-            activeOpacity={0.8}
-          >
-            <Plus size={18} color="#ffffff" strokeWidth={2.5} />
-            <Text style={{ color: '#ffffff', fontWeight: '600', marginLeft: 6 }}>Create Event</Text>
-          </TouchableOpacity>
-
-          {/* View Toggle */}
-          <View style={{ flexDirection: 'row', backgroundColor: isDark ? 'rgba(30, 41, 59, 0.3)' : 'rgba(255, 255, 255, 0.3)', borderRadius: 12, padding: 4 }}>
+        <PageHeader
+          title="Events"
+          showBack={false}
+          rightAction={
             <TouchableOpacity
-              onPress={() => setViewMode('list')}
-              className={`flex-row items-center px-3 py-1.5 rounded-md ${
-                viewMode === 'list' ? 'bg-[#14b8a6]' : ''
-              }`}
-              activeOpacity={0.7}
-            >
-              <List size={16} color={viewMode === 'list' ? '#ffffff' : '#6b7280'} />
-              <Text className={`ml-1.5 text-sm font-medium ${viewMode === 'list' ? 'text-white' : 'text-gray-600'}`}>
-                List
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setViewMode('calendar')}
-              className={`flex-row items-center px-3 py-1.5 rounded-md ${
-                viewMode === 'calendar' ? 'bg-[#14b8a6]' : ''
-              }`}
-              activeOpacity={0.7}
-            >
-              <CalendarDays size={16} color={viewMode === 'calendar' ? '#ffffff' : '#6b7280'} />
-              <Text className={`ml-1.5 text-sm font-medium ${viewMode === 'calendar' ? 'text-white' : 'text-gray-600'}`}>
-                Calendar
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Animated.View>
-
-      {/* Search Bar */}
-      <Animated.View
-        entering={FadeInDown.duration(400).delay(100).springify()}
-        style={{ paddingHorizontal: 20, paddingVertical: 12 }}
-      >
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            borderRadius: 16,
-            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.98)' : 'rgba(255, 255, 255, 0.98)',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 8,
-            elevation: 3,
-          }}
-        >
-          <Search size={20} color={isDark ? '#9ca3af' : '#9ca3af'} />
-          <TextInput
-            style={{
-              flex: 1,
-              marginLeft: 12,
-              fontSize: 15,
-              fontWeight: '500',
-              color: isDark ? '#ffffff' : '#1e293b',
-            }}
-            placeholder="Search events..."
-            placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-      </Animated.View>
-
-      {/* Category Filters - Horizontal Scroll */}
-      <Animated.View
-        entering={FadeInDown.duration(400).delay(150).springify()}
-        style={{ marginBottom: 8 }}
-      >
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}
-        >
-          <TouchableOpacity
-            onPress={() => setSelectedCategory(null)}
-            style={{
-              paddingHorizontal: 16,
-              paddingVertical: 8,
-              borderRadius: 20,
-              backgroundColor: !selectedCategory
-                ? '#0066cc'
-                : isDark
-                ? 'rgba(30, 41, 59, 0.98)'
-                : 'rgba(255, 255, 255, 0.98)',
-              borderWidth: 1,
-              borderColor: !selectedCategory ? '#0066cc' : isDark ? '#334155' : '#e2e8f0',
-            }}
-            activeOpacity={0.7}
-          >
-            <Text
+              onPress={() => setShowCreateModal(true)}
               style={{
-                fontSize: 14,
-                fontWeight: '600',
-                color: !selectedCategory ? '#ffffff' : isDark ? '#9ca3af' : '#6b7280',
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 8,
+                backgroundColor: '#0066cc',
               }}
+              activeOpacity={0.8}
             >
-              All
-            </Text>
-          </TouchableOpacity>
-          {eventCategories.map((cat) => {
-            const colors = categoryColors[cat.id] || defaultColors;
-            const isSelected = selectedCategory === cat.id;
-            return (
-              <TouchableOpacity
-                key={cat.id}
-                onPress={() => setSelectedCategory(isSelected ? null : cat.id)}
-                style={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  borderRadius: 20,
-                  backgroundColor: isSelected
-                    ? colors.bg
-                    : isDark
-                    ? 'rgba(30, 41, 59, 0.98)'
-                    : 'rgba(255, 255, 255, 0.98)',
-                  borderWidth: 1,
-                  borderColor: isSelected ? colors.text : isDark ? '#334155' : '#e2e8f0',
-                }}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: '600',
-                    color: isSelected ? colors.text : isDark ? '#9ca3af' : '#6b7280',
-                  }}
-                >
-                  {cat.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+              <Plus size={20} color="#ffffff" />
+            </TouchableOpacity>
+          }
+        />
       </Animated.View>
 
       <ScrollView
-        style={{ flex: 1 }}
+        className="flex-1"
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0066cc" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#14b8a6" />
         }
       >
         {error ? (
-          <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 48 }}>
+          <View className="items-center justify-center py-12">
             <Calendar size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
-            <Text style={{ marginTop: 16, textAlign: 'center', color: isDark ? '#94a3b8' : '#64748b', fontSize: 15 }}>
-              {error}
-            </Text>
-            <TouchableOpacity
-              onPress={onRefresh}
-              style={{
-                marginTop: 16,
-                backgroundColor: '#0066cc',
-                paddingHorizontal: 24,
-                paddingVertical: 12,
-                borderRadius: 12,
-              }}
-            >
-              <Text style={{ color: '#ffffff', fontWeight: '600', fontSize: 14 }}>Retry</Text>
+            <Text className={`mt-4 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{error}</Text>
+            <TouchableOpacity onPress={onRefresh} className="mt-4 bg-[#14b8a6] px-6 py-2.5 rounded-xl">
+              <Text className="text-white font-semibold">Retry</Text>
             </TouchableOpacity>
           </View>
         ) : filteredEvents.length === 0 ? (
-          <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 48 }}>
+          <View className="items-center justify-center py-12">
             <Calendar size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
-            <Text style={{ marginTop: 16, textAlign: 'center', color: isDark ? '#94a3b8' : '#64748b', fontSize: 15 }}>
+            <Text className={`mt-4 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               {searchQuery ? 'No events match your search' : 'No upcoming events'}
             </Text>
           </View>
         ) : (
-<<<<<<< HEAD
-          <View className="mt-2">
-            {filteredEvents.map((event, index) => {
-              const colors = categoryColors[event.category] || defaultColors;
-              const { month, day } = formatDate(event.date);
-              
-              return (
-                <Animated.View
-                  key={`${event.id}-${animationKey}`}
-                  entering={FadeInDown.duration(400).delay(80 * index).springify()}
-                >
-                  <TouchableOpacity
-                    onPress={() => router.push(`/(tabs)/events/${event.id}` as any)}
-                    style={{
-                      marginBottom: 16,
-                      borderRadius: 24,
-                      overflow: 'hidden',
-                      backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: isDark ? 0.3 : 0.15,
-                      shadowRadius: 12,
-                      elevation: 6,
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    {/* Event Header with Date and Icon */}
-                    <View style={{ padding: 16, backgroundColor: '#f8fafc' }}>
-                      <View className="flex-row items-start">
-                        {/* Date Badge */}
-                        <View className="bg-white rounded-lg p-2 mr-4 items-center" style={{ minWidth: 50 }}>
-                          <Text className="text-xs font-semibold text-[#14b8a6]">{month}</Text>
-                          <Text className="text-2xl font-bold text-gray-900">{day}</Text>
-                        </View>
-                        
-                        {/* Calendar Icon */}
-                        <View className="flex-1 items-center justify-center py-2">
-                          <CalendarDays size={40} color="#14b8a6" strokeWidth={1.5} />
-                        </View>
-                      </View>
-                    </View>
-
-                    {/* Event Content */}
-                    <View className="p-4">
-                      <Text
-                        className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}
-                        numberOfLines={1}
-                      >
-                        {event.title}
-                      </Text>
-
-                      <View className="flex-row items-center">
-                        <MapPin size={14} color="#14b8a6" />
-                        <Text className="text-sm ml-1.5 text-[#14b8a6] font-medium">
-                          {event.location}
-                        </Text>
-                      </View>
-
-                      {/* Attendee Avatars */}
-                      <View className="flex-row items-center mt-3">
-                        {eventAttendees[event.id] && eventAttendees[event.id].length > 0 ? (
-                          <>
-                            {eventAttendees[event.id].map((attendee, i) => (
-                              <View
-                                key={attendee.id}
-                                className="w-8 h-8 rounded-full bg-[#14b8a6] items-center justify-center border-2 border-white overflow-hidden"
-                                style={{ marginLeft: i > 0 ? -10 : 0 }}
-                              >
-                                {attendee.avatar_url ? (
-                                  <Image
-                                    source={{ uri: attendee.avatar_url }}
-                                    className="w-8 h-8 rounded-full"
-                                    style={{ width: 32, height: 32 }}
-                                  />
-                                ) : (
-                                  <Text className="text-white text-xs font-semibold">
-                                    {getInitials(attendee.name)}
-                                  </Text>
-                                )}
-                              </View>
-                            ))}
-                            {event.attendee_count > eventAttendees[event.id].length && (
-                              <Text className={`ml-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                                +{event.attendee_count - eventAttendees[event.id].length}
-                              </Text>
-                            )}
-                          </>
-                        ) : event.attendee_count > 0 ? (
-                          // Fallback: show placeholder if attendees not loaded yet
-                          Array.from({ length: Math.min(event.attendee_count, 3) }).map((_, i) => (
-                            <View
-                              key={i}
-                              className="w-8 h-8 rounded-full bg-[#14b8a6] items-center justify-center border-2 border-white"
-                              style={{ marginLeft: i > 0 ? -10 : 0 }}
-                            >
-                              <Text className="text-white text-xs font-semibold">?</Text>
-                            </View>
-                          ))
-                        ) : null}
-                      </View>
-
-                      {/* Action Buttons */}
-                      <View className="flex-row items-center mt-4">
-                        <TouchableOpacity
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            handleJoinEvent(event.id, event.is_attending);
-                          }}
-                          className={`flex-1 py-3 rounded-xl items-center ${
-                            event.is_attending ? 'bg-green-500' : 'bg-[#f97316]'
-                          }`}
-                          activeOpacity={0.8}
-                        >
-                          <Text className="text-white font-semibold">
-                            {event.is_attending ? 'Joined ✓' : 'Join Event'}
-                          </Text>
-                        </TouchableOpacity>
-                        
-                        <TouchableOpacity
-                          onPress={() => router.push(`/(tabs)/events/${event.id}` as any)}
-                          className={`ml-2 w-12 h-12 rounded-xl items-center justify-center ${
-                            isDark ? 'bg-gray-700' : 'bg-gray-100'
-                          }`}
-                          activeOpacity={0.7}
-                        >
-                          <Users size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                </Animated.View>
-              );
-            })}
+          <View style={{ marginTop: 8 }}>
+            {filteredEvents.map((event, index) => (
+              <Animated.View
+                key={`event-card-${event.id}-${animationKey}`}
+                entering={FadeInDown.duration(400).delay(80 * index).springify()}
+              >
+                <EventCard
+                  id={event.id}
+                  title={event.title}
+                  date={event.date}
+                  time={event.time}
+                  location={event.location}
+                  category={event.category}
+                  attendeeCount={event.attendee_count}
+                  maxAttendees={event.max_attendees}
+                  isAttending={event.is_attending}
+                  onPress={() => router.push(`/(tabs)/events/${event.id}` as any)}
+                  onJoinPress={() => handleJoinEvent(event.id, event.is_attending)}
+                  index={index}
+                  imageUrl={event.image_url}
+                  isPrivate={event.is_private || false}
+                  organizerId={event.organizer_id}
+                  hasPendingRequest={event.has_pending_request || false}
+                  currentUserId={user?.id}
+                />
+              </Animated.View>
+            ))}
           </View>
         )}
       </ScrollView>

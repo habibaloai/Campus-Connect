@@ -12,17 +12,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import BackgroundImage from '@/components/BackgroundImage';
-import { Search, Edit, User, Users, MessageCircle, X, UserPlus, Image as ImageIcon } from 'lucide-react-native';
+import { Search, Edit, User, Users, MessageCircle, X, UserPlus } from 'lucide-react-native';
+import { Image } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth, useMessages } from '@/providers';
 import { api, supabase } from '@/lib/supabase';
-import PageHeader from '@/components/ui/PageHeader';
 
 interface Participant {
   id: string;
@@ -276,7 +275,7 @@ export default function MessagesScreen() {
 
   if (loading) {
     return (
-      <BackgroundImage overlayOpacity={isDark ? 0.7 : 0.4}>
+      <BackgroundImage overlayOpacity={0.6}>
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#3b82f6" />
@@ -288,20 +287,12 @@ export default function MessagesScreen() {
   }
 
   return (
-    <BackgroundImage overlayOpacity={isDark ? 0.7 : 0.4}>
+    <BackgroundImage>
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-      {/* Header matching Figma */}
-      <PageHeader
-        title="Message"
-        showBack={false}
-        rightAction="edit"
-        onRightActionPress={() => setShowNewChat(true)}
-      />
-
       {/* Search Bar */}
       <Animated.View
-        entering={FadeInDown.duration(400).delay(100).springify()}
-        style={{ paddingHorizontal: 20, paddingVertical: 12 }}
+        entering={FadeInDown.duration(400).springify()}
+        className="px-5 py-3"
       >
         <View
           style={{
@@ -320,12 +311,7 @@ export default function MessagesScreen() {
         >
           <Search size={20} color={isDark ? '#9ca3af' : '#9ca3af'} />
           <TextInput
-            style={{
-              flex: 1,
-              marginLeft: 12,
-              fontSize: 16,
-              color: isDark ? '#ffffff' : '#1e293b',
-            }}
+            className={`flex-1 ml-3 text-base ${isDark ? 'text-white' : 'text-gray-900'}`}
             placeholder="Search messages..."
             placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
             value={searchQuery}
@@ -339,18 +325,15 @@ export default function MessagesScreen() {
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0066cc" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />
         }
       >
         {error ? (
           <View className="items-center justify-center py-12 px-5">
             <MessageCircle size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
             <Text className={`mt-4 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{error}</Text>
-            <TouchableOpacity 
-              onPress={onRefresh} 
-              style={{ marginTop: 16, backgroundColor: '#0066cc', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 }}
-            >
-              <Text style={{ color: '#ffffff', fontWeight: '600' }}>Retry</Text>
+            <TouchableOpacity onPress={onRefresh} className="mt-4 bg-blue-500 px-6 py-2.5 rounded-xl">
+              <Text className="text-white font-semibold">Retry</Text>
             </TouchableOpacity>
           </View>
         ) : filteredConversations.length === 0 ? (
@@ -415,7 +398,7 @@ export default function MessagesScreen() {
                       >
                         {getConversationName(conv)}
                       </Text>
-                      <Text style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#9ca3af' }}>
+                      <Text className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                         {conv.lastMessage
                           ? formatTimeAgo(conv.lastMessage.created_at)
                           : formatTimeAgo(conv.created_at)}
@@ -423,30 +406,22 @@ export default function MessagesScreen() {
                     </View>
                     <View className="flex-row items-center justify-between mt-1">
                       <Text
-                        style={{
-                          fontSize: 14,
-                          flex: 1,
-                          marginRight: 12,
-                          color: conv.unreadCount > 0
-                            ? (isDark ? '#ffffff' : '#1e293b')
-                            : (isDark ? '#94a3b8' : '#64748b'),
-                          fontWeight: conv.unreadCount > 0 ? '600' : '400',
-                        }}
+                        className={`text-sm flex-1 mr-3 ${
+                          conv.unreadCount > 0
+                            ? isDark
+                              ? 'text-white font-semibold'
+                              : 'text-gray-900 font-semibold'
+                            : isDark
+                            ? 'text-gray-400'
+                            : 'text-gray-500'
+                        }`}
                         numberOfLines={1}
                       >
                         {getLastMessagePreview(conv)}
                       </Text>
                       {conv.unreadCount > 0 && (
-                        <View style={{ 
-                          backgroundColor: '#0066cc', 
-                          minWidth: 22, 
-                          height: 22, 
-                          paddingHorizontal: 6, 
-                          borderRadius: 11, 
-                          alignItems: 'center', 
-                          justifyContent: 'center' 
-                        }}>
-                          <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: 'bold' }}>
+                        <View className="bg-blue-500 min-w-[22px] h-[22px] px-1.5 rounded-full items-center justify-center">
+                          <Text className="text-white text-xs font-bold">
                             {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
                           </Text>
                         </View>
@@ -469,11 +444,11 @@ export default function MessagesScreen() {
           right: 24,
           width: 56,
           height: 56,
-          backgroundColor: '#0066cc',
+          backgroundColor: '#3b82f6',
           borderRadius: 28,
           alignItems: 'center',
           justifyContent: 'center',
-          shadowColor: '#0066cc',
+          shadowColor: '#3b82f6',
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.4,
           shadowRadius: 8,
@@ -529,7 +504,7 @@ export default function MessagesScreen() {
                     autoFocus
                   />
                   {searchingUsers && (
-                    <ActivityIndicator size="small" color="#0066cc" />
+                    <ActivityIndicator size="small" color="#3b82f6" />
                   )}
                 </View>
               </View>
@@ -545,7 +520,7 @@ export default function MessagesScreen() {
                   </View>
                 ) : searchingUsers ? (
                   <View className="items-center py-8">
-                    <ActivityIndicator size="large" color="#0066cc" />
+                    <ActivityIndicator size="large" color="#3b82f6" />
                     <Text className={`mt-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                       Searching...
                     </Text>
@@ -570,7 +545,7 @@ export default function MessagesScreen() {
                         activeOpacity={0.7}
                       >
                         <View className="w-12 h-12 rounded-full bg-blue-100 items-center justify-center">
-                          <User size={24} color="#0066cc" />
+                          <User size={24} color="#3b82f6" />
                         </View>
                         <View className="flex-1 ml-3">
                           <Text className={`text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -581,9 +556,9 @@ export default function MessagesScreen() {
                           </Text>
                         </View>
                         {startingConversation ? (
-                          <ActivityIndicator size="small" color="#0066cc" />
+                          <ActivityIndicator size="small" color="#3b82f6" />
                         ) : (
-                          <MessageCircle size={20} color="#0066cc" />
+                          <MessageCircle size={20} color="#3b82f6" />
                         )}
                       </TouchableOpacity>
                     ))}

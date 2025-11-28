@@ -1,0 +1,28 @@
+*   [33m4c1569c[m[33m ([m[1;35mrefs/stash[m[33m)[m On merge-contributor-updates: Stashing current work before merge
+[31m|[m[32m\[m  
+[31m|[m * [33m9b3af12[m index on merge-contributor-updates: 9185fbc Merge contributor updates: adopt Home UI, use Discussion UI with preserved logic, keep Messages unchanged
+[31m|[m[31m/[m  
+*   [33m9185fbc[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmerge-contributor-selective[m[33m, [m[1;32mmerge-contributor-updates[m[33m)[m Merge contributor updates: adopt Home UI, use Discussion UI with preserved logic, keep Messages unchanged
+[33m|[m[34m\[m  
+[33m|[m * [33m711893c[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Improve UI for Home, Community, and Events screens
+* [34m|[m [33m0412d8c[m[33m ([m[1;32mmerge-contributor-changes[m[33m, [m[1;32mfeature/profile-picture-upload[m[33m, [m[1;32mfeature/event-photos-privacy-management[m[33m)[m Fix remaining merge conflict in messages/index.tsx
+* [34m|[m [33m9255612[m Fix remaining conflict markers in Button and Card components
+* [34m|[m   [33m033dcce[m Merge main into feature/profile-picture-upload - includes event join requests and interests features
+[35m|[m[36m\[m [34m\[m  
+[35m|[m * [34m|[m [33mbdb5d40[m[33m ([m[1;32mmain[m[33m)[m Merge origin/main into main - includes event join requests and interests features
+[35m|[m [1;31m|[m[34m\[m[34m|[m 
+[35m|[m [1;31m|[m * [33m5e4dc0c[m Implement event join requests system with real-time updates and notifications
+[35m|[m [1;31m|[m * [33m4218583[m Added interests saving in db
+* [1;31m|[m [1;32m|[m [33m5504333[m added extra features
+[1;31m|[m[1;31m/[m [1;32m/[m  
+* [1;32m/[m [33m06d55db[m Add new file
+[1;32m|[m[1;32m/[m  
+* [33m0ede0d7[m Resolve merge conflicts: keep original auth logic
+*   [33mf30b019[m Merge branch 'main' of https://github.com/ahmedsamehharb/h-project # Please enter a commit message to explain why this merge is necessary, # especially if it merges an updated upstream into a topic branch. # # Lines starting with '#' will be ignored, and an empty message aborts # the commit.
+[1;33m|[m[1;34m\[m  
+[1;33m|[m * [33m8c7dc18[m Update password reset screens to match login/signup UI
+[1;33m|[m * [33m12f089b[m Add splash screen logo animation and fix progress indicator positioning
+[1;33m|[m * [33m7f43c72[m Update auth screens to match Figma designs and fix layout
+[1;33m|[m * [33m3953686[m Update app UI: Add splash screen background to all screens and implement theme support
+[1;33m|[m * [33mf626e03[m feat: Add profile editing, avatar upload, and social features
+* [1;34m|[m [33me57f04a[m[33m ([m[1;31mtemp/main[m[33m)[m Fix Netlify build: exclude mobile app from TypeScript compilation

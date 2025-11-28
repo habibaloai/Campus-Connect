@@ -20,6 +20,10 @@ interface EventCardProps {
   onJoinPress: () => void;
   index?: number;
   imageUrl?: string;
+  isPrivate?: boolean;
+  organizerId?: string;
+  hasPendingRequest?: boolean;
+  currentUserId?: string;
 }
 
 // Category-based icon mapping
@@ -69,6 +73,10 @@ export default function EventCard({
   onJoinPress,
   index = 0,
   imageUrl,
+  isPrivate = false,
+  organizerId,
+  hasPendingRequest = false,
+  currentUserId,
 }: EventCardProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -110,10 +118,19 @@ export default function EventCard({
               style={StyleSheet.absoluteFillObject}
             />
             <View style={styles.imageContent}>
-              <View style={[styles.categoryBadge, { backgroundColor: colors.bg }]}>
-                <Text style={[styles.categoryText, { color: colors.text }]}>
-                  {category}
-                </Text>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                <View style={[styles.categoryBadge, { backgroundColor: colors.bg }]}>
+                  <Text style={[styles.categoryText, { color: colors.text }]}>
+                    {category}
+                  </Text>
+                </View>
+                {isPrivate && (
+                  <View style={[styles.categoryBadge, { backgroundColor: 'rgba(245, 158, 11, 0.3)' }]}>
+                    <Text style={[styles.categoryText, { color: '#f59e0b' }]}>
+                      🔒 Private
+                    </Text>
+                  </View>
+                )}
               </View>
               <Text style={styles.eventTitle} numberOfLines={2}>
                 {title}
@@ -126,10 +143,19 @@ export default function EventCard({
               <CategoryIcon size={64} color={colors.text} />
             </View>
             <View style={styles.imageContent}>
-              <View style={[styles.categoryBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                <Text style={[styles.categoryText, { color: colors.text }]}>
-                  {category}
-                </Text>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                <View style={[styles.categoryBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                  <Text style={[styles.categoryText, { color: colors.text }]}>
+                    {category}
+                  </Text>
+                </View>
+                {isPrivate && (
+                  <View style={[styles.categoryBadge, { backgroundColor: 'rgba(245, 158, 11, 0.3)' }]}>
+                    <Text style={[styles.categoryText, { color: '#f59e0b' }]}>
+                      🔒 Private
+                    </Text>
+                  </View>
+                )}
               </View>
               <Text style={[styles.eventTitle, { color: colors.text }]} numberOfLines={2}>
                 {title}
@@ -168,24 +194,45 @@ export default function EventCard({
           </View>
         </View>
 
-        {/* Action Button */}
-        <TouchableOpacity
-          onPress={(e) => {
-            e.stopPropagation();
-            onJoinPress();
-          }}
-          style={[
-            styles.actionButton,
-            {
-              backgroundColor: isAttending ? '#10b981' : DesignSystem.colors.primary,
-            },
-          ]}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.actionButtonText}>
-            {isAttending ? 'Attending' : 'Join Event'}
-          </Text>
-        </TouchableOpacity>
+        {/* Action Button - Hidden for organizers */}
+        {!(organizerId && currentUserId && organizerId === currentUserId) && (
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              onJoinPress();
+            }}
+            disabled={hasPendingRequest}
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: isAttending
+                  ? '#10b981'
+                  : hasPendingRequest
+                  ? (isDark ? 'rgba(251, 191, 36, 0.2)' : '#fef3c7')
+                  : DesignSystem.colors.primary,
+                opacity: hasPendingRequest ? 0.7 : 1,
+              },
+            ]}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={[
+                styles.actionButtonText,
+                {
+                  color: hasPendingRequest ? (isDark ? '#f59e0b' : '#f59e0b') : '#ffffff',
+                },
+              ]}
+            >
+              {isAttending
+                ? 'Attending'
+                : hasPendingRequest
+                ? 'Request Pending'
+                : isPrivate
+                ? 'Request to Join'
+                : 'Join Event'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
     </Animated.View>
   );

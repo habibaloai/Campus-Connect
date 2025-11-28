@@ -1,39 +1,89 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, TouchableOpacity, ViewStyle } from 'react-native';
 import { useColorScheme } from '@/components/useColorScheme';
-import { DesignSystem } from '@/constants/design';
 
 interface CardProps {
   children: React.ReactNode;
+  onPress?: () => void;
   style?: ViewStyle;
+  className?: string;
   variant?: 'default' | 'elevated' | 'outlined';
-  padding?: number;
 }
 
-export default function Card({ children, style, variant = 'default', padding = 16 }: CardProps) {
+export function Card({
+  children,
+  onPress,
+  style,
+  className = '',
+  variant = 'default',
+}: CardProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const cardStyle = [
-    styles.card,
-    {
-      backgroundColor: isDark ? DesignSystem.colors.cardOverlayDark : DesignSystem.colors.cardOverlay,
-      padding,
-    },
-    variant === 'elevated' && DesignSystem.shadows.lg,
-    variant === 'outlined' && {
-      borderWidth: 1,
-      borderColor: isDark ? DesignSystem.colors.borderDark : DesignSystem.colors.border,
-    },
-    variant === 'default' && DesignSystem.shadows.md,
-    style,
-  ];
+  // Card background - translucent to show background image underneath
+  const getCardBackground = () => {
+    if (variant === 'outlined') {
+      return 'transparent';
+    }
+    // Translucent white in light mode, darker translucent in dark mode
+    return isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)';
+  };
+  
+  const borderRadius = 24; // Matching splash/login design
 
-  return <View style={cardStyle}>{children}</View>;
+  const shadowStyle =
+    variant === 'elevated'
+      ? {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: isDark ? 0.4 : 0.15,
+          shadowRadius: 20,
+          elevation: 10,
+        }
+      : variant === 'default'
+      ? {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: isDark ? 0.3 : 0.1,
+          shadowRadius: 12,
+          elevation: 6,
+        }
+      : {};
+
+  const Wrapper = onPress ? TouchableOpacity : View;
+
+  return (
+    <Wrapper
+      onPress={onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+      style={[
+        {
+          borderRadius: 24,
+          padding: 16,
+          backgroundColor: variant === 'outlined' ? 'transparent' : getCardBackground(),
+          ...(variant === 'outlined' && {
+            borderWidth: 1,
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)',
+          }),
+        },
+        shadowStyle,
+        style,
+      ]}
+      className={className}
+    >
+      {children}
+    </Wrapper>
+  );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: DesignSystem.borderRadius.lg,
-  },
-});
+export default Card;
+
+
+
+
+
+
+
+
+
+

@@ -31,6 +31,7 @@ import {
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useAuth, useNotifications } from '@/providers';
 import { useColorScheme } from '@/components/useColorScheme';
+import { useFocusEffect } from 'expo-router';
 import { api } from '@/lib/supabase';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -78,9 +79,17 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const [refreshing, setRefreshing] = useState(false);
   const [streak, setStreak] = useState(7);
+  const [animationKey, setAnimationKey] = useState(0);
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
 
   const isDark = colorScheme === 'dark';
+
+  // Reset animation key when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      setAnimationKey((prev) => prev + 1);
+    }, [])
+  );
 
   useEffect(() => {
     // Fetch upcoming events
@@ -109,7 +118,10 @@ export default function HomeScreen() {
   }, [refreshNotifications]);
 
   const greeting = () => {
-    return 'Welcome back';
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
   };
 
   const userName = profile?.name || user?.email?.split('@')[0] || 'Student';
@@ -129,6 +141,7 @@ export default function HomeScreen() {
         >
           {/* Professional Header */}
           <Animated.View 
+            key={`header-${animationKey}`}
             entering={FadeInDown.duration(500).springify()}
             style={styles.header}
           >
@@ -167,12 +180,13 @@ export default function HomeScreen() {
 
           {/* Greeting Section */}
           <Animated.View 
+            key={`greeting-${animationKey}`}
             entering={FadeInDown.duration(500).delay(100).springify()}
             style={styles.greetingSection}
           >
             <View style={styles.greetingContent}>
               <Text style={[styles.greetingText, { color: isDark ? '#ffffff' : '#1e293b' }]}>
-                {greeting()}, {userName}
+                {greeting()}, {userName} 👋
               </Text>
               <Text style={[styles.greetingSubtext, { color: isDark ? 'rgba(255, 255, 255, 0.8)' : '#64748b' }]}>
                 Here's your overview for today
@@ -186,6 +200,7 @@ export default function HomeScreen() {
 
           {/* Horizontal Scrolling Stats */}
           <Animated.View 
+            key={`stats-${animationKey}`}
             entering={FadeInDown.duration(500).delay(200).springify()}
             style={styles.sectionContainer}
           >
@@ -199,7 +214,7 @@ export default function HomeScreen() {
             >
               {statsData.map((stat, index) => (
                 <Animated.View
-                  key={stat.id}
+                  key={`${stat.id}-${animationKey}`}
                   entering={FadeInRight.duration(400).delay(250 + index * 80).springify()}
                   style={[styles.statCard, { width: CARD_WIDTH }]}
                 >
@@ -219,6 +234,7 @@ export default function HomeScreen() {
 
           {/* Today's Classes - Horizontal Scroll */}
           <Animated.View 
+            key={`classes-${animationKey}`}
             entering={FadeInDown.duration(500).delay(300).springify()}
             style={styles.sectionContainer}
           >
@@ -244,7 +260,7 @@ export default function HomeScreen() {
             >
               {todaysClasses.map((classItem, index) => (
                 <Animated.View
-                  key={classItem.id}
+                  key={`${classItem.id}-${animationKey}`}
                   entering={FadeInRight.duration(400).delay(350 + index * 80).springify()}
                   style={[styles.classCard, { width: CARD_WIDTH }]}
                 >
@@ -281,6 +297,7 @@ export default function HomeScreen() {
           {/* Upcoming Events - Horizontal Scroll */}
           {upcomingEvents.length > 0 && (
             <Animated.View 
+              key={`events-${animationKey}`}
               entering={FadeInDown.duration(500).delay(400).springify()}
               style={styles.sectionContainer}
             >
@@ -306,7 +323,7 @@ export default function HomeScreen() {
               >
                 {upcomingEvents.map((event, index) => (
                   <Animated.View
-                    key={event.id}
+                    key={`${event.id}-${animationKey}`}
                     entering={FadeInRight.duration(400).delay(450 + index * 80).springify()}
                     style={[styles.eventCard, { width: CARD_WIDTH }]}
                   >
@@ -348,6 +365,7 @@ export default function HomeScreen() {
 
           {/* Notifications Section */}
           <Animated.View 
+            key={`notification-${animationKey}`}
             entering={FadeInDown.duration(500).delay(500).springify()}
             style={styles.sectionContainer}
           >
@@ -384,10 +402,11 @@ export default function HomeScreen() {
 
           {/* Quick Actions */}
           <Animated.View 
+            key={`actions-${animationKey}`}
             entering={FadeInDown.duration(500).delay(600).springify()}
             style={styles.sectionContainer}
           >
-            <Text style={[styles.sectionTitle, { color: isDark ? '#ffffff' : '#1e293b', marginBottom: 16 }]}>
+            <Text style={[styles.sectionTitle, { color: isDark ? '#ffffff' : '#1e293b', marginBottom: 16, paddingHorizontal: 20 }]}>
               Quick Actions
             </Text>
             
@@ -416,6 +435,18 @@ export default function HomeScreen() {
               })}
             </View>
           </Animated.View>
+
+          {/* Sign Out Button */}
+          <View className="px-5 mt-6">
+            <TouchableOpacity
+              onPress={signOut}
+              className={`py-3.5 rounded-xl items-center ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}
+            >
+              <Text className={`font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                Sign Out
+              </Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </BackgroundImage>

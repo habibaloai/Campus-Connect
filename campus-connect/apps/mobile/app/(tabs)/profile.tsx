@@ -60,10 +60,10 @@ export default function ProfileScreen() {
       
       if (user?.id) {
         console.log('[Profile Screen] Screen focused, refreshing profile...');
-        // Call refreshProfile without including it in dependencies
-        // to prevent infinite loops
+        // Call refreshProfile without including it in dependencies to prevent infinite loops
         refreshProfile();
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id]) // Only depend on user?.id, not refreshProfile
   );
 
@@ -122,40 +122,24 @@ export default function ProfileScreen() {
     <BackgroundImage overlayOpacity={isDark ? 0.7 : 0.4}>
       <SafeAreaView style={{ flex: 1 }} edges={[]}>
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-<<<<<<< HEAD
-        {/* Profile Header */}
-        <Animated.View
-          key={`header-${animationKey}`}
-          entering={FadeInDown.duration(500).springify()}
-          style={{
-            paddingVertical: 20,
-            paddingHorizontal: 20,
-            marginHorizontal: 20,
-            marginTop: 12,
-            borderRadius: 24,
-            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: isDark ? 0.3 : 0.15,
-            shadowRadius: 12,
-            elevation: 6,
-          }}
-        >
-          <View className="flex-row items-start">
-            {/* Profile Picture */}
-            <View className="w-24 h-24 rounded-full bg-blue-100 items-center justify-center mr-4" style={{ overflow: 'hidden' }}>
-              {profile?.avatar_url ? (
-                <Image
-                  source={{ uri: profile.avatar_url }}
-                  className="w-24 h-24 rounded-full"
-                />
-              ) : (
-                <User size={40} color="#3b82f6" />
-              )}
-            </View>
+          {/* Profile Header with Background Image */}
+          <Animated.View
+            key={`profile-header-${animationKey}`}
+            entering={FadeInDown.duration(500).springify()}
+          >
+            <ProfileHeader
+              username={profile?.nickname || user?.email?.split('@')[0] || 'student'}
+              name={profile?.name || 'Student'}
+              location={profile?.major ? `${profile.major}${profile.year ? ` • ${profile.year}` : ''}` : undefined}
+              avatarUrl={profile?.avatar_url}
+              followers={220}
+              following={150}
+            />
+          </Animated.View>
 
           {/* Bio/Description Section */}
           <Animated.View
+            key={`bio-section-${animationKey}`}
             entering={FadeInDown.duration(500).delay(100).springify()}
             style={{
               paddingHorizontal: 20,
@@ -176,41 +160,21 @@ export default function ProfileScreen() {
             </Text>
           </Animated.View>
 
-<<<<<<< HEAD
-        {/* Gamification Section */}
-        <Animated.View
-          key={`gamification-${animationKey}`}
-          entering={FadeInDown.duration(500).delay(100).springify()}
-          className="px-5 mt-5"
-        >
-          <View className="flex-row flex-wrap justify-between">
-            {gamificationLinks.map((link, index) => (
-              <TouchableOpacity
-                key={link.label}
-                onPress={() => router.push(link.route as any)}
-                style={{
-                  width: '31%',
-                  alignItems: 'center',
-                  marginBottom: 16,
-                  padding: 16,
-                  borderRadius: 16,
-                  backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: isDark ? 0.3 : 0.15,
-                  shadowRadius: 12,
-                  elevation: 6,
-                }}
-                style={{
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: isDark ? 0.3 : 0.06,
-                  shadowRadius: 6,
-                  elevation: 3,
-                }}
-                activeOpacity={0.8}
-              >
-                {profile?.interests && profile.interests.length > 0 && profile.interests.map((interest, idx) => (
+          {/* Scrollable Interests, Hobbies, and Descriptions */}
+          <Animated.View
+            key={`interests-section-${animationKey}`}
+            entering={FadeInDown.duration(500).delay(150).springify()}
+            style={{
+              marginTop: 12,
+              marginHorizontal: 20,
+            }}
+          >
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 4, gap: 8 }}
+            >
+              {profile?.favorite_lecture && (
                 <View
                   style={{
                     flexDirection: 'row',
@@ -240,37 +204,7 @@ export default function ProfileScreen() {
                 </View>
               )}
 
-<<<<<<< HEAD
-        {/* Quick Links */}
-        <Animated.View
-          key={`quicklinks-${animationKey}`}
-          entering={FadeInDown.duration(500).delay(150).springify()}
-          className="px-5 mt-2"
-        >
-          <Text className={`text-sm font-semibold mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            Quick Access
-          </Text>
-          <View className="flex-row flex-wrap justify-between">
-            {quickLinks.map((link, index) => (
-              <TouchableOpacity
-                key={link.label}
-                onPress={() => router.push(link.route as any)}
-                style={{
-                  width: '23%',
-                  alignItems: 'center',
-                  marginBottom: 16,
-                  padding: 12,
-                  borderRadius: 16,
-                  backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: isDark ? 0.3 : 0.15,
-                  shadowRadius: 12,
-                  elevation: 6,
-                }}
-                activeOpacity={0.8}
-              >
-                {profile?.interests && profile.interests.length > 0 && profile.interests.map((interest, idx) => (
+              {profile?.interests && profile.interests.length > 0 && profile.interests.map((interest, idx) => (
                 <View
                   key={idx}
                   style={{
@@ -335,6 +269,7 @@ export default function ProfileScreen() {
 
           {/* Quick Links Section */}
           <Animated.View
+            key={`quick-links-${animationKey}`}
             entering={FadeInDown.duration(500).delay(200).springify()}
             style={{ paddingHorizontal: 20, marginTop: 24 }}
           >
@@ -382,6 +317,7 @@ export default function ProfileScreen() {
 
           {/* Gamification Section */}
           <Animated.View
+            key={`gamification-${animationKey}`}
             entering={FadeInDown.duration(500).delay(300).springify()}
             style={{ paddingHorizontal: 20, marginTop: 24 }}
           >
@@ -491,45 +427,34 @@ export default function ProfileScreen() {
             </Animated.View>
           ))}
 
-<<<<<<< HEAD
-          {/* Sign Out Button */}
-          <Animated.View key={`signout-${animationKey}`} entering={FadeInDown.duration(400).delay(500).springify()}>
-            <TouchableOpacity
-              onPress={signOut}
-              className={`flex-row items-center justify-center py-4 rounded-2xl ${isDark ? 'bg-red-900/30' : 'bg-red-50'}`}
-              activeOpacity={0.7}
-            >
-              <LogOut size={20} color="#ef4444" />
-              <Text className="text-red-500 font-semibold ml-2">Sign Out</Text>
-            </TouchableOpacity>
-          </Animated.View>
+            {/* Sign Out Button */}
+            <Animated.View key={`signout-${animationKey}`} entering={FadeInDown.duration(400).delay(500).springify()}>
+              <TouchableOpacity
+                onPress={signOut}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 16,
+                  borderRadius: 16,
+                  backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2',
+                  marginTop: 24,
+                }}
+                activeOpacity={0.7}
+              >
+                <LogOut size={20} color="#ef4444" />
+                <Text style={{ color: '#ef4444', fontWeight: '600', marginLeft: 8 }}>Sign Out</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </BackgroundImage>
+  );
+}
 
-          {/* Sign Out Button */}
-          <Animated.View key={`signout-${animationKey}`} entering={FadeInDown.duration(400).delay(500).springify()}>
-            <TouchableOpacity
-              onPress={signOut}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                paddingVertical: 16,
-                borderRadius: 16,
-                backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2',
-                marginTop: 24,
-                marginHorizontal: 20,
-              }}
-              activeOpacity={0.7}
-            >
-              <LogOut size={20} color="#ef4444" />
-              <Text style={{ color: '#ef4444', fontWeight: '600', marginLeft: 8 }}>Sign Out</Text>
-            </TouchableOpacity>
-          </Animated.View>
-
-          {/* App Version */}
-          <Text style={{ textAlign: 'center', fontSize: 12, marginTop: 24, marginBottom: 16, color: 'rgba(255, 255, 255, 0.7)' }}>
-            Campus Connect v1.0.0
-          </Text>
-        </View>
-      </ScrollView>
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
   },
 });

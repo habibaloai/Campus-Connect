@@ -30,7 +30,7 @@ export const auth = {
       // First, check if a profile with this email already exists
       // This prevents duplicate signups even if Supabase doesn't return an error
       const normalizedEmail = email.toLowerCase().trim();
-
+      
       // Try to check for existing profile, but don't fail if check fails (RLS might prevent it)
       let existingProfile = null;
       try {
@@ -54,12 +54,12 @@ export const auth = {
       if (existingProfile) {
         // User already exists
         console.log('Duplicate signup attempt detected for email:', normalizedEmail);
-        return {
-          data: null,
-          error: {
+        return { 
+          data: null, 
+          error: { 
             message: 'An account with this email already exists. Please sign in instead.',
-            status: 400
-          }
+            status: 400 
+          } 
         };
       }
 
@@ -80,19 +80,19 @@ export const auth = {
         },
       });
 
-      console.log('SignUp response:', {
-        hasUser: !!data?.user,
-        hasSession: !!data?.session,
+      console.log('SignUp response:', { 
+        hasUser: !!data?.user, 
+        hasSession: !!data?.session, 
         hasError: !!error,
-        errorMessage: error?.message
+        errorMessage: error?.message 
       });
 
       if (error) {
         // Check if error is due to user already existing
         // Supabase returns different error messages for duplicate users
         const errorMessage = error.message?.toLowerCase() || '';
-        const isDuplicateUser =
-          errorMessage.includes('already registered') ||
+        const isDuplicateUser = 
+          errorMessage.includes('already registered') || 
           errorMessage.includes('user already registered') ||
           errorMessage.includes('email address is already registered') ||
           errorMessage.includes('user with this email already exists') ||
@@ -101,12 +101,12 @@ export const auth = {
           error.status === 400;
 
         if (isDuplicateUser) {
-          return {
-            data: null,
-            error: {
+          return { 
+            data: null, 
+            error: { 
               message: 'An account with this email already exists. Please sign in instead.',
-              status: error.status || 400
-            }
+              status: error.status || 400 
+            } 
           };
         }
         return { data: null, error };
@@ -131,18 +131,18 @@ export const auth = {
           // If profile upsert fails due to duplicate email constraint, user already exists
           // Only fail if it's specifically an email unique constraint violation
           const errorMsg = profileError.message?.toLowerCase() || '';
-          const isEmailDuplicate =
-            profileError.code === '23505' &&
+          const isEmailDuplicate = 
+            profileError.code === '23505' && 
             (errorMsg.includes('email') || errorMsg.includes('profiles_email_key') || errorMsg.includes('profiles_email'));
-
+          
           if (isEmailDuplicate) {
             console.log('Profile duplicate email error detected:', profileError.message);
-            return {
-              data: null,
-              error: {
+            return { 
+              data: null, 
+              error: { 
                 message: 'An account with this email already exists. Please sign in instead.',
-                status: 400
-              }
+                status: 400 
+              } 
             };
           }
           // Other profile errors are warnings, not failures
@@ -157,25 +157,25 @@ export const auth = {
       return { data, error: null };
     } catch (err: any) {
       console.error('SignUp error:', err);
-
+      
       // Check for duplicate user error in catch block
       const errorMessage = err.message?.toLowerCase() || '';
-      const isDuplicateUser =
-        errorMessage.includes('already registered') ||
+      const isDuplicateUser = 
+        errorMessage.includes('already registered') || 
         errorMessage.includes('user already registered') ||
         errorMessage.includes('email address is already registered') ||
         err.status === 422;
-
+      
       if (isDuplicateUser) {
-        return {
-          data: null,
-          error: {
+        return { 
+          data: null, 
+          error: { 
             message: 'An account with this email already exists. Please sign in instead.',
-            status: 400
-          }
+            status: 400 
+          } 
         };
       }
-
+      
       return { data: null, error: { message: err.message || 'Signup failed' } };
     }
   },
@@ -222,12 +222,12 @@ export const auth = {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         console.error('Invalid email format:', email);
-        return {
-          data: null,
-          error: {
+        return { 
+          data: null, 
+          error: { 
             message: 'Please enter a valid email address',
-            status: 400
-          }
+            status: 400 
+          } 
         };
       }
 
@@ -311,35 +311,13 @@ export const api = {
   // Profile
   getProfile: async (userId: string) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
-
-    if (data) {
-      // Fetch interests
-      const { data: interestsData } = await supabase
-        .from('user_interests')
-        .select('interests(name)')
-        .eq('user_id', userId);
-
-      if (interestsData) {
-        // Transform from [{interests: {name: "foo"}}, ...] to ["foo", ...]
-        data.interests = interestsData.map((item: any) => item.interests?.name).filter(Boolean);
-      }
-    }
-
     return { data, error };
-  },
-
-  updateUserInterests: async (userId: string, interests: string[]) => {
-    const { error } = await supabase.rpc('update_user_interests', {
-      p_user_id: userId,
-      p_interests: interests
-    });
-    return { error };
   },
 
   updateProfile: async (userId: string, updates: any) => {
     // Remove undefined values and ensure proper types
     const cleanUpdates: any = {};
-
+    
     Object.entries(updates).forEach(([key, value]) => {
       if (value !== undefined) {
         // Handle interests array - ensure it's properly formatted for PostgreSQL
@@ -350,20 +328,20 @@ export const api = {
         }
       }
     });
-
+    
     console.log('[API] updateProfile called with:', {
       userId,
       updates: cleanUpdates,
       updates_stringified: JSON.stringify(cleanUpdates),
     });
-
+    
     const { data, error } = await supabase
       .from('profiles')
       .update(cleanUpdates)
       .eq('id', userId)
       .select()
       .single();
-
+    
     if (error) {
       console.error('[API] Supabase update error:', error);
       console.error('[API] Error code:', error.code);
@@ -373,7 +351,7 @@ export const api = {
     } else {
       console.log('[API] Profile updated successfully:', data);
     }
-
+    
     return { data, error };
   },
 
@@ -459,16 +437,38 @@ export const api = {
       .eq('id', eventId)
       .single();
 
-    if (data && userId) {
-      const { data: attending } = await supabase
-        .from('event_attendees')
-        .select('id')
-        .eq('event_id', eventId)
-        .eq('user_id', userId)
-        .single();
+    if (data) {
+      // Ensure is_private defaults to false if not set
+      if (data.is_private === undefined || data.is_private === null) {
+        data.is_private = false;
+      }
 
-      data.is_attending = !!attending;
-      data.attendee_count = data.attendee_count?.[0]?.count || 0;
+      if (userId) {
+        // Check if user is attending
+        const { data: attending, error: attendingError } = await supabase
+          .from('event_attendees')
+          .select('id')
+          .eq('event_id', eventId)
+          .eq('user_id', userId)
+          .limit(1)
+          .maybeSingle();
+
+        // Check if user has a pending join request
+        const { data: pendingRequest, error: requestError } = await supabase
+          .from('event_join_requests')
+          .select('id')
+          .eq('event_id', eventId)
+          .eq('user_id', userId)
+          .eq('status', 'pending')
+          .limit(1)
+          .maybeSingle();
+
+        data.is_attending = !attendingError && !!attending;
+        data.has_pending_request = !requestError && !!pendingRequest;
+        data.attendee_count = data.attendee_count?.[0]?.count || 0;
+      } else {
+        data.attendee_count = data.attendee_count?.[0]?.count || 0;
+      }
     }
 
     return { data, error };
@@ -510,139 +510,86 @@ export const api = {
     return { data, error };
   },
 
-  // Event management (for organizers)
-  updateEvent: async (eventId: string, updates: any) => {
-    const { data, error } = await supabase
-      .from('events')
-      .update(updates)
-      .eq('id', eventId)
-      .select()
-      .single();
-    return { data, error };
-  },
-
-  deleteEvent: async (eventId: string) => {
-    // Delete all related data first (cascade should handle this, but being explicit)
-    // Delete event attendees
-    await supabase.from('event_attendees').delete().eq('event_id', eventId);
-    // Delete event photos
-    await supabase.from('event_photos').delete().eq('event_id', eventId);
-    // Delete event comments
-    await supabase.from('event_comments').delete().eq('event_id', eventId);
-    // Delete event reactions
-    await supabase.from('event_reactions').delete().eq('event_id', eventId);
-    // Delete event messages
-    await supabase.from('event_group_chat').delete().eq('event_id', eventId);
-    // Delete join requests
-    await supabase.from('event_join_requests').delete().eq('event_id', eventId);
-    
-    // Finally delete the event itself
-    const { error } = await supabase
-      .from('events')
-      .delete()
-      .eq('id', eventId);
-    return { error };
-  },
-
-  removeAttendee: async (eventId: string, userId: string) => {
-    const { error } = await supabase
-      .from('event_attendees')
-      .delete()
-      .eq('event_id', eventId)
-      .eq('user_id', userId);
-    return { error };
-  },
-
-  searchUsers: async (searchTerm: string, limit: number = 20) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, name, avatar_url, major, year, email')
-      .or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
-      .limit(limit);
-    return { data, error };
-  },
-
-  // Event join requests for private events
+  // Event Join Requests
   requestToJoinEvent: async (eventId: string, userId: string) => {
-    // Check if user is already attending the event
+    // First, check if user is the organizer
+    const { data: event } = await supabase
+      .from('events')
+      .select('organizer_id')
+      .eq('id', eventId)
+      .single();
+
+    if (event && event.organizer_id === userId) {
+      return {
+        data: null,
+        error: { message: 'You cannot request to join your own event', code: 'IS_ORGANIZER' },
+      };
+    }
+
+    // Check if user is already an attendee
     const { data: existingAttendee } = await supabase
       .from('event_attendees')
       .select('id')
       .eq('event_id', eventId)
       .eq('user_id', userId)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     if (existingAttendee) {
-      return { 
-        data: null, 
-        error: { message: 'You are already attending this event', code: 'ALREADY_ATTENDING' } 
+      return {
+        data: null,
+        error: { message: 'You are already attending this event', code: 'ALREADY_ATTENDING' },
       };
     }
 
-    // Check if request already exists
-    const { data: existing } = await supabase
+    // Check if there's already a pending request
+    const { data: existingRequest } = await supabase
       .from('event_join_requests')
-      .select('*')
+      .select('id')
       .eq('event_id', eventId)
       .eq('user_id', userId)
-      .single();
+      .eq('status', 'pending')
+      .maybeSingle();
 
-    if (existing) {
-      // If request exists and is pending, return it
-      if (existing.status === 'pending') {
-        return { data: existing, error: null };
-      }
-      // If request was rejected or accepted, delete it and create a new one
-      await supabase
-        .from('event_join_requests')
-        .delete()
-        .eq('id', existing.id);
-    }
-
-    // Verify event exists and is private
-    const { data: eventData, error: eventError } = await supabase
-      .from('events')
-      .select('id, title, organizer_id, is_private')
-      .eq('id', eventId)
-      .single();
-
-    if (eventError || !eventData) {
-      return { data: null, error: { message: 'Event not found', code: 'EVENT_NOT_FOUND' } };
-    }
-
-    if (!eventData.is_private) {
-      return { 
-        data: null, 
-        error: { message: 'This event is public. You can join directly.', code: 'NOT_PRIVATE' } 
+    if (existingRequest) {
+      return {
+        data: existingRequest,
+        error: null,
       };
     }
 
-    // Get user profile for notification
-    const { data: userProfile } = await supabase
-      .from('profiles')
-      .select('id, name')
-      .eq('id', userId)
-      .single();
-
+    // Create new join request
     const { data, error } = await supabase
       .from('event_join_requests')
-      .insert({ event_id: eventId, user_id: userId, status: 'pending' })
-      .select()
+      .insert({
+        event_id: eventId,
+        user_id: userId,
+        status: 'pending',
+      })
+      .select(`
+        *,
+        event:events(id, title, organizer_id)
+      `)
       .single();
 
-    // Send notification to organizer if request was created successfully
-    if (!error && data && eventData?.organizer_id && eventData.organizer_id !== userId) {
-      await supabase.from('notifications').insert({
-        user_id: eventData.organizer_id,
-        type: 'event',
-        title: 'New Join Request',
-        message: `${userProfile?.name || 'Someone'} wants to join "${eventData.title}"`,
-        action_url: `/(tabs)/events/${eventId}`,
-        read: false,
-      }).catch(err => {
-        console.error('Error creating notification:', err);
-        // Don't fail the request if notification fails
-      });
+    // Notify event organizer about join request
+    if (data && !error) {
+      const event = Array.isArray(data.event) ? data.event[0] : data.event;
+      if (event?.organizer_id) {
+        const { data: requesterProfile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', userId)
+          .single();
+
+        api.createNotification(
+          event.organizer_id,
+          'event_join_request',
+          'New Join Request',
+          `${requesterProfile?.name || 'Someone'} wants to join ${event.title}`,
+          `/(tabs)/events/${eventId}?tab=requests`
+        ).catch((err) => console.warn('Failed to send notification:', err));
+      }
     }
 
     return { data, error };
@@ -653,357 +600,986 @@ export const api = {
       .from('event_join_requests')
       .select(`
         *,
-        user:profiles(id, name, avatar_url, major, year)
+        profile:profiles(id, name, avatar_url, major, year)
       `)
       .eq('event_id', eventId)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
+
+    if (data) {
+      // Transform profile data
+      const transformedData = data.map((request: any) => ({
+        ...request,
+        profile: Array.isArray(request.profile) ? request.profile[0] : request.profile,
+      }));
+      return { data: transformedData, error: null };
+    }
+
     return { data, error };
   },
 
-  cancelJoinRequest: async (eventId: string, userId: string) => {
-    const { error } = await supabase
+  respondToJoinRequest: async (requestId: string, accept: boolean) => {
+    // Get the request
+    const { data: request, error: fetchError } = await supabase
       .from('event_join_requests')
-      .delete()
-      .eq('event_id', eventId)
-      .eq('user_id', userId)
-      .eq('status', 'pending');
-    return { error };
-  },
-
-  respondToJoinRequest: async (requestId: string, accept: boolean, eventId: string, userId: string) => {
-    // Get event details for notification
-    const { data: eventData } = await supabase
-      .from('events')
-      .select('id, title')
-      .eq('id', eventId)
+      .select('*, event:events(id, organizer_id)')
+      .eq('id', requestId)
       .single();
 
+    if (fetchError || !request) {
+      return { data: null, error: fetchError || { message: 'Join request not found' } };
+    }
+
     if (accept) {
-      // Update request status to accepted
+      // Update request status
       const { error: updateError } = await supabase
         .from('event_join_requests')
-        .update({ status: 'accepted' })
+        .update({ status: 'accepted', updated_at: new Date().toISOString() })
         .eq('id', requestId);
 
       if (updateError) {
-        return { error: updateError };
+        return { data: null, error: updateError };
       }
 
       // Add user to event attendees
-      const { error: joinError } = await supabase
+      const { error: attendeeError } = await supabase
         .from('event_attendees')
-        .insert({ event_id: eventId, user_id: userId });
-      
-      if (joinError) {
-        return { error: joinError };
+        .insert({
+          event_id: request.event_id,
+          user_id: request.user_id,
+        });
+
+      if (attendeeError) {
+        // If adding attendee fails, revert request status
+        await supabase
+          .from('event_join_requests')
+          .update({ status: 'pending' })
+          .eq('id', requestId);
+        return { data: null, error: attendeeError };
       }
 
-      // Send notification to user that they were accepted
+      // Notify user that their request was approved
+      const { data: eventData } = await supabase
+        .from('events')
+        .select('title')
+        .eq('id', request.event_id)
+        .single();
+
       if (eventData) {
-        await supabase.from('notifications').insert({
-          user_id: userId,
-          type: 'event',
-          title: 'Request Accepted',
-          message: `Your request to join "${eventData.title}" has been accepted!`,
-          action_url: `/(tabs)/events/${eventId}`,
-          read: false,
-        }).catch(err => {
-          console.error('Error creating notification:', err);
-        });
+        api.createNotification(
+          request.user_id,
+          'event_join_approved',
+          'Join Request Approved',
+          `Your request to join ${eventData.title} has been approved!`,
+          `/(tabs)/events/${request.event_id}`
+        ).catch((err) => console.warn('Failed to send notification:', err));
       }
+
+      return { data: { ...request, status: 'accepted' }, error: null };
     } else {
-      // Delete the request (rejected requests are removed)
+      // Delete the request (rejected)
       const { error: deleteError } = await supabase
         .from('event_join_requests')
         .delete()
         .eq('id', requestId);
 
-      if (deleteError) {
-        return { error: deleteError };
+      // Notify user that their request was declined
+      const { data: eventData } = await supabase
+        .from('events')
+        .select('title')
+        .eq('id', request.event_id)
+        .single();
+
+      if (eventData && !deleteError) {
+        api.createNotification(
+          request.user_id,
+          'event_join_rejected',
+          'Join Request Declined',
+          `Your request to join ${eventData.title} was declined`,
+          `/(tabs)/events`
+        ).catch((err) => console.warn('Failed to send notification:', err));
       }
 
-      // Send notification to user that they were rejected
-      if (eventData) {
-        await supabase.from('notifications').insert({
-          user_id: userId,
-          type: 'event',
-          title: 'Request Declined',
-          message: `Your request to join "${eventData.title}" was declined.`,
-          action_url: `/(tabs)/events/${eventId}`,
-          read: false,
-        }).catch(err => {
-          console.error('Error creating notification:', err);
+      return { data: null, error: deleteError };
+    }
+  },
+
+  uploadEventImage: async (eventId: string, fileUri: string, fileExt: string = 'jpg') => {
+    try {
+      const fileName = `${eventId}_${Date.now()}.${fileExt}`;
+      const filePath = `${eventId}/${fileName}`;
+
+      const base64 = await readAsStringAsync(fileUri, { encoding: 'base64' });
+      const bytes = new Uint8Array(
+        atob(base64)
+          .split('')
+          .map((char) => char.charCodeAt(0))
+      );
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('event-covers')
+        .upload(filePath, bytes, {
+          contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
+          upsert: true,
         });
+
+      if (uploadError) {
+        return {
+          url: null,
+          error: {
+            message: uploadError.message || 'Failed to upload event image',
+            code: uploadError.message?.toLowerCase().includes('bucket') ? 'BUCKET_NOT_FOUND' : 'UPLOAD_ERROR',
+          },
+        };
+      }
+
+      const { data: urlData } = supabase.storage.from('event-covers').getPublicUrl(filePath);
+      return { url: urlData.publicUrl, error: null };
+    } catch (error: any) {
+      return {
+        url: null,
+        error: {
+          message: error.message || 'Failed to upload event image',
+          code: 'UPLOAD_ERROR',
+        },
+      };
+    }
+  },
+
+  // Event Photo Management
+  uploadEventPhoto: async (eventId: string, userId: string, fileUri: string, fileExt: string = 'jpg') => {
+    try {
+      // Verify user is an attendee
+      const { data: attendee, error: attendeeError } = await supabase
+        .from('event_attendees')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('user_id', userId)
+        .limit(1)
+        .maybeSingle();
+
+      if (attendeeError || !attendee) {
+        return {
+          data: null,
+          error: {
+            message: 'You must be attending this event to upload photos',
+            code: 'NOT_ATTENDEE',
+          },
+        };
+      }
+
+      // Generate unique photo ID using timestamp and random number
+      // React Native doesn't have crypto.randomUUID(), so we use a combination approach
+      const photoId = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+      const fileName = `${photoId}.${fileExt}`;
+      const filePath = `${eventId}/${fileName}`;
+
+      // Upload to storage
+      const base64 = await readAsStringAsync(fileUri, { encoding: 'base64' });
+      const bytes = new Uint8Array(
+        atob(base64)
+          .split('')
+          .map((char) => char.charCodeAt(0))
+      );
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('event-photos')
+        .upload(filePath, bytes, {
+          contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        return {
+          data: null,
+          error: {
+            message: uploadError.message || 'Failed to upload photo',
+            code: uploadError.message?.toLowerCase().includes('bucket') ? 'BUCKET_NOT_FOUND' : 'UPLOAD_ERROR',
+          },
+        };
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage.from('event-photos').getPublicUrl(filePath);
+      const photoUrl = urlData.publicUrl;
+
+      // Create database record
+      const { data: photoData, error: dbError } = await supabase
+        .from('event_photos')
+        .insert({
+          event_id: eventId,
+          user_id: userId,
+          photo_url: photoUrl,
+        })
+        .select(`
+          *,
+          user:profiles(id, name, avatar_url)
+        `)
+        .single();
+
+      if (dbError) {
+        // If DB insert fails, try to delete uploaded file
+        await supabase.storage.from('event-photos').remove([filePath]);
+        return { data: null, error: dbError };
+      }
+
+      // Transform user data
+      const transformedData = {
+        ...photoData,
+        user: Array.isArray(photoData.user) ? photoData.user[0] : photoData.user,
+      };
+
+      return { data: transformedData, error: null };
+    } catch (error: any) {
+      return {
+        data: null,
+        error: {
+          message: error.message || 'Failed to upload photo',
+          code: 'UPLOAD_ERROR',
+        },
+      };
+    }
+  },
+
+  getEventPhotos: async (eventId: string, userId?: string) => {
+    // Verify user is an attendee if userId is provided
+    if (userId) {
+      const { data: attendee } = await supabase
+        .from('event_attendees')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('user_id', userId)
+        .limit(1)
+        .maybeSingle();
+
+      if (!attendee) {
+        return {
+          data: null,
+          error: { message: 'You must be attending this event to view photos', code: 'NOT_ATTENDEE' },
+        };
       }
     }
+
+    const { data, error } = await supabase
+      .from('event_photos')
+      .select(`
+        *,
+        user:profiles(id, name, avatar_url),
+        likes:event_photo_likes(count),
+        comments:event_photo_comments(count)
+      `)
+      .eq('event_id', eventId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    // Get user's likes if userId provided
+    let userLikes = new Set<string>();
+    if (userId && data) {
+      const photoIds = data.map((p: any) => p.id);
+      const { data: likes } = await supabase
+        .from('event_photo_likes')
+        .select('photo_id')
+        .eq('user_id', userId)
+        .in('photo_id', photoIds);
+
+      if (likes) {
+        userLikes = new Set(likes.map((l) => l.photo_id));
+      }
+    }
+
+    // Transform data
+    const transformedData = data?.map((photo: any) => ({
+      ...photo,
+      user: Array.isArray(photo.user) ? photo.user[0] : photo.user,
+      likes_count: photo.likes?.[0]?.count || 0,
+      comments_count: photo.comments?.[0]?.count || 0,
+      is_liked: userId ? userLikes.has(photo.id) : false,
+    }));
+
+    return { data: transformedData, error: null };
+  },
+
+  deleteEventPhoto: async (photoId: string, userId: string, isCreator: boolean = false) => {
+    // Get photo info
+    const { data: photo, error: fetchError } = await supabase
+      .from('event_photos')
+      .select('*, event:events(id, organizer_id)')
+      .eq('id', photoId)
+      .single();
+
+    if (fetchError || !photo) {
+      return { error: fetchError || { message: 'Photo not found' } };
+    }
+
+    // Check permissions
+    const canDelete = photo.user_id === userId || (isCreator && photo.event?.organizer_id === userId);
+    if (!canDelete) {
+      return { error: { message: 'You do not have permission to delete this photo', code: 'PERMISSION_DENIED' } };
+    }
+
+    // Extract file path from photo_url
+    const photoUrl = photo.photo_url;
+    const urlParts = photoUrl.split('/');
+    const fileName = urlParts[urlParts.length - 1].split('?')[0];
+    const eventId = photo.event_id;
+    const filePath = `${eventId}/${fileName}`;
+
+    // Delete from database (cascade will handle comments and likes)
+    const { error: deleteError } = await supabase.from('event_photos').delete().eq('id', photoId);
+
+    if (deleteError) {
+      return { error: deleteError };
+    }
+
+    // Delete from storage (non-blocking)
+    supabase.storage
+      .from('event-photos')
+      .remove([filePath])
+      .catch((err) => {
+        console.warn('Failed to delete photo from storage:', err);
+      });
 
     return { error: null };
   },
 
-  // Event photos
-  addEventPhoto: async (eventId: string, userId: string, photoUrl: string, description?: string) => {
-    const { data, error } = await supabase
-      .from('event_photos')
-      .insert({ event_id: eventId, user_id: userId, photo_url: photoUrl, description })
-      .select()
-      .single();
-    return { data, error };
-  },
-
-  getEventPhotos: async (eventId: string) => {
-    const { data, error } = await supabase
-      .from('event_photos')
-      .select(`
-        *,
-        user:profiles(id, name, avatar_url)
-      `)
-      .eq('event_id', eventId)
-      .order('created_at', { ascending: false });
-    return { data, error };
-  },
-
-  deleteEventPhoto: async (photoId: string) => {
-    const { error } = await supabase.from('event_photos').delete().eq('id', photoId);
-    return { error };
-  },
-
-  // Event comments
-  addEventComment: async (eventId: string, userId: string, content: string) => {
-    const { data, error } = await supabase
-      .from('event_comments')
-      .insert({ event_id: eventId, user_id: userId, content })
-      .select(`
-        *,
-        user:profiles(id, name, avatar_url)
-      `)
-      .single();
-    return { data, error };
-  },
-
-  getEventComments: async (eventId: string) => {
-    const { data, error } = await supabase
-      .from('event_comments')
-      .select(`
-        *,
-        user:profiles(id, name, avatar_url)
-      `)
-      .eq('event_id', eventId)
-      .order('created_at', { ascending: true });
-    return { data, error };
-  },
-
-  deleteEventComment: async (commentId: string) => {
-    const { error } = await supabase.from('event_comments').delete().eq('id', commentId);
-    return { error };
-  },
-
-  // Event reactions
-  toggleEventReaction: async (eventId: string, userId: string, reactionType: string) => {
-    // Check if reaction exists
-    const { data: existing } = await supabase
-      .from('event_reactions')
+  likeEventPhoto: async (photoId: string, userId: string) => {
+    // Check if already liked
+    const { data: existingLike } = await supabase
+      .from('event_photo_likes')
       .select('id')
-      .eq('event_id', eventId)
+      .eq('photo_id', photoId)
       .eq('user_id', userId)
-      .eq('reaction_type', reactionType)
-      .single();
+      .maybeSingle();
 
-    if (existing) {
-      // Remove reaction
-      const { error } = await supabase
-        .from('event_reactions')
-        .delete()
-        .eq('id', existing.id);
-      return { data: null, error };
+    if (existingLike) {
+      // Unlike: delete the like
+      const { error } = await supabase.from('event_photo_likes').delete().eq('id', existingLike.id);
+      return { data: { liked: false }, error };
     } else {
-      // Add reaction
+      // Like: create new like
       const { data, error } = await supabase
-        .from('event_reactions')
-        .insert({ event_id: eventId, user_id: userId, reaction_type: reactionType })
+        .from('event_photo_likes')
+        .insert({
+          photo_id: photoId,
+          user_id: userId,
+        })
         .select()
         .single();
-      return { data, error };
+
+      // Get photo info to notify uploader
+      const { data: photo } = await supabase
+        .from('event_photos')
+        .select('user_id, event:events(id, title)')
+        .eq('id', photoId)
+        .single();
+
+      // Notify photo uploader about like (if not liking own photo)
+      // Note: Consider batching likes to avoid spam
+      if (photo && photo.user_id !== userId && data) {
+        const event = Array.isArray(photo.event) ? photo.event[0] : photo.event;
+        api.createNotification(
+          photo.user_id,
+          'photo_like',
+          'Photo Liked',
+          'Someone liked your photo',
+          `/(tabs)/events/${event?.id}?tab=photos`
+        ).catch((err) => console.warn('Failed to send notification:', err));
+      }
+
+      return { data: { liked: true, like: data }, error };
     }
   },
 
-  getEventReactions: async (eventId: string) => {
-    const { data, error } = await supabase
-      .from('event_reactions')
-      .select(`
-        *,
-        user:profiles(id, name, avatar_url)
-      `)
-      .eq('event_id', eventId)
-      .order('created_at', { ascending: false });
-    return { data, error };
-  },
+  commentOnPhoto: async (photoId: string, userId: string, content: string) => {
+    if (!content || content.trim().length === 0) {
+      return {
+        data: null,
+        error: { message: 'Comment cannot be empty', code: 'INVALID_INPUT' },
+      };
+    }
 
-  // Event group chat
-  sendEventMessage: async (eventId: string, userId: string, message: string) => {
     const { data, error } = await supabase
-      .from('event_group_chat')
-      .insert({ event_id: eventId, user_id: userId, message })
-      .select(`
-        *,
-        user:profiles(id, name, avatar_url)
-      `)
-      .single();
-    return { data, error };
-  },
-
-  getEventMessages: async (eventId: string) => {
-    const { data, error } = await supabase
-      .from('event_group_chat')
-      .select(`
-        *,
-        user:profiles(id, name, avatar_url)
-      `)
-      .eq('event_id', eventId)
-      .order('created_at', { ascending: true });
-    return { data, error };
-  },
-
-  deleteEventMessage: async (messageId: string) => {
-    const { error } = await supabase.from('event_group_chat').delete().eq('id', messageId);
-    return { error };
-  },
-
-  // Photo comments
-  addPhotoComment: async (photoId: string, userId: string, content: string) => {
-    const { data, error } = await supabase
-      .from('photo_comments')
-      .insert({ photo_id: photoId, user_id: userId, content })
+      .from('event_photo_comments')
+      .insert({
+        photo_id: photoId,
+        user_id: userId,
+        content: content.trim(),
+      })
       .select(`
         *,
         user:profiles(id, name, avatar_url)
       `)
       .single();
+
+    if (data) {
+      const transformedData = {
+        ...data,
+        user: Array.isArray(data.user) ? data.user[0] : data.user,
+      };
+
+      // Get photo info to notify uploader
+      const { data: photo } = await supabase
+        .from('event_photos')
+        .select('user_id, event:events(id, title)')
+        .eq('id', photoId)
+        .single();
+
+      // Notify photo uploader about comment (if not commenting on own photo)
+      if (photo && photo.user_id !== userId) {
+        const event = Array.isArray(photo.event) ? photo.event[0] : photo.event;
+        api.createNotification(
+          photo.user_id,
+          'photo_comment',
+          'New Comment on Your Photo',
+          `${transformedData.user?.name || 'Someone'} commented on your photo`,
+          `/(tabs)/events/${event?.id}?tab=photos`
+        ).catch((err) => console.warn('Failed to send notification:', err));
+      }
+
+      return { data: transformedData, error: null };
+    }
+
     return { data, error };
   },
 
   getPhotoComments: async (photoId: string) => {
     const { data, error } = await supabase
-      .from('photo_comments')
+      .from('event_photo_comments')
       .select(`
         *,
         user:profiles(id, name, avatar_url)
       `)
       .eq('photo_id', photoId)
       .order('created_at', { ascending: true });
-    return { data, error };
-  },
 
-  // Photo reactions
-  togglePhotoReaction: async (photoId: string, userId: string, reactionType: string = 'like') => {
-    const { data: existing } = await supabase
-      .from('photo_reactions')
-      .select('id')
-      .eq('photo_id', photoId)
-      .eq('user_id', userId)
-      .eq('reaction_type', reactionType)
-      .single();
-
-    if (existing) {
-      const { error } = await supabase.from('photo_reactions').delete().eq('id', existing.id);
-      return { data: null, error };
-    } else {
-      const { data, error } = await supabase
-        .from('photo_reactions')
-        .insert({ photo_id: photoId, user_id: userId, reaction_type: reactionType })
-        .select()
-        .single();
-      return { data, error };
+    if (data) {
+      const transformedData = data.map((comment: any) => ({
+        ...comment,
+        user: Array.isArray(comment.user) ? comment.user[0] : comment.user,
+      }));
+      return { data: transformedData, error: null };
     }
-  },
 
-  getPhotoReactions: async (photoId: string) => {
-    const { data, error } = await supabase
-      .from('photo_reactions')
-      .select(`
-        *,
-        user:profiles(id, name, avatar_url)
-      `)
-      .eq('photo_id', photoId);
     return { data, error };
   },
 
-  // Comment reactions
-  toggleCommentReaction: async (commentId: string, userId: string) => {
-    const { data: existing } = await supabase
-      .from('comment_reactions')
-      .select('id')
-      .eq('comment_id', commentId)
-      .eq('user_id', userId)
+  deletePhotoComment: async (commentId: string, userId: string) => {
+    // Verify user owns the comment
+    const { data: comment } = await supabase
+      .from('event_photo_comments')
+      .select('user_id')
+      .eq('id', commentId)
       .single();
 
-    if (existing) {
-      const { error } = await supabase.from('comment_reactions').delete().eq('id', existing.id);
-      return { data: null, error };
-    } else {
-      const { data, error } = await supabase
-        .from('comment_reactions')
-        .insert({ comment_id: commentId, user_id: userId })
-        .select()
-        .single();
-      return { data, error };
+    if (!comment || comment.user_id !== userId) {
+      return { error: { message: 'You can only delete your own comments', code: 'PERMISSION_DENIED' } };
     }
-  },
 
-  getCommentReactions: async (commentId: string) => {
-    const { data, error } = await supabase
-      .from('comment_reactions')
-      .select('*')
-      .eq('comment_id', commentId);
-    return { data, error };
-  },
-
-  // Collections
-  getCollections: async (userId: string) => {
-    const { data, error } = await supabase
-      .from('collections')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    return { data, error };
-  },
-
-  createCollection: async (userId: string, name: string, coverPhotoUrl?: string) => {
-    const { data, error } = await supabase
-      .from('collections')
-      .insert({ user_id: userId, name, cover_photo_url: coverPhotoUrl })
-      .select()
-      .single();
-    return { data, error };
-  },
-
-  addPhotoToCollection: async (collectionId: string, photoId: string) => {
-    const { data, error } = await supabase
-      .from('collection_photos')
-      .insert({ collection_id: collectionId, photo_id: photoId })
-      .select()
-      .single();
-    return { data, error };
-  },
-
-  removePhotoFromCollection: async (collectionId: string, photoId: string) => {
-    const { error } = await supabase
-      .from('collection_photos')
-      .delete()
-      .eq('collection_id', collectionId)
-      .eq('photo_id', photoId);
+    const { error } = await supabase.from('event_photo_comments').delete().eq('id', commentId);
     return { error };
   },
 
-  getCollectionPhotos: async (collectionId: string) => {
+  // Real-time Subscriptions for Events
+  subscribeToEventPhotos: (eventId: string, callback: (photo: any) => void) => {
+    return supabase
+      .channel(`event-photos:${eventId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'event_photos',
+          filter: `event_id=eq.${eventId}`,
+        },
+        async (payload) => {
+          // Fetch full photo data with user info
+          const { data } = await supabase
+            .from('event_photos')
+            .select(`
+              *,
+              user:profiles(id, name, avatar_url)
+            `)
+            .eq('id', payload.new.id)
+            .single();
+
+          if (data) {
+            const transformedData = {
+              ...data,
+              user: Array.isArray(data.user) ? data.user[0] : data.user,
+              likes_count: 0,
+              comments_count: 0,
+              is_liked: false,
+            };
+            callback(transformedData);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'event_photos',
+          filter: `event_id=eq.${eventId}`,
+        },
+        (payload) => {
+          callback({ id: payload.old.id, deleted: true });
+        }
+      )
+      .subscribe();
+  },
+
+  unsubscribeFromEventPhotos: (eventId: string) => {
+    supabase.removeChannel(supabase.channel(`event-photos:${eventId}`));
+  },
+
+  subscribeToPhotoComments: (photoId: string, callback: (comment: any) => void) => {
+    return supabase
+      .channel(`photo-comments:${photoId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'event_photo_comments',
+          filter: `photo_id=eq.${photoId}`,
+        },
+        async (payload) => {
+          const { data } = await supabase
+            .from('event_photo_comments')
+            .select(`
+              *,
+              user:profiles(id, name, avatar_url)
+            `)
+            .eq('id', payload.new.id)
+            .single();
+
+          if (data) {
+            const transformedData = {
+              ...data,
+              user: Array.isArray(data.user) ? data.user[0] : data.user,
+            };
+            callback(transformedData);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'event_photo_comments',
+          filter: `photo_id=eq.${photoId}`,
+        },
+        (payload) => {
+          callback({ id: payload.old.id, deleted: true });
+        }
+      )
+      .subscribe();
+  },
+
+  unsubscribeFromPhotoComments: (photoId: string) => {
+    supabase.removeChannel(supabase.channel(`photo-comments:${photoId}`));
+  },
+
+  subscribeToPhotoLikes: (photoId: string, callback: (like: any) => void) => {
+    return supabase
+      .channel(`photo-likes:${photoId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'event_photo_likes',
+          filter: `photo_id=eq.${photoId}`,
+        },
+        (payload) => {
+          callback({
+            photo_id: photoId,
+            action: payload.eventType,
+            like: payload.new || payload.old,
+          });
+        }
+      )
+      .subscribe();
+  },
+
+  unsubscribeFromPhotoLikes: (photoId: string) => {
+    supabase.removeChannel(supabase.channel(`photo-likes:${photoId}`));
+  },
+
+  subscribeToEventJoinRequests: (eventId: string, callback: (request: any) => void) => {
+    return supabase
+      .channel(`event-join-requests:${eventId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'event_join_requests',
+          filter: `event_id=eq.${eventId}`,
+        },
+        async (payload) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const { data } = await supabase
+              .from('event_join_requests')
+              .select(`
+                *,
+                profile:profiles(id, name, avatar_url, major, year)
+              `)
+              .eq('id', payload.new.id)
+              .single();
+
+            if (data) {
+              const transformedData = {
+                ...data,
+                profile: Array.isArray(data.profile) ? data.profile[0] : data.profile,
+              };
+              callback({ action: payload.eventType, request: transformedData });
+            }
+          } else if (payload.eventType === 'DELETE') {
+            callback({ action: 'DELETE', request: { id: payload.old.id } });
+          }
+        }
+      )
+      .subscribe();
+  },
+
+  unsubscribeFromEventJoinRequests: (eventId: string) => {
+    supabase.removeChannel(supabase.channel(`event-join-requests:${eventId}`));
+  },
+
+  subscribeToEventUpdates: (eventId: string, callback: (event: any) => void) => {
+    return supabase
+      .channel(`event-updates:${eventId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'events',
+          filter: `id=eq.${eventId}`,
+        },
+        async (payload) => {
+          const { data } = await supabase
+            .from('events')
+            .select('*')
+            .eq('id', eventId)
+            .single();
+
+          if (data) {
+            callback(data);
+          }
+        }
+      )
+      .subscribe();
+  },
+
+  unsubscribeFromEventUpdates: (eventId: string) => {
+    supabase.removeChannel(supabase.channel(`event-updates:${eventId}`));
+  },
+
+  // Event Management Functions
+  updateEvent: async (eventId: string, userId: string, updates: {
+    title?: string;
+    description?: string;
+    location?: string;
+    category?: string;
+    max_attendees?: number;
+  }) => {
+    // Verify user is the organizer
+    const { data: event } = await supabase
+      .from('events')
+      .select('organizer_id')
+      .eq('id', eventId)
+      .single();
+
+    if (!event || event.organizer_id !== userId) {
+      return {
+        data: null,
+        error: { message: 'You can only edit events you created', code: 'PERMISSION_DENIED' },
+      };
+    }
+
     const { data, error } = await supabase
-      .from('collection_photos')
-      .select(`
-        *,
-        photo:event_photos(*)
-      `)
-      .eq('collection_id', collectionId);
+      .from('events')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', eventId)
+      .select()
+      .single();
+
+    // Notify all attendees about significant changes (title, location)
+    if (data && !error && (updates.title || updates.location)) {
+      const { data: attendees } = await supabase
+        .from('event_attendees')
+        .select('user_id')
+        .eq('event_id', eventId);
+
+      if (attendees) {
+        const notificationPromises = attendees
+          .filter((a) => a.user_id !== userId) // Don't notify the organizer
+          .map((attendee) =>
+            api.createNotification(
+              attendee.user_id,
+              'event_updated',
+              'Event Updated',
+              `${data.title} has been updated`,
+              `/(tabs)/events/${eventId}`
+            )
+          );
+
+        Promise.all(notificationPromises).catch((err) => console.warn('Failed to send some notifications:', err));
+      }
+    }
+
     return { data, error };
+  },
+
+  changeEventPrivacy: async (eventId: string, userId: string, isPrivate: boolean) => {
+    // Verify user is the organizer
+    const { data: event } = await supabase
+      .from('events')
+      .select('organizer_id, is_private')
+      .eq('id', eventId)
+      .single();
+
+    if (!event || event.organizer_id !== userId) {
+      return {
+        data: null,
+        error: { message: 'You can only change privacy of events you created', code: 'PERMISSION_DENIED' },
+      };
+    }
+
+    const { data, error } = await supabase
+      .from('events')
+      .update({
+        is_private: isPrivate,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', eventId)
+      .select()
+      .single();
+
+    // Notify all attendees about privacy change
+    if (data && !error) {
+      const { data: attendees } = await supabase
+        .from('event_attendees')
+        .select('user_id')
+        .eq('event_id', eventId);
+
+      if (attendees) {
+        const notificationPromises = attendees
+          .filter((a) => a.user_id !== userId) // Don't notify the organizer
+          .map((attendee) =>
+            api.createNotification(
+              attendee.user_id,
+              'event_privacy_changed',
+              'Event Privacy Changed',
+              `${data.title} is now ${isPrivate ? 'private' : 'public'}`,
+              `/(tabs)/events/${eventId}`
+            )
+          );
+
+        Promise.all(notificationPromises).catch((err) => console.warn('Failed to send some notifications:', err));
+      }
+    }
+
+    return { data, error };
+  },
+
+  rescheduleEvent: async (eventId: string, userId: string, newDate: string, newTime?: string) => {
+    // Verify user is the organizer
+    const { data: event } = await supabase
+      .from('events')
+      .select('organizer_id, date, time')
+      .eq('id', eventId)
+      .single();
+
+    if (!event || event.organizer_id !== userId) {
+      return {
+        data: null,
+        error: { message: 'You can only reschedule events you created', code: 'PERMISSION_DENIED' },
+      };
+    }
+
+    const updateData: any = {
+      date: newDate,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (newTime) {
+      updateData.time = newTime;
+    }
+
+    const { data, error } = await supabase
+      .from('events')
+      .update(updateData)
+      .eq('id', eventId)
+      .select()
+      .single();
+
+    // Notify all attendees about reschedule
+    if (data && !error) {
+      const { data: attendees } = await supabase
+        .from('event_attendees')
+        .select('user_id')
+        .eq('event_id', eventId);
+
+      if (attendees) {
+        const notificationPromises = attendees
+          .filter((a) => a.user_id !== userId) // Don't notify the organizer
+          .map((attendee) =>
+            api.createNotification(
+              attendee.user_id,
+              'event_rescheduled',
+              'Event Rescheduled',
+              `${data.title} has been rescheduled to ${newDate}${newTime ? ` at ${newTime}` : ''}`,
+              `/(tabs)/events/${eventId}`
+            )
+          );
+
+        Promise.all(notificationPromises).catch((err) => console.warn('Failed to send some notifications:', err));
+      }
+    }
+
+    return { data, error };
+  },
+
+  changeEventCoverPhoto: async (eventId: string, userId: string, fileUri: string, fileExt: string = 'jpg') => {
+    // Verify user is the organizer
+    const { data: event } = await supabase
+      .from('events')
+      .select('organizer_id, image_url')
+      .eq('id', eventId)
+      .single();
+
+    if (!event || event.organizer_id !== userId) {
+      return {
+        url: null,
+        error: { message: 'You can only change cover photo of events you created', code: 'PERMISSION_DENIED' },
+      };
+    }
+
+    // Upload new cover photo
+    const { url: newUrl, error: uploadError } = await api.uploadEventImage(eventId, fileUri, fileExt);
+
+    if (uploadError || !newUrl) {
+      return { url: null, error: uploadError };
+    }
+
+    // Update event with new image URL
+    const { error: updateError } = await supabase
+      .from('events')
+      .update({
+        image_url: newUrl,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', eventId);
+
+    if (updateError) {
+      return { url: null, error: updateError };
+    }
+
+    // Delete old cover photo if it exists (non-blocking)
+    if (event.image_url) {
+      const urlParts = event.image_url.split('/');
+      const fileName = urlParts[urlParts.length - 1].split('?')[0];
+      const filePath = `${eventId}/${fileName}`;
+      supabase.storage
+        .from('event-covers')
+        .remove([filePath])
+        .catch((err) => {
+          console.warn('Failed to delete old cover photo:', err);
+        });
+    }
+
+    return { url: newUrl, error: null };
+  },
+
+  deleteEvent: async (eventId: string, userId: string) => {
+    // Verify user is the organizer
+    const { data: event } = await supabase
+      .from('events')
+      .select('organizer_id, image_url')
+      .eq('id', eventId)
+      .single();
+
+    if (!event || event.organizer_id !== userId) {
+      return {
+        error: { message: 'You can only delete events you created', code: 'PERMISSION_DENIED' },
+      };
+    }
+
+    // Get all photos for this event to delete from storage
+    const { data: photos } = await supabase
+      .from('event_photos')
+      .select('photo_url')
+      .eq('event_id', eventId);
+
+    // Delete event (cascade will handle related records)
+    const { error: deleteError } = await supabase.from('events').delete().eq('id', eventId);
+
+    if (deleteError) {
+      return { error: deleteError };
+    }
+
+    // Delete cover photo from storage (non-blocking)
+    if (event.image_url) {
+      const urlParts = event.image_url.split('/');
+      const fileName = urlParts[urlParts.length - 1].split('?')[0];
+      const filePath = `${eventId}/${fileName}`;
+      supabase.storage
+        .from('event-covers')
+        .remove([filePath])
+        .catch((err) => {
+          console.warn('Failed to delete cover photo:', err);
+        });
+    }
+
+    // Delete all photos from storage (non-blocking)
+    if (photos && photos.length > 0) {
+      const filePaths = photos.map((photo) => {
+        const urlParts = photo.photo_url.split('/');
+        const fileName = urlParts[urlParts.length - 1].split('?')[0];
+        return `${eventId}/${fileName}`;
+      });
+      supabase.storage
+        .from('event-photos')
+        .remove(filePaths)
+        .catch((err) => {
+          console.warn('Failed to delete event photos:', err);
+        });
+    }
+
+    // Notify all attendees about event deletion
+    const { data: attendees } = await supabase
+      .from('event_attendees')
+      .select('user_id')
+      .eq('event_id', eventId);
+
+    if (attendees) {
+      const notificationPromises = attendees
+        .filter((a) => a.user_id !== userId) // Don't notify the organizer
+        .map((attendee) =>
+          api.createNotification(
+            attendee.user_id,
+            'event_deleted',
+            'Event Cancelled',
+            `${event.title} has been cancelled`,
+            `/(tabs)/events`
+          )
+        );
+
+      Promise.all(notificationPromises).catch((err) => console.warn('Failed to send some notifications:', err));
+    }
+
+    return { error: null };
   },
 
   // Posts
@@ -1045,7 +1621,7 @@ export const api = {
     // Get reply counts for all posts
     const postIds = data.map((post: any) => post.id);
     let replyCounts: Record<string, number> = {};
-
+    
     if (postIds.length > 0) {
       const { data: replies, error: repliesError } = await supabase
         .from('post_replies')
@@ -1174,6 +1750,21 @@ export const api = {
   markNotificationRead: async (notificationId: string) => {
     const { error } = await supabase.from('notifications').update({ read: true }).eq('id', notificationId);
     return { error };
+  },
+  createNotification: async (userId: string, type: string, title: string, message: string, actionUrl?: string) => {
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        type,
+        title,
+        message,
+        action_url: actionUrl,
+        read: false,
+      })
+      .select()
+      .single();
+    return { data, error };
   },
 
   // Achievements & Stats
@@ -1329,9 +1920,9 @@ export const api = {
 
     const transformedData = data
       ? {
-        ...data,
-        sender: Array.isArray(data.sender) ? data.sender[0] : data.sender,
-      }
+          ...data,
+          sender: Array.isArray(data.sender) ? data.sender[0] : data.sender,
+        }
       : null;
 
     return { data: transformedData, error: null };
@@ -1340,7 +1931,7 @@ export const api = {
   markMessagesAsRead: async (conversationId: string, userId: string) => {
     const { error } = await supabase
       .from('messages')
-      .update({
+      .update({ 
         read: true,
         status: 'read',
         read_at: new Date().toISOString(),
@@ -1499,7 +2090,7 @@ export const api = {
     // Get or create typing channel for this conversation
     const channelName = `typing:${conversationId}`;
     let channel = supabase.channel(channelName);
-
+    
     // Ensure channel is subscribed before sending
     channel.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
@@ -2174,16 +2765,16 @@ export const api = {
       .eq('user_id', userId)
       .eq('streak_type', streakType)
       .maybeSingle();
-
+    
     const today = activityDate || new Date().toISOString().split('T')[0];
     const yesterday = new Date(new Date(today).getTime() - 86400000).toISOString().split('T')[0];
-
+    
     let newStreak = 1;
     let streakStartDate = today;
 
     if (currentStreak) {
       const lastActivity = currentStreak.last_activity_date;
-
+      
       if (lastActivity === yesterday) {
         // Continue streak
         newStreak = currentStreak.current_streak + 1;
@@ -2283,7 +2874,7 @@ export const api = {
     if (stats) {
       const newTotal = stats.total_points + points;
       const { data: levelConfig } = await api.getLevelForPoints(newTotal);
-
+      
       await api.updateUserStats(userId, {
         total_points: newTotal,
         level: levelConfig?.level || stats.level,
@@ -2320,7 +2911,7 @@ export const api = {
   // Achievements
   getAchievements: async (category?: string) => {
     let query = supabase.from('achievements').select('*');
-
+    
     if (category) {
       query = query.eq('category', category);
     }
@@ -2590,84 +3181,6 @@ export const api = {
     } catch (error) {
       console.error('Error extracting filename from URL:', error);
       return null;
-    }
-  },
-
-  // Upload event image (new feature from main)
-  uploadEventImage: async (eventId: string, fileUri: string, fileExt: string = 'jpg'): Promise<{ url: string | null; error: any }> => {
-    try {
-      const fileName = `event-${eventId}-${Date.now()}.${fileExt}`;
-      const filePath = fileName;
-
-      // Read file as base64
-      const base64 = await readAsStringAsync(fileUri, {
-        encoding: 'base64',
-      });
-
-      // Convert base64 to Uint8Array
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
-      const lookup = new Uint8Array(256);
-      for (let i = 0; i < chars.length; i++) {
-        lookup[chars.charCodeAt(i)] = i;
-      }
-
-      let bufferLength = base64.length * 0.75;
-      if (base64[base64.length - 1] === '=') {
-        bufferLength--;
-        if (base64[base64.length - 2] === '=') {
-          bufferLength--;
-        }
-      }
-
-      const bytes = new Uint8Array(bufferLength);
-      let p = 0;
-      for (let i = 0; i < base64.length; i += 4) {
-        const encoded1 = lookup[base64.charCodeAt(i)];
-        const encoded2 = lookup[base64.charCodeAt(i + 1)];
-        const encoded3 = lookup[base64.charCodeAt(i + 2)];
-        const encoded4 = lookup[base64.charCodeAt(i + 3)];
-
-        bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
-        bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
-        bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
-      }
-
-      // Try to upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('events')
-        .upload(filePath, bytes, {
-          contentType: `image/${fileExt}`,
-          upsert: true,
-        });
-
-      if (uploadError) {
-        // Check if it's a bucket not found error
-        if (uploadError.message?.includes('Bucket not found') || uploadError.message?.includes('bucket')) {
-          console.warn('Storage bucket "events" not found. Please create it in Supabase Storage.');
-          return {
-            url: null,
-            error: {
-              message: 'Storage bucket not configured. Please create an "events" bucket in Supabase Storage.',
-              code: 'BUCKET_NOT_FOUND',
-            },
-          };
-        }
-        console.error('Event image upload error:', uploadError);
-        return { url: null, error: uploadError };
-      }
-
-      // Get public URL
-      const { data: urlData } = supabase.storage.from('events').getPublicUrl(filePath);
-      return { url: urlData.publicUrl, error: null };
-    } catch (error: any) {
-      console.error('Error uploading event image:', error);
-      return {
-        url: null,
-        error: {
-          message: error.message || 'Failed to upload event image',
-          code: 'UPLOAD_ERROR',
-        },
-      };
     }
   },
 

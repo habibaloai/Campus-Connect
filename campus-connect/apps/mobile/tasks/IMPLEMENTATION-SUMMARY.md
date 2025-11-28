@@ -1,157 +1,224 @@
-# Real-Time Messaging Features - Implementation Summary
+# Event Photos, Privacy, and Management System - Implementation Summary
 
 ## ✅ Implementation Complete
 
-All real-time messaging features have been successfully implemented!
+All tasks from the PRD have been successfully implemented. This document summarizes what was built and what needs to be done next.
 
----
+## 📋 What Was Implemented
 
-## What Was Implemented
+### 1. Database Schema & Migrations
+- ✅ Created `event_photo_comments` table
+- ✅ Created `event_photo_likes` table
+- ✅ Verified/created `event_photos` table
+- ✅ Added `is_private`, `organizer_id`, `image_url`, and `updated_at` columns to `events` table
+- ✅ Verified/created `event_join_requests` table
+- ✅ Created all necessary indexes for performance
 
-### 1. Database Schema Updates ✅
-- **File**: `supabase-migrations/add-message-status.sql`
-- Added `status` column to `messages` table (sent/delivered/read)
-- Added `read_at` timestamp column
-- Created indexes for performance
-- **Status**: Migration file created (needs to be run in Supabase)
+**Migration Files:**
+- `supabase-migrations/add-event-photo-tables.sql`
+- `supabase-migrations/add-event-photo-rls.sql`
+- `supabase-migrations/setup-event-storage.sql`
 
-### 2. API Functions Added ✅
-- **File**: `apps/mobile/lib/supabase.ts`
-- ✅ `trackPresence()` - Track user online status
-- ✅ `subscribeToPresence()` - Subscribe to online status changes
-- ✅ `leavePresence()` - Clean up presence tracking
-- ✅ `sendTypingIndicator()` - Send typing status
-- ✅ `subscribeToTyping()` - Subscribe to typing indicators
-- ✅ `updateMessageStatus()` - Update message delivery status
-- ✅ `subscribeToMessageStatus()` - Subscribe to status updates
-- ✅ `subscribeToConversations()` - Real-time conversation updates
-- ✅ Updated existing functions to include `status` and `read_at` fields
+### 2. Row Level Security (RLS) Policies
+- ✅ RLS policies for `event_photos` (view, upload, delete)
+- ✅ RLS policies for `event_photo_comments` (view, comment, delete own)
+- ✅ RLS policies for `event_photo_likes` (view, like/unlike)
+- ✅ RLS policies for `event_join_requests` (view, create, cancel, approve/reject)
+- ✅ RLS policies for `events` (update, delete for creators)
 
-### 3. Online Status Indicators ✅
-- **File**: `apps/mobile/app/(tabs)/messages/[id].tsx`
-- ✅ Online/offline status shown in chat header
-- ✅ Green dot when online, gray dot when offline
-- ✅ Real-time status updates
-- ✅ App state management (foreground/background tracking)
-- ✅ Presence channel management
+### 3. Storage Configuration
+- ✅ Created `event-photos` storage bucket
+- ✅ Created `event-covers` storage bucket
+- ✅ Configured storage RLS policies for upload, view, and delete permissions
 
-### 4. Message Status Indicators ✅
-- **File**: `apps/mobile/app/(tabs)/messages/[id].tsx`
-- ✅ Status shown below outgoing messages ("Sent", "Delivered", "Read")
-- ✅ Only highest status displayed (hides "Sent" and "Delivered" once "Read")
-- ✅ Real-time status updates via subscription
-- ✅ Automatic status progression (sent → delivered → read)
+### 4. Backend API Functions
 
-### 5. Real-Time Messages List Updates ✅
-- **File**: `apps/mobile/app/(tabs)/messages/index.tsx`
-- ✅ Conversations list updates automatically
-- ✅ Last message preview updates in real-time
-- ✅ Unread counts update automatically
-- ✅ Conversation reordering based on activity
-- ✅ No manual refresh needed
+#### Photo Management:
+- ✅ `uploadEventPhoto` - Upload photos to events (attendees only)
+- ✅ `getEventPhotos` - Get all photos for an event with likes/comments counts
+- ✅ `deleteEventPhoto` - Delete photos (own or as creator)
+- ✅ `likeEventPhoto` - Toggle like/unlike on photos
+- ✅ `commentOnPhoto` - Add comments to photos
+- ✅ `getPhotoComments` - Get all comments for a photo
+- ✅ `deletePhotoComment` - Delete own comments
 
-### 6. Typing Indicators ✅
-- **File**: `apps/mobile/app/(tabs)/messages/[id].tsx`
-- ✅ Shows "typing..." when other user is typing
-- ✅ Debounced typing detection (2 seconds)
-- ✅ Auto-hide after 3 seconds of inactivity
-- ✅ Real-time typing status updates
+#### Event Management:
+- ✅ `updateEvent` - Edit event details (title, description, location, category, max_attendees)
+- ✅ `changeEventPrivacy` - Toggle between public/private
+- ✅ `rescheduleEvent` - Change event date and/or time
+- ✅ `changeEventCoverPhoto` - Update event cover image
+- ✅ `deleteEvent` - Delete event with cascade cleanup
+- ✅ `requestToJoinEvent` - Send join request for private events
+- ✅ `getEventJoinRequests` - Get pending join requests (for organizers)
+- ✅ `respondToJoinRequest` - Approve/reject join requests
+- ✅ `uploadEventImage` - Upload event cover photos
 
-### 7. Real-Time Notification Badges ✅
-- **Files**: 
-  - `apps/mobile/contexts/MessagesContext.tsx` (new)
-  - `apps/mobile/app/(tabs)/_layout.tsx`
-- ✅ Badge count updates automatically
-- ✅ Shows total unread conversations
-- ✅ Updates in real-time across all screens
-- ✅ Integrated with tab bar
+#### Real-time Subscriptions:
+- ✅ `subscribeToEventPhotos` - Real-time photo updates
+- ✅ `subscribeToPhotoComments` - Real-time comment updates
+- ✅ `subscribeToPhotoLikes` - Real-time like updates
+- ✅ `subscribeToEventJoinRequests` - Real-time join request updates
+- ✅ `subscribeToEventUpdates` - Real-time event changes
 
-### 8. App State Management ✅
-- **File**: `apps/mobile/app/(tabs)/messages/[id].tsx`
-- ✅ Tracks app foreground/background state
-- ✅ Updates presence when app state changes
-- ✅ Handles network connectivity
-- ✅ Proper cleanup on unmount
+### 5. Frontend UI Components
 
-### 9. Messages Context Created ✅
-- **File**: `apps/mobile/contexts/MessagesContext.tsx` (new)
-- ✅ Manages global unread messages count
-- ✅ Real-time updates via subscriptions
-- ✅ Used by tab layout for badge display
+#### Photo Gallery:
+- ✅ `PhotoGallery.tsx` - Grid display of event photos with upload functionality
+- ✅ `PhotoCard.tsx` - Individual photo card with likes, comments, and full-screen view
+- ✅ Real-time updates for new photos, comments, and likes
+- ✅ Permission-based upload (attendees only)
+- ✅ Permission-based deletion (own photos or creator moderation)
 
----
+#### Event Detail Page:
+- ✅ Integrated photo gallery into "Photos" tab
+- ✅ Privacy indicator badge (Public/Private)
+- ✅ Enhanced edit event modal with:
+  - Title, description, location editing
+  - Category selection
+  - Max attendees setting
+  - Privacy toggle
+  - Cover photo change
+  - Event rescheduling
+- ✅ Delete event functionality with confirmation
+- ✅ RSVP button updates for private events ("Request to Join")
+- ✅ Real-time updates for event changes and join requests
 
-## Files Modified/Created
+#### Event Creation:
+- ✅ Privacy toggle in create event modal
+- ✅ Privacy setting saved to database
+- ✅ Privacy indicators on event cards
 
-### Created:
-1. ✅ `supabase-migrations/add-message-status.sql` - Database migration
-2. ✅ `apps/mobile/contexts/MessagesContext.tsx` - Messages context
-3. ✅ `apps/mobile/tasks/SETUP-INSTRUCTIONS.md` - Setup guide
-4. ✅ `apps/mobile/tasks/TESTING-GUIDE.md` - Testing guide
-5. ✅ `apps/mobile/tasks/IMPLEMENTATION-SUMMARY.md` - This file
+#### Event List:
+- ✅ Privacy badges on event cards (🔒 Private / 🌐 Public)
 
-### Modified:
-1. ✅ `apps/mobile/lib/supabase.ts` - Added real-time API functions
-2. ✅ `apps/mobile/app/(tabs)/messages/[id].tsx` - Added all chat features
-3. ✅ `apps/mobile/app/(tabs)/messages/index.tsx` - Added real-time list updates
-4. ✅ `apps/mobile/app/(tabs)/_layout.tsx` - Updated badge to use messages count
-5. ✅ `apps/mobile/providers/index.tsx` - Added MessagesProvider
+### 6. Notification System
+- ✅ `createNotification` helper function
+- ✅ Notifications for:
+  - Photo comments (to photo uploader)
+  - Photo likes (to photo uploader)
+  - Join requests (to event organizer)
+  - Join request approval (to requester)
+  - Join request rejection (to requester)
+  - Event privacy changes (to all attendees)
+  - Event updates (to all attendees)
+  - Event rescheduling (to all attendees)
+  - Event deletion (to all attendees)
 
----
+## 🚀 Next Steps
 
-## How to Test
+### 1. Run Database Migrations
 
-### Step 1: Run Database Migration
-1. Go to Supabase Dashboard → SQL Editor
-2. Run the migration file: `supabase-migrations/add-message-status.sql`
-3. Verify columns were added successfully
+Execute the following SQL migrations in your Supabase SQL Editor (in order):
 
-### Step 2: Test Features
-1. **Online Status**: Open a conversation, see online/offline indicator
-2. **Message Status**: Send a message, see "Sent" → "Delivered" → "Read"
-3. **Real-Time Updates**: Have another user send a message, see it appear automatically
-4. **Typing Indicators**: Type a message, see "typing..." indicator
-5. **Badge Updates**: Receive new messages, see badge count update
+1. **`supabase-migrations/add-event-photo-tables.sql`**
+   - Creates photo comments and likes tables
+   - Adds required columns to events table
+   - Creates indexes
+   - **Note:** Fixed syntax error with partial unique index for join requests
 
-### Step 3: Test with Two Devices/Accounts
-- Use two different user accounts
-- Open the same conversation on both
-- Test all features in real-time
+2. **`supabase-migrations/add-event-photo-rls.sql`**
+   - Sets up all RLS policies for photo-related tables
+   - Updates events table RLS policies
 
----
+3. **`supabase-migrations/setup-event-storage.sql`**
+   - Creates storage buckets
+   - Sets up storage RLS policies
 
-## Known Considerations
+4. **`supabase-migrations/add-notifications-rls.sql`** ⚠️ **NEW - REQUIRED**
+   - Sets up RLS policies for notifications table
+   - Allows users to view their own notifications
+   - Allows system to create notifications for any user
+   - **This fixes the 403 Forbidden error when creating notifications**
 
-1. **Message Status "Delivered"**: Currently updates when message is received via subscription. For true cross-device delivery tracking, we may need to enhance this later.
+5. **`supabase-migrations/add-event-attendees-rls.sql`** ⚠️ **NEW - REQUIRED**
+   - Sets up RLS policies for `event_attendees` table
+   - Allows users to join events themselves (for public events)
+   - Allows event organizers to add attendees (when approving join requests)
+   - Allows users to leave events
+   - Allows organizers to remove attendees
+   - **This fixes the RLS error when organizers approve join requests**
 
-2. **Typing Channel Management**: Typing indicators use broadcast channels which require proper subscription management.
+### 2. Configure Storage Buckets
 
-3. **Presence Channels**: Each conversation has its own presence channel for privacy and performance.
+After running the migrations, verify in Supabase Dashboard:
+- **Storage** → **Buckets**:
+  - `event-photos` exists and is public
+  - `event-covers` exists and is public
 
-4. **Battery Optimization**: Real-time subscriptions are cleaned up when app is backgrounded.
+### 3. Test the Features
 
----
+1. **Photo Upload:**
+   - Join an event
+   - Navigate to event detail → Photos tab
+   - Upload a photo
+   - Verify photo appears in gallery
 
-## Next Steps (Optional Enhancements)
+2. **Photo Interactions:**
+   - Like a photo
+   - Comment on a photo
+   - Delete own photo
+   - (As creator) Delete any photo
 
-1. Add read receipts for group conversations
-2. Add "last seen" timestamps
-3. Add message editing/deletion indicators
-4. Add typing indicators with user names in group chats
-5. Add privacy settings (disable read receipts, hide online status)
+3. **Private Events:**
+   - Create a private event
+   - Verify "Request to Join" button appears
+   - Send join request
+   - (As organizer) Approve/reject requests
 
----
+4. **Event Management:**
+   - Edit event details
+   - Change privacy setting
+   - Reschedule event
+   - Change cover photo
+   - Delete event
 
-## Success! 🎉
+5. **Real-time Updates:**
+   - Open event detail page
+   - Have another user upload a photo
+   - Verify photo appears without refresh
+   - Test comments and likes in real-time
 
-All features have been implemented and are ready for testing. The messaging system now has:
-- ✅ Real-time online status
-- ✅ Message delivery status tracking
-- ✅ Typing indicators
-- ✅ Automatic updates (no refresh needed)
-- ✅ Notification badges
+6. **Notifications:**
+   - Check notifications tab after:
+     - Someone comments on your photo
+     - Someone likes your photo
+     - Someone requests to join your private event
+     - Your join request is approved/rejected
+     - Event you're attending is updated/rescheduled/deleted
 
-**Status**: Ready for testing! 🚀
+## 📝 Notes
 
+- **Photo Storage:** Photos are stored in `event-photos/{event_id}/{photo_id}.{ext}`
+- **Cover Photos:** Stored in `event-covers/{event_id}/{filename}.{ext}`
+- **Cascade Deletion:** When an event is deleted, all related photos, comments, likes, attendees, and join requests are automatically deleted
+- **Real-time:** All photo interactions, join requests, and event updates are synced in real-time across all users
+- **Notifications:** All notifications are stored in the `notifications` table and can be viewed in the app's notifications screen
 
+## 🐛 Known Issues / Future Improvements
 
+1. **Photo Like Notifications:** Currently sends individual notifications. Consider batching multiple likes to avoid spam.
+2. **Photo Upload Limits:** No file size validation in UI (handled by storage bucket limit of 10MB).
+3. **Photo Compression:** Images are uploaded as-is. Consider adding client-side compression before upload.
+4. **Comment Replies:** Currently only supports top-level comments. Nested replies could be added in the future.
+5. **Photo Albums:** Photos are displayed in a simple list. Grid view or album organization could be enhanced.
+
+## 📚 Files Modified/Created
+
+### New Files:
+- `components/ui/PhotoGallery.tsx`
+- `components/ui/PhotoCard.tsx`
+- `supabase-migrations/add-event-photo-tables.sql`
+- `supabase-migrations/add-event-photo-rls.sql`
+- `supabase-migrations/setup-event-storage.sql`
+- `tasks/tasks-event-photos-privacy-management.md`
+- `tasks/IMPLEMENTATION-SUMMARY.md`
+
+### Modified Files:
+- `lib/supabase.ts` - Added all API functions and real-time subscriptions
+- `app/(tabs)/events/[id].tsx` - Enhanced event detail page
+- `app/(tabs)/events/index.tsx` - Added privacy toggle to event creation
+- `components/ui/EventCard.tsx` - Added privacy indicator
+
+## ✅ All Tasks Completed
+
+All 12 main task groups and their sub-tasks have been completed and checked off in `tasks/tasks-event-photos-privacy-management.md`.
