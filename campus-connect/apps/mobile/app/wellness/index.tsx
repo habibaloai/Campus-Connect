@@ -8,7 +8,12 @@ import {
   TextInput,
   Modal,
   Alert,
+  ImageBackground,
+  StyleSheet,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -29,6 +34,7 @@ import {
   Trash2,
 } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useColorScheme } from '@/components/useColorScheme';
 
 // Mock wellness data
 const wellnessResources = [
@@ -336,6 +342,8 @@ const saveSelfCareItems = async (items: SelfCareItem[]): Promise<void> => {
 };
 
 export default function WellnessScreen() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const [refreshing, setRefreshing] = useState(false);
   const [currentTip] = useState(dailyTips[Math.floor(Math.random() * dailyTips.length)]);
   const [selfCareItems, setSelfCareItems] = useState<SelfCareItem[]>(DEFAULT_SELF_CARE_ITEMS);
@@ -417,26 +425,60 @@ export default function WellnessScreen() {
     );
   };
 
+  // Use splash screen image as background (same as login page)
+  const backgroundSource = require('@/assets/images/splash-screen.png');
+
   return (
-    <View className="flex-1 bg-gray-50">
-      <Stack.Screen
-        options={{
-          title: 'Wellness',
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} className="p-2">
-              <ChevronLeft size={24} color="#374151" />
-            </TouchableOpacity>
-          ),
-        }}
+    <ImageBackground
+      source={backgroundSource}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      {/* Blurred Background Overlay */}
+      <View style={[styles.blurOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)' }]} />
+      
+      {/* Gradient Overlay */}
+      <LinearGradient
+        colors={isDark 
+          ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']
+          : ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.05)']}
+        style={styles.gradientOverlay}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
       />
 
-      <ScrollView
-        className="flex-1"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#3B82F6']} />
-        }
-        showsVerticalScrollIndicator={false}
-      >
+      {/* Bottom gradient */}
+      <LinearGradient
+        colors={isDark
+          ? ['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']
+          : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.4)']}
+        locations={[0, 0.4424, 1]}
+        style={styles.bottomGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <Stack.Screen
+          options={{
+            title: 'Wellness',
+            headerTransparent: true,
+            headerTitleStyle: { color: isDark ? '#ffffff' : '#1e293b' },
+            headerLeft: () => (
+              <TouchableOpacity onPress={() => router.back()} className="p-2">
+                <ChevronLeft size={24} color={isDark ? "#ffffff" : "#1e293b"} />
+              </TouchableOpacity>
+            ),
+          }}
+        />
+
+        <ScrollView
+          className="flex-1"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
+          }
+          showsVerticalScrollIndicator={false}
+        >
         {/* Daily Wellness Tip */}
         <Animated.View entering={FadeInDown.duration(500)} className="px-4 pt-4">
           <View className="bg-gradient-to-r from-pink-500 to-rose-500 bg-pink-500 rounded-2xl p-5">
@@ -795,9 +837,30 @@ export default function WellnessScreen() {
 
         <View className="h-8" />
       </ScrollView>
-    </View>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
+
+const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  blurOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bottomGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  safeArea: {
+    flex: 1,
+  },
+});
 
 
 

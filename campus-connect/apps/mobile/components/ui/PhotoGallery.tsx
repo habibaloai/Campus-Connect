@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { Camera, Image as ImageIcon } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { PhotoCard } from './PhotoCard';
@@ -20,7 +20,6 @@ export function PhotoGallery({ eventId, isAttending, isCreator, onRefresh }: Pho
   const isDark = colorScheme === 'dark';
   const [photos, setPhotos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const loadPhotos = useCallback(async () => {
@@ -68,12 +67,10 @@ export function PhotoGallery({ eventId, isAttending, isCreator, onRefresh }: Pho
   }, [eventId, isAttending, user?.id, onRefresh]);
 
   const handleRefresh = async () => {
-    setRefreshing(true);
     await loadPhotos();
     if (onRefresh) {
       onRefresh();
     }
-    setRefreshing(false);
   };
 
   const handleUploadPhoto = async () => {
@@ -217,24 +214,18 @@ export function PhotoGallery({ eventId, isAttending, isCreator, onRefresh }: Pho
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={photos}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
+        <View style={styles.listContent}>
+          {photos.map((item) => (
             <PhotoCard
+              key={item.id}
               photo={item}
               isCreator={isCreator}
               onLike={handleLike}
               onDelete={handleDelete}
               onRefresh={handleRefresh}
             />
-          )}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#0066cc" />
-          }
-        />
+          ))}
+        </View>
       )}
     </View>
   );
@@ -263,6 +254,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 20,
     paddingBottom: 20,
+    gap: 16,
   },
   emptyContainer: {
     flex: 1,

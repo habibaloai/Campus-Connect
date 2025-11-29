@@ -6,7 +6,12 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  ImageBackground,
+  StyleSheet,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { router, Stack } from 'expo-router';
 import {
   ChevronLeft,
@@ -20,6 +25,7 @@ import {
 } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuth } from '@/providers';
+import { useColorScheme } from '@/components/useColorScheme';
 
 // Mock data - replace with Supabase queries
 const mockCourses = [
@@ -105,6 +111,8 @@ const getGradeColor = (grade: string): string => {
 
 export default function AcademicsScreen() {
   const { profile } = useAuth();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -135,26 +143,60 @@ export default function AcademicsScreen() {
     return '#10B981';
   };
 
+  // Use splash screen image as background (same as login page)
+  const backgroundSource = require('@/assets/images/splash-screen.png');
+
   return (
-    <View className="flex-1 bg-gray-50">
-      <Stack.Screen
-        options={{
-          title: 'Academics',
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} className="p-2">
-              <ChevronLeft size={24} color="#374151" />
-            </TouchableOpacity>
-          ),
-        }}
+    <ImageBackground
+      source={backgroundSource}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      {/* Blurred Background Overlay */}
+      <View style={[styles.blurOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)' }]} />
+      
+      {/* Gradient Overlay */}
+      <LinearGradient
+        colors={isDark 
+          ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']
+          : ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.05)']}
+        style={styles.gradientOverlay}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
       />
 
-      <ScrollView
-        className="flex-1"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#3B82F6']} />
-        }
-        showsVerticalScrollIndicator={false}
-      >
+      {/* Bottom gradient */}
+      <LinearGradient
+        colors={isDark
+          ? ['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']
+          : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.4)']}
+        locations={[0, 0.4424, 1]}
+        style={styles.bottomGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <Stack.Screen
+          options={{
+            title: 'Academics',
+            headerTransparent: true,
+            headerTitleStyle: { color: isDark ? '#ffffff' : '#1e293b' },
+            headerLeft: () => (
+              <TouchableOpacity onPress={() => router.back()} className="p-2">
+                <ChevronLeft size={24} color={isDark ? "#ffffff" : "#1e293b"} />
+              </TouchableOpacity>
+            ),
+          }}
+        />
+
+        <ScrollView
+          className="flex-1"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
+          }
+          showsVerticalScrollIndicator={false}
+        >
         {/* GPA Overview Card */}
         <Animated.View entering={FadeInDown.duration(500)} className="px-4 pt-4">
           <View className="bg-gradient-to-r from-blue-500 to-blue-600 bg-blue-500 rounded-2xl p-5 shadow-lg">
@@ -180,9 +222,9 @@ export default function AcademicsScreen() {
         {/* Current Courses */}
         <Animated.View entering={FadeInDown.duration(500).delay(100)} className="px-4 mt-6">
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-lg font-semibold text-gray-800">Current Courses</Text>
+            <Text className="text-lg font-semibold" style={{ color: isDark ? '#ffffff' : '#1e293b' }}>Current Courses</Text>
             <TouchableOpacity>
-              <Text className="text-blue-500 text-sm">View All</Text>
+              <Text className="text-sm" style={{ color: '#3b82f6' }}>View All</Text>
             </TouchableOpacity>
           </View>
 
@@ -192,7 +234,15 @@ export default function AcademicsScreen() {
               entering={FadeInDown.duration(400).delay(150 + index * 50)}
             >
               <TouchableOpacity
-                className="bg-white rounded-xl p-4 mb-3 shadow-sm"
+                className="rounded-xl p-4 mb-3"
+                style={{
+                  backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: isDark ? 0.3 : 0.1,
+                  shadowRadius: 8,
+                  elevation: 4,
+                }}
                 activeOpacity={0.7}
               >
                 <View className="flex-row items-start justify-between">
@@ -208,29 +258,29 @@ export default function AcademicsScreen() {
                         </Text>
                       </View>
                     </View>
-                    <Text className="text-base font-medium text-gray-800 mt-1">{course.name}</Text>
-                    <Text className="text-sm text-gray-500 mt-1">{course.instructor}</Text>
+                    <Text className="text-base font-medium mt-1" style={{ color: isDark ? '#ffffff' : '#1e293b' }}>{course.name}</Text>
+                    <Text className="text-sm mt-1" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>{course.instructor}</Text>
                   </View>
                   <ChevronRight size={20} color="#9CA3AF" />
                 </View>
 
-                <View className="flex-row items-center mt-3 pt-3 border-t border-gray-100">
-                  <Clock size={14} color="#6B7280" />
-                  <Text className="text-sm text-gray-500 ml-1">{course.schedule}</Text>
-                  <View className="mx-2 w-1 h-1 rounded-full bg-gray-300" />
-                  <Text className="text-sm text-gray-500">{course.room}</Text>
+                <View className="flex-row items-center mt-3 pt-3" style={{ borderTopWidth: 1, borderTopColor: isDark ? '#374151' : '#e5e7eb' }}>
+                  <Clock size={14} color={isDark ? "#9ca3af" : "#6B7280"} />
+                  <Text className="text-sm ml-1" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>{course.schedule}</Text>
+                  <View className="mx-2 w-1 h-1 rounded-full" style={{ backgroundColor: isDark ? '#4b5563' : '#d1d5db' }} />
+                  <Text className="text-sm" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>{course.room}</Text>
                 </View>
 
                 {/* Progress bar */}
                 <View className="mt-3">
                   <View className="flex-row justify-between mb-1">
-                    <Text className="text-xs text-gray-500">Course Progress</Text>
-                    <Text className="text-xs font-medium text-gray-700">{course.progress}%</Text>
+                    <Text className="text-xs" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>Course Progress</Text>
+                    <Text className="text-xs font-medium" style={{ color: isDark ? '#d1d5db' : '#374151' }}>{course.progress}%</Text>
                   </View>
-                  <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <View className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: isDark ? '#374151' : '#e5e7eb' }}>
                     <View
-                      className="h-full bg-blue-500 rounded-full"
-                      style={{ width: `${course.progress}%` }}
+                      className="h-full rounded-full"
+                      style={{ width: `${course.progress}%`, backgroundColor: '#3b82f6' }}
                     />
                   </View>
                 </View>
@@ -242,9 +292,9 @@ export default function AcademicsScreen() {
         {/* Upcoming Assignments */}
         <Animated.View entering={FadeInDown.duration(500).delay(300)} className="px-4 mt-6 mb-6">
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-lg font-semibold text-gray-800">Upcoming Assignments</Text>
+            <Text className="text-lg font-semibold" style={{ color: isDark ? '#ffffff' : '#1e293b' }}>Upcoming Assignments</Text>
             <TouchableOpacity>
-              <Text className="text-blue-500 text-sm">View All</Text>
+              <Text className="text-sm" style={{ color: '#3b82f6' }}>View All</Text>
             </TouchableOpacity>
           </View>
 
@@ -254,7 +304,15 @@ export default function AcademicsScreen() {
               entering={FadeInDown.duration(400).delay(350 + index * 50)}
             >
               <TouchableOpacity
-                className="bg-white rounded-xl p-4 mb-3 shadow-sm flex-row items-center"
+                className="rounded-xl p-4 mb-3 flex-row items-center"
+                style={{
+                  backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: isDark ? 0.3 : 0.1,
+                  shadowRadius: 8,
+                  elevation: 4,
+                }}
                 activeOpacity={0.7}
               >
                 <View
@@ -268,8 +326,8 @@ export default function AcademicsScreen() {
                   )}
                 </View>
                 <View className="flex-1">
-                  <Text className="text-sm text-gray-500">{assignment.course}</Text>
-                  <Text className="text-base font-medium text-gray-800">{assignment.title}</Text>
+                  <Text className="text-sm" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>{assignment.course}</Text>
+                  <Text className="text-base font-medium" style={{ color: isDark ? '#ffffff' : '#1e293b' }}>{assignment.title}</Text>
                   <View className="flex-row items-center mt-1">
                     <Text
                       className="text-sm"
@@ -277,8 +335,8 @@ export default function AcademicsScreen() {
                     >
                       {assignment.status === 'submitted' ? 'Submitted' : getDaysUntilDue(assignment.dueDate)}
                     </Text>
-                    <View className="mx-2 w-1 h-1 rounded-full bg-gray-300" />
-                    <Text className="text-sm text-gray-500">{assignment.points} pts</Text>
+                    <View className="mx-2 w-1 h-1 rounded-full" style={{ backgroundColor: isDark ? '#4b5563' : '#d1d5db' }} />
+                    <Text className="text-sm" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>{assignment.points} pts</Text>
                   </View>
                 </View>
                 <ChevronRight size={20} color="#9CA3AF" />
@@ -289,9 +347,30 @@ export default function AcademicsScreen() {
 
         <View className="h-8" />
       </ScrollView>
-    </View>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
+
+const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  blurOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bottomGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  safeArea: {
+    flex: 1,
+  },
+});
 
 
 

@@ -6,7 +6,12 @@ import {
   TouchableOpacity,
   RefreshControl,
   TextInput,
+  ImageBackground,
+  StyleSheet,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { router, Stack } from 'expo-router';
 import {
   ChevronLeft,
@@ -21,6 +26,7 @@ import {
   Milk,
 } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useColorScheme } from '@/components/useColorScheme';
 
 // Mock dining data
 const diningLocations = [
@@ -113,6 +119,8 @@ const dietaryFilters = [
 ];
 
 export default function DiningScreen() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
@@ -136,34 +144,81 @@ export default function DiningScreen() {
     return activeFilters.some((filter) => item.tags.includes(filter));
   });
 
+  // Use splash screen image as background (same as login page)
+  const backgroundSource = require('@/assets/images/splash-screen.png');
+
   return (
-    <View className="flex-1 bg-gray-50">
-      <Stack.Screen
-        options={{
-          title: 'Dining',
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} className="p-2">
-              <ChevronLeft size={24} color="#374151" />
-            </TouchableOpacity>
-          ),
-        }}
+    <ImageBackground
+      source={backgroundSource}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      {/* Blurred Background Overlay */}
+      <View style={[styles.blurOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)' }]} />
+      
+      {/* Gradient Overlay */}
+      <LinearGradient
+        colors={isDark 
+          ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']
+          : ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.05)']}
+        style={styles.gradientOverlay}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
       />
 
-      <ScrollView
-        className="flex-1"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#3B82F6']} />
-        }
-        showsVerticalScrollIndicator={false}
-      >
+      {/* Bottom gradient */}
+      <LinearGradient
+        colors={isDark
+          ? ['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']
+          : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.4)']}
+        locations={[0, 0.4424, 1]}
+        style={styles.bottomGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <Stack.Screen
+          options={{
+            title: 'Dining',
+            headerTransparent: true,
+            headerTitleStyle: { color: isDark ? '#ffffff' : '#1e293b' },
+            headerLeft: () => (
+              <TouchableOpacity onPress={() => router.back()} className="p-2">
+                <ChevronLeft size={24} color={isDark ? "#ffffff" : "#1e293b"} />
+              </TouchableOpacity>
+            ),
+          }}
+        />
+
+        <ScrollView
+          className="flex-1"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
+          }
+          showsVerticalScrollIndicator={false}
+        >
         {/* Search Bar */}
         <Animated.View entering={FadeInDown.duration(500)} className="px-4 pt-4">
-          <View className="bg-white rounded-xl flex-row items-center px-4 py-3 shadow-sm">
+          <View style={{
+            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            borderRadius: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: isDark ? 0.3 : 0.1,
+            shadowRadius: 8,
+            elevation: 4,
+          }}>
             <Search size={20} color="#9CA3AF" />
             <TextInput
-              className="flex-1 ml-3 text-base text-gray-800"
+              className="flex-1 ml-3 text-base"
+              style={{ color: isDark ? '#ffffff' : '#1e293b' }}
               placeholder="Search meals or locations..."
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={isDark ? "#6b7280" : "#9CA3AF"}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -180,16 +235,24 @@ export default function DiningScreen() {
                   <TouchableOpacity
                     key={filter.id}
                     onPress={() => toggleFilter(filter.id)}
-                    className={`flex-row items-center px-4 py-2 rounded-full ${
-                      isActive ? 'bg-blue-500' : 'bg-white'
-                    }`}
-                    style={{ borderWidth: isActive ? 0 : 1, borderColor: '#E5E7EB' }}
+                    className="flex-row items-center px-4 py-2 rounded-full"
+                    style={{
+                      backgroundColor: isActive ? '#3b82f6' : (isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)'),
+                      borderWidth: isActive ? 0 : 1,
+                      borderColor: isDark ? '#374151' : '#E5E7EB',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: isDark ? 0.2 : 0.05,
+                      shadowRadius: 3,
+                      elevation: 2,
+                    }}
                   >
                     <filter.icon size={16} color={isActive ? '#FFFFFF' : filter.color} />
                     <Text
-                      className={`ml-2 text-sm font-medium ${
-                        isActive ? 'text-white' : 'text-gray-700'
-                      }`}
+                      className="ml-2 text-sm font-medium"
+                      style={{
+                        color: isActive ? '#ffffff' : (isDark ? '#e2e8f0' : '#374151')
+                      }}
                     >
                       {filter.label}
                     </Text>
@@ -202,14 +265,22 @@ export default function DiningScreen() {
 
         {/* Dining Locations */}
         <Animated.View entering={FadeInDown.duration(500).delay(100)} className="px-4 mt-6">
-          <Text className="text-lg font-semibold text-gray-800 mb-3">Dining Locations</Text>
+          <Text className="text-lg font-semibold mb-3" style={{ color: isDark ? '#ffffff' : '#1e293b' }}>Dining Locations</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View className="flex-row gap-3">
               {diningLocations.map((location) => (
                 <TouchableOpacity
                   key={location.id}
-                  className="bg-white rounded-xl p-4 shadow-sm"
-                  style={{ width: 180 }}
+                  className="rounded-xl p-4"
+                  style={{
+                    width: 180,
+                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: isDark ? 0.3 : 0.1,
+                    shadowRadius: 8,
+                    elevation: 4,
+                  }}
                   activeOpacity={0.7}
                 >
                   <View className="flex-row items-center justify-between mb-2">
@@ -228,20 +299,20 @@ export default function DiningScreen() {
                     </View>
                     <View className="flex-row items-center">
                       <Star size={12} color="#F59E0B" fill="#F59E0B" />
-                      <Text className="text-sm text-gray-600 ml-1">{location.rating}</Text>
+                      <Text className="text-sm ml-1" style={{ color: isDark ? '#d1d5db' : '#4b5563' }}>{location.rating}</Text>
                     </View>
                   </View>
-                  <Text className="text-base font-semibold text-gray-800" numberOfLines={1}>
+                  <Text className="text-base font-semibold" style={{ color: isDark ? '#ffffff' : '#1e293b' }} numberOfLines={1}>
                     {location.name}
                   </Text>
-                  <Text className="text-sm text-gray-500">{location.type}</Text>
+                  <Text className="text-sm" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>{location.type}</Text>
                   <View className="flex-row items-center mt-2">
-                    <Clock size={12} color="#6B7280" />
-                    <Text className="text-xs text-gray-500 ml-1">{location.hours}</Text>
+                    <Clock size={12} color={isDark ? "#9ca3af" : "#6B7280"} />
+                    <Text className="text-xs ml-1" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>{location.hours}</Text>
                   </View>
                   <View className="flex-row items-center mt-1">
-                    <MapPin size={12} color="#6B7280" />
-                    <Text className="text-xs text-gray-500 ml-1">{location.distance}</Text>
+                    <MapPin size={12} color={isDark ? "#9ca3af" : "#6B7280"} />
+                    <Text className="text-xs ml-1" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>{location.distance}</Text>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -252,16 +323,26 @@ export default function DiningScreen() {
         {/* Today's Menu */}
         <Animated.View entering={FadeInDown.duration(500).delay(200)} className="px-4 mt-6">
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-lg font-semibold text-gray-800">Today's Menu</Text>
+            <Text className="text-lg font-semibold" style={{ color: isDark ? '#ffffff' : '#1e293b' }}>Today's Menu</Text>
             <TouchableOpacity>
-              <Text className="text-blue-500 text-sm">Full Menu</Text>
+              <Text className="text-sm" style={{ color: '#3b82f6' }}>Full Menu</Text>
             </TouchableOpacity>
           </View>
 
           {filteredMenu.length === 0 ? (
-            <View className="bg-white rounded-xl p-8 items-center">
-              <Utensils size={48} color="#D1D5DB" />
-              <Text className="text-gray-500 mt-4">No items match your filters</Text>
+            <View style={{
+              backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+              borderRadius: 12,
+              padding: 32,
+              alignItems: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isDark ? 0.3 : 0.1,
+              shadowRadius: 8,
+              elevation: 4,
+            }}>
+              <Utensils size={48} color={isDark ? "#6b7280" : "#D1D5DB"} />
+              <Text className="mt-4" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>No items match your filters</Text>
             </View>
           ) : (
             filteredMenu.map((item, index) => (
@@ -270,28 +351,36 @@ export default function DiningScreen() {
                 entering={FadeInDown.duration(400).delay(250 + index * 50)}
               >
                 <TouchableOpacity
-                  className="bg-white rounded-xl p-4 mb-3 shadow-sm"
+                  className="rounded-xl p-4 mb-3"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: isDark ? 0.3 : 0.1,
+                    shadowRadius: 8,
+                    elevation: 4,
+                  }}
                   activeOpacity={0.7}
                 >
                   <View className="flex-row items-start justify-between">
                     <View className="flex-1">
-                      <Text className="text-base font-semibold text-gray-800">{item.name}</Text>
-                      <Text className="text-sm text-gray-500">{item.station}</Text>
+                      <Text className="text-base font-semibold" style={{ color: isDark ? '#ffffff' : '#1e293b' }}>{item.name}</Text>
+                      <Text className="text-sm" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>{item.station}</Text>
                       <View className="flex-row items-center mt-2">
-                        <Text className="text-sm text-gray-600">{item.calories} cal</Text>
-                        <View className="mx-2 w-1 h-1 rounded-full bg-gray-300" />
-                        <Text className="text-sm text-gray-600">{item.protein}g protein</Text>
+                        <Text className="text-sm" style={{ color: isDark ? '#d1d5db' : '#4b5563' }}>{item.calories} cal</Text>
+                        <View className="mx-2 w-1 h-1 rounded-full" style={{ backgroundColor: isDark ? '#4b5563' : '#d1d5db' }} />
+                        <Text className="text-sm" style={{ color: isDark ? '#d1d5db' : '#4b5563' }}>{item.protein}g protein</Text>
                       </View>
                     </View>
-                    <View className="flex-row items-center bg-yellow-50 px-2 py-1 rounded-full">
+                    <View className="flex-row items-center px-2 py-1 rounded-full" style={{ backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : 'rgba(254, 243, 199, 0.8)' }}>
                       <Star size={14} color="#F59E0B" fill="#F59E0B" />
-                      <Text className="text-sm text-yellow-700 ml-1">{item.rating}</Text>
+                      <Text className="text-sm ml-1" style={{ color: isDark ? '#fbbf24' : '#92400e' }}>{item.rating}</Text>
                     </View>
                   </View>
                   <View className="flex-row flex-wrap mt-3 gap-2">
                     {item.tags.map((tag) => (
-                      <View key={tag} className="bg-gray-100 px-2 py-1 rounded-full">
-                        <Text className="text-xs text-gray-600 capitalize">{tag}</Text>
+                      <View key={tag} className="px-2 py-1 rounded-full" style={{ backgroundColor: isDark ? 'rgba(75, 85, 99, 0.3)' : 'rgba(243, 244, 246, 0.8)' }}>
+                        <Text className="text-xs capitalize" style={{ color: isDark ? '#d1d5db' : '#4b5563' }}>{tag}</Text>
                       </View>
                     ))}
                   </View>
@@ -303,9 +392,30 @@ export default function DiningScreen() {
 
         <View className="h-8" />
       </ScrollView>
-    </View>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
+
+const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  blurOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bottomGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  safeArea: {
+    flex: 1,
+  },
+});
 
 
 

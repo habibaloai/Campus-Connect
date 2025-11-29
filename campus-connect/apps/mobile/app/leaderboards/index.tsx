@@ -118,7 +118,7 @@ export default function LeaderboardsScreen() {
           </TouchableOpacity>
           <Trophy size={24} color="#F59E0B" />
           <Text className={`text-xl font-bold ml-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            Leaderboards
+            Leaderboard
           </Text>
         </View>
       </View>

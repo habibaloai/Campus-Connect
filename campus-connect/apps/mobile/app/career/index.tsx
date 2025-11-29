@@ -6,7 +6,12 @@ import {
   TouchableOpacity,
   RefreshControl,
   TextInput,
+  ImageBackground,
+  StyleSheet,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { router, Stack } from 'expo-router';
 import {
   ChevronLeft,
@@ -22,6 +27,7 @@ import {
   Bookmark,
 } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useColorScheme } from '@/components/useColorScheme';
 
 // Mock job data
 const jobListings = [
@@ -93,6 +99,8 @@ const upcomingEvents = [
 const jobTypes = ['All', 'Internship', 'Part-time', 'Full-time', 'Remote'];
 
 export default function CareerScreen() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('All');
@@ -121,39 +129,81 @@ export default function CareerScreen() {
     return true;
   });
 
+  // Use splash screen image as background (same as login page)
+  const backgroundSource = require('@/assets/images/splash-screen.png');
+
   return (
-    <View className="flex-1 bg-gray-50">
-      <Stack.Screen
-        options={{
-          title: 'Career Services',
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} className="p-2">
-              <ChevronLeft size={24} color="#374151" />
-            </TouchableOpacity>
-          ),
-        }}
+    <ImageBackground
+      source={backgroundSource}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      {/* Blurred Background Overlay */}
+      <View style={[styles.blurOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)' }]} />
+      
+      {/* Gradient Overlay */}
+      <LinearGradient
+        colors={isDark 
+          ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']
+          : ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.05)']}
+        style={styles.gradientOverlay}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
       />
 
-      <ScrollView
-        className="flex-1"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#3B82F6']} />
-        }
-        showsVerticalScrollIndicator={false}
-      >
+      {/* Bottom gradient */}
+      <LinearGradient
+        colors={isDark
+          ? ['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']
+          : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.4)']}
+        locations={[0, 0.4424, 1]}
+        style={styles.bottomGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <Stack.Screen
+          options={{
+            title: 'Career Services',
+            headerTransparent: true,
+            headerTitleStyle: { color: isDark ? '#ffffff' : '#1e293b' },
+            headerLeft: () => (
+              <TouchableOpacity onPress={() => router.back()} className="p-2">
+                <ChevronLeft size={24} color={isDark ? "#ffffff" : "#1e293b"} />
+              </TouchableOpacity>
+            ),
+          }}
+        />
+
+        <ScrollView
+          className="flex-1"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
+          }
+          showsVerticalScrollIndicator={false}
+        >
         {/* Search Bar */}
         <Animated.View entering={FadeInDown.duration(500)} className="px-4 pt-4">
-          <View className="bg-white rounded-xl flex-row items-center px-4 py-3 shadow-sm">
-            <Search size={20} color="#9CA3AF" />
+          <View className="rounded-xl flex-row items-center px-4 py-3" style={{
+            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: isDark ? 0.3 : 0.1,
+            shadowRadius: 8,
+            elevation: 4,
+          }}>
+            <Search size={20} color={isDark ? "#9ca3af" : "#9CA3AF"} />
             <TextInput
-              className="flex-1 ml-3 text-base text-gray-800"
+              className="flex-1 ml-3 text-base"
+              style={{ color: isDark ? '#ffffff' : '#1e293b' }}
               placeholder="Search jobs or companies..."
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={isDark ? "#6b7280" : "#9CA3AF"}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
             <TouchableOpacity>
-              <Filter size={20} color="#6B7280" />
+              <Filter size={20} color={isDark ? "#9ca3af" : "#6B7280"} />
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -166,14 +216,18 @@ export default function CareerScreen() {
                 <TouchableOpacity
                   key={type}
                   onPress={() => setSelectedType(type)}
-                  className={`px-4 py-2 rounded-full ${
-                    selectedType === type ? 'bg-blue-500' : 'bg-white border border-gray-200'
-                  }`}
+                  className="px-4 py-2 rounded-full"
+                  style={{
+                    backgroundColor: selectedType === type ? '#3b82f6' : (isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)'),
+                    borderWidth: selectedType === type ? 0 : 1,
+                    borderColor: isDark ? '#374151' : '#e5e7eb',
+                  }}
                 >
                   <Text
-                    className={`text-sm font-medium ${
-                      selectedType === type ? 'text-white' : 'text-gray-700'
-                    }`}
+                    className="text-sm font-medium"
+                    style={{
+                      color: selectedType === type ? '#ffffff' : (isDark ? '#d1d5db' : '#374151')
+                    }}
                   >
                     {type}
                   </Text>
@@ -186,9 +240,9 @@ export default function CareerScreen() {
         {/* Upcoming Career Events */}
         <Animated.View entering={FadeInDown.duration(500).delay(100)} className="px-4 mt-6">
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-lg font-semibold text-gray-800">Upcoming Events</Text>
+            <Text className="text-lg font-semibold" style={{ color: isDark ? '#ffffff' : '#1e293b' }}>Upcoming Events</Text>
             <TouchableOpacity>
-              <Text className="text-blue-500 text-sm">View All</Text>
+              <Text className="text-sm" style={{ color: '#3b82f6' }}>View All</Text>
             </TouchableOpacity>
           </View>
 
@@ -222,15 +276,17 @@ export default function CareerScreen() {
         {/* Job Listings */}
         <Animated.View entering={FadeInDown.duration(500).delay(200)} className="px-4 mt-6">
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-lg font-semibold text-gray-800">
+            <Text className="text-lg font-semibold" style={{ color: isDark ? '#ffffff' : '#1e293b' }}>
               Job Opportunities ({filteredJobs.length})
             </Text>
           </View>
 
           {filteredJobs.length === 0 ? (
-            <View className="bg-white rounded-xl p-8 items-center">
-              <Briefcase size={48} color="#D1D5DB" />
-              <Text className="text-gray-500 mt-4">No jobs match your search</Text>
+            <View className="rounded-xl p-8 items-center" style={{
+              backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            }}>
+              <Briefcase size={48} color={isDark ? "#6b7280" : "#D1D5DB"} />
+              <Text className="mt-4" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>No jobs match your search</Text>
             </View>
           ) : (
             filteredJobs.map((job, index) => (
@@ -239,7 +295,15 @@ export default function CareerScreen() {
                 entering={FadeInDown.duration(400).delay(250 + index * 50)}
               >
                 <TouchableOpacity
-                  className="bg-white rounded-xl p-4 mb-3 shadow-sm"
+                  className="rounded-xl p-4 mb-3"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: isDark ? 0.3 : 0.1,
+                    shadowRadius: 8,
+                    elevation: 4,
+                  }}
                   activeOpacity={0.7}
                 >
                   <View className="flex-row items-start">
@@ -247,8 +311,8 @@ export default function CareerScreen() {
                       <Text className="text-2xl">{job.logo}</Text>
                     </View>
                     <View className="flex-1">
-                      <Text className="text-base font-semibold text-gray-800">{job.title}</Text>
-                      <Text className="text-sm text-gray-500">{job.company}</Text>
+                      <Text className="text-base font-semibold" style={{ color: isDark ? '#ffffff' : '#1e293b' }}>{job.title}</Text>
+                      <Text className="text-sm" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>{job.company}</Text>
                     </View>
                     <TouchableOpacity onPress={() => toggleSaveJob(job.id)}>
                       <Bookmark
@@ -262,24 +326,24 @@ export default function CareerScreen() {
                   <View className="flex-row flex-wrap items-center mt-3 gap-3">
                     <View className="flex-row items-center">
                       <MapPin size={14} color="#6B7280" />
-                      <Text className="text-sm text-gray-500 ml-1">{job.location}</Text>
+                      <Text className="text-sm ml-1" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>{job.location}</Text>
                     </View>
                     <View className="flex-row items-center">
-                      <DollarSign size={14} color="#6B7280" />
-                      <Text className="text-sm text-gray-500 ml-1">{job.salary}</Text>
+                      <DollarSign size={14} color={isDark ? "#9ca3af" : "#6B7280"} />
+                      <Text className="text-sm ml-1" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>{job.salary}</Text>
                     </View>
                     <View className="flex-row items-center">
-                      <Clock size={14} color="#6B7280" />
-                      <Text className="text-sm text-gray-500 ml-1">{job.posted}</Text>
+                      <Clock size={14} color={isDark ? "#9ca3af" : "#6B7280"} />
+                      <Text className="text-sm ml-1" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>{job.posted}</Text>
                     </View>
                   </View>
 
-                  <View className="flex-row items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                    <View className="bg-blue-50 px-3 py-1 rounded-full">
-                      <Text className="text-blue-600 text-sm font-medium">{job.type}</Text>
+                  <View className="flex-row items-center justify-between mt-3 pt-3" style={{ borderTopWidth: 1, borderTopColor: isDark ? '#374151' : '#e5e7eb' }}>
+                    <View className="px-3 py-1 rounded-full" style={{ backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(239, 246, 255, 0.8)' }}>
+                      <Text className="text-sm font-medium" style={{ color: isDark ? '#93c5fd' : '#2563eb' }}>{job.type}</Text>
                     </View>
                     <TouchableOpacity className="flex-row items-center">
-                      <Text className="text-blue-500 font-medium mr-1">Apply Now</Text>
+                      <Text className="font-medium mr-1" style={{ color: '#3b82f6' }}>Apply Now</Text>
                       <ChevronRight size={16} color="#3B82F6" />
                     </TouchableOpacity>
                   </View>
@@ -291,8 +355,15 @@ export default function CareerScreen() {
 
         {/* Quick Links */}
         <Animated.View entering={FadeInDown.duration(500).delay(400)} className="px-4 mt-6 mb-6">
-          <Text className="text-lg font-semibold text-gray-800 mb-3">Resources</Text>
-          <View className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <Text className="text-lg font-semibold mb-3" style={{ color: isDark ? '#ffffff' : '#1e293b' }}>Resources</Text>
+          <View className="rounded-xl overflow-hidden" style={{
+            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: isDark ? 0.3 : 0.1,
+            shadowRadius: 8,
+            elevation: 4,
+          }}>
             {[
               { title: 'Resume Builder', subtitle: 'Create a professional resume' },
               { title: 'Mock Interviews', subtitle: 'Practice with AI feedback' },
@@ -300,14 +371,18 @@ export default function CareerScreen() {
             ].map((resource, index) => (
               <TouchableOpacity
                 key={resource.title}
-                className={`flex-row items-center p-4 ${index !== 2 ? 'border-b border-gray-100' : ''}`}
+                className="flex-row items-center p-4"
+                style={{
+                  borderBottomWidth: index !== 2 ? 1 : 0,
+                  borderBottomColor: isDark ? '#374151' : '#e5e7eb',
+                }}
                 activeOpacity={0.7}
               >
                 <View className="flex-1">
-                  <Text className="text-base font-medium text-gray-800">{resource.title}</Text>
-                  <Text className="text-sm text-gray-500">{resource.subtitle}</Text>
+                  <Text className="text-base font-medium" style={{ color: isDark ? '#ffffff' : '#1e293b' }}>{resource.title}</Text>
+                  <Text className="text-sm" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>{resource.subtitle}</Text>
                 </View>
-                <ChevronRight size={20} color="#9CA3AF" />
+                <ChevronRight size={20} color={isDark ? "#9ca3af" : "#9CA3AF"} />
               </TouchableOpacity>
             ))}
           </View>
@@ -315,9 +390,30 @@ export default function CareerScreen() {
 
         <View className="h-8" />
       </ScrollView>
-    </View>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
+
+const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  blurOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bottomGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  safeArea: {
+    flex: 1,
+  },
+});
 
 
 

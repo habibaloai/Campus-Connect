@@ -95,7 +95,7 @@ export default function ProfileScreen() {
 
   const gamificationLinks = [
     { icon: Flame, label: 'Streaks', route: '/streaks', color: '#f59e0b', bgColor: '#fef3c7' },
-    { icon: TrendingUp, label: 'Leaderboards', route: '/leaderboards', color: '#0066cc', bgColor: '#e6f2ff' },
+    { icon: TrendingUp, label: 'Leaderboard', route: '/leaderboards', color: '#0066cc', bgColor: '#e6f2ff' },
     { icon: Target, label: 'Challenges', route: '/challenges', color: '#10b981', bgColor: '#d1fae5' },
   ];
 

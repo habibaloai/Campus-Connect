@@ -6,7 +6,12 @@ import {
   TouchableOpacity,
   RefreshControl,
   Image,
+  ImageBackground,
+  StyleSheet,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { router, Stack } from 'expo-router';
 import {
   ChevronLeft,
@@ -122,26 +127,60 @@ export default function AchievementsScreen() {
     return '#6B7280';
   };
 
+  // Use splash screen image as background (same as login page)
+  const backgroundSource = require('@/assets/images/splash-screen.png');
+
   return (
-    <View className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      <Stack.Screen
-        options={{
-          title: 'Achievements',
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} className="p-2">
-              <ChevronLeft size={24} color={isDark ? '#fff' : '#374151'} />
-            </TouchableOpacity>
-          ),
-        }}
+    <ImageBackground
+      source={backgroundSource}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      {/* Blurred Background Overlay */}
+      <View style={[styles.blurOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)' }]} />
+      
+      {/* Gradient Overlay */}
+      <LinearGradient
+        colors={isDark 
+          ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']
+          : ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.05)']}
+        style={styles.gradientOverlay}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
       />
 
-      <ScrollView
-        className="flex-1"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#3B82F6']} />
-        }
-        showsVerticalScrollIndicator={false}
-      >
+      {/* Bottom gradient */}
+      <LinearGradient
+        colors={isDark
+          ? ['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']
+          : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.4)']}
+        locations={[0, 0.4424, 1]}
+        style={styles.bottomGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <Stack.Screen
+          options={{
+            title: 'Achievements',
+            headerTransparent: true,
+            headerTitleStyle: { color: isDark ? '#ffffff' : '#1e293b' },
+            headerLeft: () => (
+              <TouchableOpacity onPress={() => router.back()} className="p-2">
+                <ChevronLeft size={24} color={isDark ? "#ffffff" : "#1e293b"} />
+              </TouchableOpacity>
+            ),
+          }}
+        />
+
+        <ScrollView
+          className="flex-1"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
+          }
+          showsVerticalScrollIndicator={false}
+        >
         {/* Stats Card */}
         <Animated.View entering={FadeInDown.duration(500)} className="px-4 pt-4">
           <View className={`rounded-2xl p-5 ${isDark ? 'bg-gradient-to-r from-yellow-600 to-orange-600' : 'bg-gradient-to-r from-yellow-400 to-orange-500'}`}>
@@ -472,9 +511,30 @@ export default function AchievementsScreen() {
 
         <View className="h-8" />
       </ScrollView>
-    </View>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
+
+const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  blurOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bottomGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  safeArea: {
+    flex: 1,
+  },
+});
 
 
 

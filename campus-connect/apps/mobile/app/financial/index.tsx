@@ -5,7 +5,12 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  ImageBackground,
+  StyleSheet,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { router, Stack } from 'expo-router';
 import {
   ChevronLeft,
@@ -19,6 +24,7 @@ import {
   UtensilsCrossed,
 } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useColorScheme } from '@/components/useColorScheme';
 
 // Mock financial data
 const mockTransactions = [
@@ -65,6 +71,8 @@ const mockTransactions = [
 ];
 
 export default function FinancialScreen() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const [refreshing, setRefreshing] = useState(false);
 
   // Mock balances
@@ -93,26 +101,60 @@ export default function FinancialScreen() {
     });
   };
 
+  // Use splash screen image as background (same as login page)
+  const backgroundSource = require('@/assets/images/splash-screen.png');
+
   return (
-    <View className="flex-1 bg-gray-50">
-      <Stack.Screen
-        options={{
-          title: 'Financial',
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} className="p-2">
-              <ChevronLeft size={24} color="#374151" />
-            </TouchableOpacity>
-          ),
-        }}
+    <ImageBackground
+      source={backgroundSource}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      {/* Blurred Background Overlay */}
+      <View style={[styles.blurOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)' }]} />
+      
+      {/* Gradient Overlay */}
+      <LinearGradient
+        colors={isDark 
+          ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']
+          : ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.05)']}
+        style={styles.gradientOverlay}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
       />
 
-      <ScrollView
-        className="flex-1"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#3B82F6']} />
-        }
-        showsVerticalScrollIndicator={false}
-      >
+      {/* Bottom gradient */}
+      <LinearGradient
+        colors={isDark
+          ? ['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']
+          : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.4)']}
+        locations={[0, 0.4424, 1]}
+        style={styles.bottomGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <Stack.Screen
+          options={{
+            title: 'Financial',
+            headerTransparent: true,
+            headerTitleStyle: { color: isDark ? '#ffffff' : '#1e293b' },
+            headerLeft: () => (
+              <TouchableOpacity onPress={() => router.back()} className="p-2">
+                <ChevronLeft size={24} color={isDark ? "#ffffff" : "#1e293b"} />
+              </TouchableOpacity>
+            ),
+          }}
+        />
+
+        <ScrollView
+          className="flex-1"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
+          }
+          showsVerticalScrollIndicator={false}
+        >
         {/* Tuition Balance Card */}
         <Animated.View entering={FadeInDown.duration(500)} className="px-4 pt-4">
           <View className="bg-gradient-to-r from-green-500 to-emerald-600 bg-green-500 rounded-2xl p-5 shadow-lg">
@@ -138,28 +180,42 @@ export default function FinancialScreen() {
         {/* Quick Balance Cards */}
         <Animated.View entering={FadeInDown.duration(500).delay(100)} className="px-4 mt-4">
           <View className="flex-row gap-3">
-            <View className="flex-1 bg-white rounded-xl p-4 shadow-sm">
+            <View className="flex-1 rounded-xl p-4" style={{
+              backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isDark ? 0.3 : 0.1,
+              shadowRadius: 8,
+              elevation: 4,
+            }}>
               <View className="flex-row items-center mb-2">
-                <View className="w-8 h-8 rounded-full bg-blue-100 items-center justify-center">
+                <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(219, 234, 254, 0.8)' }}>
                   <Wallet size={16} color="#3B82F6" />
                 </View>
-                <Text className="text-sm text-gray-500 ml-2">Campus Wallet</Text>
+                <Text className="text-sm ml-2" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>Campus Wallet</Text>
               </View>
-              <Text className="text-2xl font-bold text-gray-800">{formatCurrency(campusWallet)}</Text>
+              <Text className="text-2xl font-bold" style={{ color: isDark ? '#ffffff' : '#1e293b' }}>{formatCurrency(campusWallet)}</Text>
               <TouchableOpacity className="mt-2">
-                <Text className="text-blue-500 text-sm font-medium">Add Funds</Text>
+                <Text className="text-sm font-medium" style={{ color: '#3b82f6' }}>Add Funds</Text>
               </TouchableOpacity>
             </View>
 
-            <View className="flex-1 bg-white rounded-xl p-4 shadow-sm">
+            <View className="flex-1 rounded-xl p-4" style={{
+              backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isDark ? 0.3 : 0.1,
+              shadowRadius: 8,
+              elevation: 4,
+            }}>
               <View className="flex-row items-center mb-2">
-                <View className="w-8 h-8 rounded-full bg-orange-100 items-center justify-center">
+                <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: isDark ? 'rgba(249, 115, 22, 0.2)' : 'rgba(255, 237, 213, 0.8)' }}>
                   <UtensilsCrossed size={16} color="#F97316" />
                 </View>
-                <Text className="text-sm text-gray-500 ml-2">Meal Plan</Text>
+                <Text className="text-sm ml-2" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>Meal Plan</Text>
               </View>
-              <Text className="text-2xl font-bold text-gray-800">{formatCurrency(mealPlanBalance)}</Text>
-              <Text className="text-sm text-gray-400 mt-2">15 swipes left</Text>
+              <Text className="text-2xl font-bold" style={{ color: isDark ? '#ffffff' : '#1e293b' }}>{formatCurrency(mealPlanBalance)}</Text>
+              <Text className="text-sm mt-2" style={{ color: isDark ? '#6b7280' : '#9ca3af' }}>15 swipes left</Text>
             </View>
           </View>
         </Animated.View>
@@ -167,19 +223,28 @@ export default function FinancialScreen() {
         {/* Recent Transactions */}
         <Animated.View entering={FadeInDown.duration(500).delay(200)} className="px-4 mt-6">
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-lg font-semibold text-gray-800">Recent Transactions</Text>
+            <Text className="text-lg font-semibold" style={{ color: isDark ? '#ffffff' : '#1e293b' }}>Recent Transactions</Text>
             <TouchableOpacity>
-              <Text className="text-blue-500 text-sm">View All</Text>
+              <Text className="text-sm" style={{ color: '#3b82f6' }}>View All</Text>
             </TouchableOpacity>
           </View>
 
-          <View className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <View className="rounded-xl overflow-hidden" style={{
+            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: isDark ? 0.3 : 0.1,
+            shadowRadius: 8,
+            elevation: 4,
+          }}>
             {mockTransactions.map((transaction, index) => (
               <TouchableOpacity
                 key={transaction.id}
-                className={`flex-row items-center p-4 ${
-                  index !== mockTransactions.length - 1 ? 'border-b border-gray-100' : ''
-                }`}
+                className="flex-row items-center p-4"
+                style={{
+                  borderBottomWidth: index !== mockTransactions.length - 1 ? 1 : 0,
+                  borderBottomColor: isDark ? '#374151' : '#e5e7eb',
+                }}
                 activeOpacity={0.7}
               >
                 <View
@@ -194,10 +259,10 @@ export default function FinancialScreen() {
                   )}
                 </View>
                 <View className="flex-1">
-                  <Text className="text-base font-medium text-gray-800" numberOfLines={1}>
+                  <Text className="text-base font-medium" style={{ color: isDark ? '#ffffff' : '#1e293b' }} numberOfLines={1}>
                     {transaction.description}
                   </Text>
-                  <Text className="text-sm text-gray-500">{formatDate(transaction.date)}</Text>
+                  <Text className="text-sm" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>{formatDate(transaction.date)}</Text>
                 </View>
                 <Text
                   className={`text-base font-semibold ${
@@ -213,8 +278,15 @@ export default function FinancialScreen() {
 
         {/* Quick Actions */}
         <Animated.View entering={FadeInDown.duration(500).delay(300)} className="px-4 mt-6 mb-6">
-          <Text className="text-lg font-semibold text-gray-800 mb-3">Quick Actions</Text>
-          <View className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <Text className="text-lg font-semibold mb-3" style={{ color: isDark ? '#ffffff' : '#1e293b' }}>Quick Actions</Text>
+          <View className="rounded-xl overflow-hidden" style={{
+            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: isDark ? 0.3 : 0.1,
+            shadowRadius: 8,
+            elevation: 4,
+          }}>
             {[
               { icon: CreditCard, title: 'Payment Methods', subtitle: '2 cards saved' },
               { icon: Calendar, title: 'Payment Schedule', subtitle: 'Set up auto-pay' },
@@ -222,17 +294,21 @@ export default function FinancialScreen() {
             ].map((action, index) => (
               <TouchableOpacity
                 key={action.title}
-                className={`flex-row items-center p-4 ${index !== 2 ? 'border-b border-gray-100' : ''}`}
+                className="flex-row items-center p-4"
+                style={{
+                  borderBottomWidth: index !== 2 ? 1 : 0,
+                  borderBottomColor: isDark ? '#374151' : '#e5e7eb',
+                }}
                 activeOpacity={0.7}
               >
-                <View className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center mr-3">
-                  <action.icon size={20} color="#6B7280" />
+                <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: isDark ? '#374151' : '#f3f4f6' }}>
+                  <action.icon size={20} color={isDark ? "#9ca3af" : "#6B7280"} />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-base font-medium text-gray-800">{action.title}</Text>
-                  <Text className="text-sm text-gray-500">{action.subtitle}</Text>
+                  <Text className="text-base font-medium" style={{ color: isDark ? '#ffffff' : '#1e293b' }}>{action.title}</Text>
+                  <Text className="text-sm" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>{action.subtitle}</Text>
                 </View>
-                <ChevronRight size={20} color="#9CA3AF" />
+                <ChevronRight size={20} color={isDark ? "#9ca3af" : "#9CA3AF"} />
               </TouchableOpacity>
             ))}
           </View>
@@ -240,9 +316,30 @@ export default function FinancialScreen() {
 
         <View className="h-8" />
       </ScrollView>
-    </View>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
+
+const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  blurOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bottomGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  safeArea: {
+    flex: 1,
+  },
+});
 
 
 
