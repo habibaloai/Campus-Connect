@@ -125,6 +125,11 @@ export default function CommunityScreen() {
     category: 'question',
   });
 
+  // Comment Modal state
+  const [commentingOnPostId, setCommentingOnPostId] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+
   const fetchPosts = useCallback(async () => {
     try {
       setError(null);
@@ -403,6 +408,38 @@ export default function CommunityScreen() {
     }
   };
 
+  // Handle adding comment from feed
+  const handleAddComment = async () => {
+    if (!commentText.trim() || !commentingOnPostId || !user?.id || submittingComment) return;
+
+    setSubmittingComment(true);
+    const content = commentText.trim();
+    setCommentText('');
+
+    try {
+      const { data, error } = await api.addComment(commentingOnPostId, user.id, content);
+
+      if (error) {
+        console.error('Error adding comment:', error);
+        setCommentText(content);
+        Alert.alert('Error', error.message || 'Failed to add comment');
+        setSubmittingComment(false);
+        return;
+      }
+
+      // Close modal and refresh posts to update comment count
+      setCommentingOnPostId(null);
+      await fetchPosts();
+      Alert.alert('Success', 'Comment added!');
+    } catch (err: any) {
+      console.error('Error:', err);
+      setCommentText(content);
+      Alert.alert('Error', err.message || 'Failed to add comment');
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
   // Use splash screen image as background (same as login page)
   const backgroundSource = require('@/assets/images/splash-screen.png');
 
@@ -659,15 +696,46 @@ export default function CommunityScreen() {
                     </Text>
 
                     {/* Actions */}
-                    <View className={`flex-row items-center justify-center mt-4 pt-3 border-t ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
-                      {/* Check if this is the user's own post */}
-                      {post.author?.id === user?.id ? (
-                        <View className={`flex-1 items-center py-2 rounded-xl ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                          <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                            Your post
-                          </Text>
-                        </View>
-                      ) : (
+                    <View className={`flex-row items-center gap-2 mt-4 pt-3 border-t ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
+                      {/* Like Button */}
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleLike(post.id, post.is_liked || false);
+                        }}
+                        className="flex-row items-center flex-1 justify-center py-2.5 rounded-xl"
+                        activeOpacity={0.7}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Heart
+                          size={18}
+                          color={post.is_liked ? '#ef4444' : isDark ? '#9ca3af' : '#6b7280'}
+                          fill={post.is_liked ? '#ef4444' : 'none'}
+                        />
+                        <Text className={`text-sm font-medium ml-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {post.likes || 0}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {/* Comment Button */}
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          setCommentingOnPostId(post.id);
+                          setCommentText('');
+                        }}
+                        className="flex-row items-center flex-1 justify-center py-2.5 rounded-xl"
+                        activeOpacity={0.7}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <MessageSquare size={18} color={isDark ? '#9ca3af' : '#6b7280'} />
+                        <Text className={`text-sm font-medium ml-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {post.reply_count || 0}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {/* Reply Button (for creating DM with post author) */}
+                      {post.author?.id !== user?.id && (
                         <TouchableOpacity
                           className={`flex-1 flex-row items-center justify-center py-2.5 rounded-xl border ${
                             replyingToId === post.id
@@ -689,7 +757,7 @@ export default function CommunityScreen() {
                             <>
                               <MessageCircle size={18} color={isDark ? '#9ca3af' : '#6b7280'} />
                               <Text className={`text-sm font-medium ml-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                                Reply
+                                DM
                               </Text>
                             </>
                           )}
@@ -841,6 +909,103 @@ export default function CommunityScreen() {
                     </Text>
                   )}
                 </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Comment Modal */}
+      <Modal
+        visible={commentingOnPostId !== null}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          setCommentingOnPostId(null);
+          setCommentText('');
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1"
+        >
+          <View className="flex-1 bg-black/50 justify-end">
+            <View style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: isDark ? 'rgba(30, 41, 59, 0.98)' : 'rgba(255, 255, 255, 0.98)', maxHeight: '90%' }}>
+              {/* Modal Header */}
+              <View className={`flex-row items-center justify-between px-5 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Add Comment
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setCommentingOnPostId(null);
+                    setCommentText('');
+                  }}
+                  className="p-2"
+                >
+                  <X size={24} color={isDark ? '#9ca3af' : '#6b7280'} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView className="px-5 py-4" keyboardShouldPersistTaps="handled">
+                {commentingOnPostId && (
+                  <>
+                    {/* Post Preview */}
+                    {(() => {
+                      const post = posts.find((p) => p.id === commentingOnPostId);
+                      if (!post) return null;
+                      return (
+                        <View className={`p-4 rounded-xl mb-4 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                          <Text className={`text-sm font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {post.title}
+                          </Text>
+                          <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`} numberOfLines={2}>
+                            {post.content}
+                          </Text>
+                        </View>
+                      );
+                    })()}
+
+                    {/* Comment Input */}
+                    <View className="mb-6">
+                      <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Your Comment *
+                      </Text>
+                      <TextInput
+                        className={`px-4 py-3 rounded-xl border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+                        placeholder="Write your comment..."
+                        placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+                        multiline
+                        numberOfLines={6}
+                        textAlignVertical="top"
+                        style={{ minHeight: 120 }}
+                        value={commentText}
+                        onChangeText={setCommentText}
+                        autoFocus
+                      />
+                    </View>
+
+                    {/* Submit Button */}
+                    <TouchableOpacity
+                      onPress={handleAddComment}
+                      disabled={submittingComment || !commentText.trim()}
+                      className={`py-4 rounded-xl items-center mb-6 ${
+                        submittingComment || !commentText.trim()
+                          ? 'bg-gray-400'
+                          : 'bg-[#14b8a6]'
+                      }`}
+                      activeOpacity={0.8}
+                    >
+                      {submittingComment ? (
+                        <ActivityIndicator color="#ffffff" />
+                      ) : (
+                        <Text className="text-white font-bold text-base">
+                          Post Comment
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  </>
+                )}
               </ScrollView>
             </View>
           </View>

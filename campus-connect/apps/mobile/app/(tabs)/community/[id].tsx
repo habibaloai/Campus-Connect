@@ -11,10 +11,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  Modal,
 } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Heart, MessageSquare, User, Send, ChevronLeft, Share2, Trash } from 'lucide-react-native';
+import { Heart, MessageSquare, User, Send, ChevronLeft, Share2, Trash, Reply } from 'lucide-react-native';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
 import { api } from '@/lib/supabase';
@@ -75,6 +76,9 @@ export default function PostDetailsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [renderKey, setRenderKey] = useState(0); // Force re-render on iOS
   const lastOptimisticUpdateRef = useRef<{ postId: string; likes: number; timestamp: number } | null>(null);
+  const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
+  const [replyToCommentText, setReplyToCommentText] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
 
   // Fetch post and replies
   const fetchData = useCallback(async () => {
@@ -226,7 +230,7 @@ export default function PostDetailsScreen() {
     }
   };
 
-  // Send reply
+  // Send reply (comment on post)
   const sendReply = async () => {
     if (!replyText.trim() || !post || !user?.id || sending) return;
 
@@ -255,6 +259,88 @@ export default function PostDetailsScreen() {
       Alert.alert('Error', err.message || 'Failed to send reply');
     } finally {
       setSending(false);
+    }
+  };
+
+  // Handle reply to a comment - sends as direct message
+  const handleReplyToComment = (comment: Reply) => {
+    if (!user?.id || !comment.author?.id) {
+      Alert.alert('Error', 'Unable to reply to this comment');
+      return;
+    }
+
+    // Don't allow replying to your own comment
+    if (comment.author.id === user.id) {
+      Alert.alert('Info', 'You cannot reply to your own comment');
+      return;
+    }
+
+    // Set the comment we're replying to and show modal
+    setReplyingToCommentId(comment.id);
+    setReplyToCommentText('');
+  };
+
+  // Send reply to comment as direct message
+  const sendReplyToComment = async () => {
+    if (!replyToCommentText.trim() || !replyingToCommentId || !user?.id) return;
+
+    const comment = replies.find((r) => r.id === replyingToCommentId);
+    if (!comment || !comment.author?.id) {
+      Alert.alert('Error', 'Comment not found');
+      setReplyingToCommentId(null);
+      return;
+    }
+
+    setSendingReply(true);
+
+    try {
+      // Create or get existing conversation with comment author
+      const result = await api.createDirectConversation(user.id, comment.author.id);
+
+      if (result.error) {
+        console.error('Error creating conversation:', result.error);
+        Alert.alert('Error', 'Failed to start conversation. Please try again.');
+        setReplyingToCommentId(null);
+        setReplyToCommentText('');
+        setSendingReply(false);
+        return;
+      }
+
+      if (result.data && post) {
+        // Create message content with context about the reply on a post
+        const postTitle = post.title || 'this post';
+        const commentPreview = comment.content.substring(0, 50);
+        const truncatedComment = comment.content.length > 50 ? commentPreview + '...' : commentPreview;
+        const messageContent = `Reply on post: "${postTitle}"\n\nRe: "${truncatedComment}"\n\n${replyToCommentText.trim()}`;
+
+        // Send the message
+        const { data: messageData, error: messageError } = await api.sendMessage(
+          result.data.id,
+          user.id,
+          messageContent
+        );
+
+        if (messageError) {
+          console.error('Error sending message:', messageError);
+          Alert.alert('Error', 'Failed to send message. Please try again.');
+          setReplyingToCommentId(null);
+          setReplyToCommentText('');
+          setSendingReply(false);
+          return;
+        }
+
+        // Close modal and navigate to the conversation
+        setReplyingToCommentId(null);
+        setReplyToCommentText('');
+        router.push(`/(tabs)/messages/${result.data.id}` as any);
+      }
+    } catch (error) {
+      console.error('Error replying to comment:', error);
+      Alert.alert('Error', 'An error occurred. Please try again.');
+      setReplyingToCommentId(null);
+      setReplyToCommentText('');
+    } finally {
+      setSendingReply(false);
     }
   };
 
@@ -439,39 +525,51 @@ export default function PostDetailsScreen() {
                           {reply.author?.major || 'Student'} • {formatTimeAgo(reply.created_at)}
                         </Text>
                       </View>
-                      {isOwnComment && (
-                        <TouchableOpacity
-                          onPress={async () => {
-                            Alert.alert(
-                              'Delete Comment',
-                              'Are you sure you want to delete this comment?',
-                              [
-                                { text: 'Cancel', style: 'cancel' },
-                                {
-                                  text: 'Delete',
-                                  style: 'destructive',
-                                  onPress: async () => {
-                                    const { error } = await api.deleteComment(reply.id, user!.id);
-                                    if (error) {
-                                      Alert.alert('Error', error.message || 'Failed to delete comment');
-                                    } else {
-                                      // Refresh comments to get accurate data from server
-                                      const { data: commentsData } = await api.getComments(post.id);
-                                      if (commentsData) {
-                                        setReplies(commentsData);
-                                        setPost((prev) => (prev ? { ...prev, reply_count: commentsData.length } : null));
+                      <View className="flex-row items-center gap-2">
+                        {!isOwnComment && (
+                          <TouchableOpacity
+                            onPress={() => handleReplyToComment(reply)}
+                            className="p-2"
+                            activeOpacity={0.7}
+                          >
+                            <Reply size={16} color={isDark ? '#9ca3af' : '#6b7280'} />
+                          </TouchableOpacity>
+                        )}
+                        {isOwnComment && (
+                          <TouchableOpacity
+                            onPress={async () => {
+                              Alert.alert(
+                                'Delete Comment',
+                                'Are you sure you want to delete this comment?',
+                                [
+                                  { text: 'Cancel', style: 'cancel' },
+                                  {
+                                    text: 'Delete',
+                                    style: 'destructive',
+                                    onPress: async () => {
+                                      const { error } = await api.deleteComment(reply.id, user!.id);
+                                      if (error) {
+                                        Alert.alert('Error', error.message || 'Failed to delete comment');
+                                      } else {
+                                        // Refresh comments to get accurate data from server
+                                        const { data: commentsData } = await api.getComments(post.id);
+                                        if (commentsData) {
+                                          setReplies(commentsData);
+                                          setPost((prev) => (prev ? { ...prev, reply_count: commentsData.length } : null));
+                                        }
                                       }
-                                    }
+                                    },
                                   },
-                                },
-                              ]
-                            );
-                          }}
-                          className="p-2"
-                        >
-                          <Trash size={16} color={isDark ? '#ef4444' : '#dc2626'} />
-                        </TouchableOpacity>
-                      )}
+                                ]
+                              );
+                            }}
+                            className="p-2"
+                            activeOpacity={0.7}
+                          >
+                            <Trash size={16} color={isDark ? '#ef4444' : '#dc2626'} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
                     <Text className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                       {reply.content}
@@ -520,6 +618,84 @@ export default function PostDetailsScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Reply to Comment Modal */}
+        <Modal
+          visible={replyingToCommentId !== null}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => {
+            setReplyingToCommentId(null);
+            setReplyToCommentText('');
+          }}
+        >
+          <View className="flex-1 justify-end bg-black/50">
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              className="bg-white dark:bg-gray-800 rounded-t-3xl"
+            >
+              <View className={`p-5 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+                <View className="flex-row items-center justify-between mb-4">
+                  <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Reply to Comment
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setReplyingToCommentId(null);
+                      setReplyToCommentText('');
+                    }}
+                    className="p-2"
+                  >
+                    <Text className={`text-base ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {replyingToCommentId && (
+                  <>
+                    <Text className={`text-sm mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Replying to {replies.find((r) => r.id === replyingToCommentId)?.author?.name || 'comment'}. This will send as a direct message.
+                    </Text>
+
+                    <TextInput
+                      className={`px-4 py-3 rounded-xl border mb-4 ${
+                        isDark
+                          ? 'bg-gray-700 text-white border-gray-600'
+                          : 'bg-gray-100 text-gray-900 border-gray-200'
+                      }`}
+                      placeholder="Type your reply..."
+                      placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+                      value={replyToCommentText}
+                      onChangeText={setReplyToCommentText}
+                      multiline
+                      numberOfLines={4}
+                      textAlignVertical="top"
+                      autoFocus
+                    />
+
+                    <TouchableOpacity
+                      onPress={sendReplyToComment}
+                      disabled={!replyToCommentText.trim() || sendingReply}
+                      className={`py-3 rounded-xl items-center ${
+                        replyToCommentText.trim() && !sendingReply
+                          ? 'bg-blue-500'
+                          : isDark
+                          ? 'bg-gray-700'
+                          : 'bg-gray-300'
+                      }`}
+                      activeOpacity={0.8}
+                    >
+                      {sendingReply ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : (
+                        <Text className="text-white font-semibold">Send Message</Text>
+                      )}
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            </KeyboardAvoidingView>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
