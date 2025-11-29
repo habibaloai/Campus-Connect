@@ -2571,6 +2571,112 @@ export const api = {
     return { error };
   },
 
+  // Get or create event conversation
+  getOrCreateEventConversation: async (eventId: string, userId: string) => {
+    try {
+      // First, check if a conversation already exists for this event
+      const { data: existingConv, error: checkError } = await supabase
+        .from('conversations')
+        .select('id, type, name, event_id, created_at')
+        .eq('event_id', eventId)
+        .eq('type', 'event')
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        // PGRST116 is "not found" which is fine, other errors are not
+        console.error('Error checking for existing event conversation:', checkError);
+        return { data: null, error: checkError };
+      }
+
+      if (existingConv) {
+        // Conversation exists, verify user is a participant
+        const { data: participant } = await supabase
+          .from('conversation_participants')
+          .select('user_id')
+          .eq('conversation_id', existingConv.id)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (!participant) {
+          // User is not a participant, add them
+          const { error: addError } = await supabase
+            .from('conversation_participants')
+            .insert({ conversation_id: existingConv.id, user_id: userId });
+
+          if (addError) {
+            console.error('Error adding user to event conversation:', addError);
+            return { data: null, error: addError };
+          }
+        }
+
+        return { data: existingConv, error: null, existing: true };
+      }
+
+      // No conversation exists, create one
+      // First, get event details for the name
+      const { data: eventData } = await supabase
+        .from('events')
+        .select('title')
+        .eq('id', eventId)
+        .single();
+
+      const conversationName = eventData?.title ? `Event: ${eventData.title}` : null;
+
+      // Create the conversation
+      const { data: newConv, error: convError } = await supabase
+        .from('conversations')
+        .insert({
+          type: 'event',
+          event_id: eventId,
+          name: conversationName,
+        })
+        .select('id, type, name, event_id, created_at')
+        .single();
+
+      if (convError || !newConv) {
+        console.error('Error creating event conversation:', convError);
+        return { data: null, error: convError };
+      }
+
+      // Get all event attendees
+      const { data: attendees, error: attendeesError } = await supabase
+        .from('event_attendees')
+        .select('user_id')
+        .eq('event_id', eventId);
+
+      if (attendeesError) {
+        console.error('Error fetching event attendees:', attendeesError);
+        // Continue anyway, at least add the current user
+      }
+
+      // Add all attendees as participants
+      const participantIds = attendees?.map((a) => a.user_id) || [];
+      // Ensure current user is included
+      if (!participantIds.includes(userId)) {
+        participantIds.push(userId);
+      }
+
+      const participants = participantIds.map((id) => ({
+        conversation_id: newConv.id,
+        user_id: id,
+      }));
+
+      const { error: partError } = await supabase
+        .from('conversation_participants')
+        .insert(participants);
+
+      if (partError) {
+        console.error('Error adding participants to event conversation:', partError);
+        // Still return the conversation, participants can be added later
+      }
+
+      return { data: newConv, error: null, existing: false };
+    } catch (error: any) {
+      console.error('Exception in getOrCreateEventConversation:', error);
+      return { data: null, error: { message: error.message || 'Unknown error' }, existing: false };
+    }
+  },
+
   // Search users for messaging
   searchUsers: async (query: string, currentUserId: string) => {
     const { data, error } = await supabase

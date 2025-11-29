@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -75,7 +75,7 @@ const categoryColors: Record<string, { bg: string; text: string }> = {
 
 export default function EventDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -94,6 +94,11 @@ export default function EventDetailsScreen() {
   const [messages, setMessages] = useState<any[]>([]);
   const [commentText, setCommentText] = useState('');
   const [messageText, setMessageText] = useState('');
+  const [eventConversationId, setEventConversationId] = useState<string | null>(null);
+  const [loadingChat, setLoadingChat] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const messageSubscriptionRef = useRef<any>(null);
+  const chatScrollViewRef = useRef<ScrollView>(null);
   const [photoDescription, setPhotoDescription] = useState('');
   const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(null);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
@@ -463,6 +468,140 @@ export default function EventDetailsScreen() {
       api.unsubscribeFromEventUpdates(event.id);
     };
   }, [event?.id]);
+
+  // Event chat functions
+  const fetchEventChat = useCallback(async () => {
+    if (!event?.id || !user?.id || !event.is_attending) {
+      setEventConversationId(null);
+      setMessages([]);
+      return;
+    }
+
+    setLoadingChat(true);
+    try {
+      // Get or create event conversation
+      const { data: conversation, error: convError } = await api.getOrCreateEventConversation(event.id, user.id);
+      
+      if (convError || !conversation) {
+        console.error('Error getting/creating event conversation:', convError);
+        setEventConversationId(null);
+        setMessages([]);
+        return;
+      }
+
+      setEventConversationId(conversation.id);
+
+      // Fetch messages
+      const { data: messagesData, error: messagesError } = await api.getMessages(conversation.id);
+      
+      if (messagesError) {
+        console.error('Error fetching messages:', messagesError);
+      } else {
+        setMessages(messagesData || []);
+      }
+
+      // Mark messages as read
+      await api.markMessagesAsRead(conversation.id, user.id);
+    } catch (err) {
+      console.error('Error fetching event chat:', err);
+    } finally {
+      setLoadingChat(false);
+    }
+  }, [event?.id, event?.is_attending, user?.id]);
+
+  // Subscribe to real-time messages when conversation is loaded
+  useEffect(() => {
+    if (!eventConversationId || !user?.id) {
+      // Cleanup subscription if conversation is cleared
+      if (messageSubscriptionRef.current) {
+        api.unsubscribeFromMessages(eventConversationId!);
+        messageSubscriptionRef.current = null;
+      }
+      return;
+    }
+
+    // Subscribe to new messages
+    const channel = api.subscribeToMessages(eventConversationId, async (newMessage) => {
+      setMessages((prev) => {
+        // Avoid duplicates
+        if (prev.some((m) => m.id === newMessage.id)) return prev;
+        return [...prev, newMessage];
+      });
+      
+      // Scroll to bottom when new message arrives
+      setTimeout(() => {
+        chatScrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+      
+      // Mark as read if not from current user
+      if (newMessage.sender_id !== user.id) {
+        await api.markMessagesAsRead(eventConversationId, user.id);
+      }
+    });
+
+    messageSubscriptionRef.current = channel;
+
+    return () => {
+      api.unsubscribeFromMessages(eventConversationId);
+      messageSubscriptionRef.current = null;
+    };
+  }, [eventConversationId, user?.id]);
+
+  // Load chat when chat tab is active and user is attending
+  useEffect(() => {
+    if (activeTab === 'chat' && event?.is_attending) {
+      fetchEventChat();
+    } else if (activeTab !== 'chat') {
+      // Cleanup when switching away from chat tab
+      if (messageSubscriptionRef.current) {
+        api.unsubscribeFromMessages(eventConversationId!);
+        messageSubscriptionRef.current = null;
+      }
+    }
+  }, [activeTab, event?.is_attending, fetchEventChat, eventConversationId]);
+
+  // Send message in event chat
+  const sendChatMessage = async () => {
+    if (!messageText.trim() || !eventConversationId || !user?.id || sendingMessage) return;
+
+    setSendingMessage(true);
+    const content = messageText.trim();
+    setMessageText('');
+
+    try {
+      const { data, error } = await api.sendMessage(eventConversationId, user.id, content);
+      
+      if (error) {
+        console.error('Error sending message:', error);
+        setMessageText(content); // Restore message on error
+      } else if (data) {
+        // Add to local state (real-time subscription should also handle this)
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === data.id)) return prev;
+          return [...prev, data];
+        });
+        // Scroll to bottom after sending
+        setTimeout(() => {
+          chatScrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      setMessageText(content);
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  // Format time for messages
+  const formatMessageTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  };
 
   // Real-time subscription for join requests (for organizers)
   useEffect(() => {
@@ -976,11 +1115,179 @@ export default function EventDetailsScreen() {
           )}
 
           {activeTab === 'chat' && (
-            <View style={{ paddingHorizontal: 20, paddingBottom: 40 }}>
-              <Text style={{ fontSize: 18, fontWeight: '600', color: isDark ? '#ffffff' : '#1e293b', marginBottom: 16 }}>
-                Chat
-              </Text>
-              <Text style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>Event chat coming soon</Text>
+            <View style={{ flex: 1, paddingHorizontal: 20, paddingBottom: 40 }}>
+              {!event?.is_attending ? (
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 }}>
+                  <MessageCircle size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
+                  <Text style={{ marginTop: 16, fontSize: 16, color: isDark ? '#9ca3af' : '#6b7280', textAlign: 'center' }}>
+                    Join the event to participate in the chat
+                  </Text>
+                </View>
+              ) : loadingChat ? (
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 }}>
+                  <ActivityIndicator size="large" color="#0066cc" />
+                  <Text style={{ marginTop: 16, fontSize: 16, color: isDark ? '#9ca3af' : '#6b7280' }}>
+                    Loading chat...
+                  </Text>
+                </View>
+              ) : (
+                <KeyboardAvoidingView
+                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                  style={{ flex: 1 }}
+                  keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+                >
+                  <ScrollView
+                    ref={chatScrollViewRef}
+                    style={{ flex: 1 }}
+                    contentContainerStyle={{ paddingVertical: 16, flexGrow: 1 }}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    onContentSizeChange={() => {
+                      // Auto-scroll to bottom when content size changes
+                      setTimeout(() => {
+                        chatScrollViewRef.current?.scrollToEnd({ animated: true });
+                      }, 100);
+                    }}
+                  >
+                    {messages.length === 0 ? (
+                      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 }}>
+                        <MessageCircle size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
+                        <Text style={{ marginTop: 16, fontSize: 16, color: isDark ? '#9ca3af' : '#6b7280', textAlign: 'center' }}>
+                          No messages yet. Start the conversation!
+                        </Text>
+                      </View>
+                    ) : (
+                      messages.map((message) => {
+                        const isOwnMessage = message.sender_id === user?.id;
+                        return (
+                          <View
+                            key={message.id}
+                            style={{
+                              marginBottom: 12,
+                              flexDirection: 'row',
+                              alignItems: 'flex-end',
+                              justifyContent: isOwnMessage ? 'flex-end' : 'flex-start',
+                            }}
+                          >
+                            {!isOwnMessage && (
+                              <View style={{ marginRight: 8, marginBottom: 2 }}>
+                                <Avatar
+                                  source={message.sender?.avatar_url}
+                                  name={message.sender?.name}
+                                  size="sm"
+                                />
+                              </View>
+                            )}
+                            <View style={{ maxWidth: '75%', alignItems: isOwnMessage ? 'flex-end' : 'flex-start' }}>
+                              {!isOwnMessage && message.sender?.name && (
+                                <Text style={{ fontSize: 12, color: isDark ? '#9ca3af' : '#6b7280', marginBottom: 4, marginLeft: 4 }}>
+                                  {message.sender.name}
+                                </Text>
+                              )}
+                              <View
+                                style={{
+                                  maxWidth: '100%',
+                                  paddingHorizontal: 16,
+                                  paddingVertical: 12,
+                                  borderRadius: 16,
+                                  borderBottomRightRadius: isOwnMessage ? 4 : 16,
+                                  borderBottomLeftRadius: isOwnMessage ? 16 : 4,
+                                  backgroundColor: isOwnMessage
+                                    ? '#3b82f6'
+                                    : isDark
+                                    ? 'rgba(31, 41, 55, 0.9)'
+                                    : 'rgba(255, 255, 255, 0.9)',
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 16,
+                                    color: isOwnMessage ? '#ffffff' : isDark ? '#ffffff' : '#1e293b',
+                                  }}
+                                >
+                                  {message.content}
+                                </Text>
+                              </View>
+                              <Text
+                                style={{
+                                  fontSize: 11,
+                                  color: isDark ? '#6b7280' : '#9ca3af',
+                                  marginTop: 4,
+                                  marginHorizontal: 4,
+                                }}
+                              >
+                                {formatMessageTime(message.created_at)}
+                              </Text>
+                            </View>
+                            {isOwnMessage && (
+                              <View style={{ marginLeft: 8, marginBottom: 2 }}>
+                                <Avatar
+                                  source={profile?.avatar_url}
+                                  name={profile?.name || user?.email}
+                                  size="sm"
+                                />
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })
+                    )}
+                  </ScrollView>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'flex-end',
+                      paddingTop: 12,
+                      paddingBottom: 12,
+                      borderTopWidth: 1,
+                      borderTopColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                    }}
+                  >
+                    <TextInput
+                      style={{
+                        flex: 1,
+                        maxHeight: 100,
+                        paddingHorizontal: 16,
+                        paddingVertical: 12,
+                        borderRadius: 24,
+                        backgroundColor: isDark ? 'rgba(31, 41, 55, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                        color: isDark ? '#ffffff' : '#1e293b',
+                        fontSize: 16,
+                        marginRight: 8,
+                      }}
+                      placeholder="Type a message..."
+                      placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+                      value={messageText}
+                      onChangeText={setMessageText}
+                      multiline
+                      textAlignVertical="center"
+                      editable={!sendingMessage}
+                    />
+                    <TouchableOpacity
+                      onPress={sendChatMessage}
+                      disabled={!messageText.trim() || sendingMessage}
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 24,
+                        backgroundColor: messageText.trim() && !sendingMessage ? '#3b82f6' : isDark ? 'rgba(31, 41, 55, 0.9)' : 'rgba(229, 231, 235, 0.9)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      {sendingMessage ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : (
+                        <Send
+                          size={20}
+                          color={messageText.trim() ? '#ffffff' : isDark ? '#6b7280' : '#9ca3af'}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </KeyboardAvoidingView>
+              )}
             </View>
           )}
 
