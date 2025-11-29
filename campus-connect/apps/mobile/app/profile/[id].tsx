@@ -5,10 +5,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  ImageBackground,
   RefreshControl,
   Dimensions,
   Alert,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -34,7 +36,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
 import { api } from '@/lib/supabase';
-import { Profile, Friendship, Follow, Achievement, Event, Course } from '@/types';
+import { Profile, Friendship, Achievement, Event, Course } from '@/types';
 
 const { width } = Dimensions.get('window');
 
@@ -49,7 +51,6 @@ export default function UserProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isFriend, setIsFriend] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
   const [isCloseFriend, setIsCloseFriend] = useState(false);
   const [friendRequestSent, setFriendRequestSent] = useState(false);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
@@ -87,26 +88,25 @@ export default function UserProfileScreen() {
   const checkConnectionStatus = async () => {
     if (!currentUser?.id || isOwnProfile) return;
 
-    const [friendsRes, followRes] = await Promise.all([
-      api.getFriends(currentUser.id),
-      api.checkFollowStatus(currentUser.id, params.id),
-    ]);
+    try {
+      const friendsRes = await api.getFriends(currentUser.id);
 
-    if (friendsRes.data) {
-      const friendship = friendsRes.data.find((f: Friendship) => f.friend_id === params.id);
-      setIsFriend(!!friendship);
-      setIsCloseFriend(friendship?.is_close_friend || false);
-    }
+      if (friendsRes.data) {
+        const friendship = friendsRes.data.find((f: Friendship) => 
+          f.friend_id === params.id || (f.friend as Profile)?.id === params.id
+        );
+        setIsFriend(!!friendship);
+        setIsCloseFriend(friendship?.is_close_friend || false);
+      }
 
-    if (followRes.data !== undefined) {
-      setIsFollowing(followRes.data);
-    }
-
-    // Check for pending friend request
-    const { data: requests } = await api.getFriendRequests(currentUser.id, 'sent');
-    if (requests) {
-      const pending = requests.find((r: any) => r.recipient_id === params.id);
-      setFriendRequestSent(!!pending);
+      // Check for pending friend request
+      const { data: requests } = await api.getFriendRequests(currentUser.id, 'sent');
+      if (requests) {
+        const pending = requests.find((r: any) => r.recipient_id === params.id);
+        setFriendRequestSent(!!pending);
+      }
+    } catch (error) {
+      console.error('Error checking connection status:', error);
     }
   };
 
@@ -144,45 +144,88 @@ export default function UserProfileScreen() {
     if (!currentUser?.id) return;
 
     if (isFriend) {
-      // Remove friend
-      await api.removeFriend(currentUser.id, params.id);
-      setIsFriend(false);
-      setIsCloseFriend(false);
+      // Remove friend - show confirmation
+      Alert.alert(
+        'Remove Friend',
+        `Are you sure you want to remove ${profile?.name || 'this user'} as a friend?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const { error } = await api.removeFriend(currentUser.id, params.id);
+                if (error) {
+                  Alert.alert('Error', error.message || 'Failed to remove friend');
+                  return;
+                }
+                setIsFriend(false);
+                setIsCloseFriend(false);
+                Alert.alert('Success', 'Friend removed successfully');
+              } catch (error: any) {
+                Alert.alert('Error', error.message || 'Failed to remove friend');
+              }
+            },
+          },
+        ]
+      );
     } else if (friendRequestSent) {
       // Cancel request
-      const { data: requests } = await api.getFriendRequests(currentUser.id, 'sent');
-      const request = requests?.find((r: any) => r.recipient_id === params.id);
-      if (request) {
-        await api.cancelFriendRequest(request.id, currentUser.id);
-        setFriendRequestSent(false);
-      }
+      Alert.alert(
+        'Cancel Friend Request',
+        'Are you sure you want to cancel this friend request?',
+        [
+          { text: 'No', style: 'cancel' },
+          {
+            text: 'Yes',
+            onPress: async () => {
+              try {
+                const { data: requests } = await api.getFriendRequests(currentUser.id, 'sent');
+                const request = requests?.find((r: any) => r.recipient_id === params.id);
+                if (request) {
+                  const { error } = await api.cancelFriendRequest(request.id, currentUser.id);
+                  if (error) {
+                    Alert.alert('Error', error.message || 'Failed to cancel request');
+                    return;
+                  }
+                  setFriendRequestSent(false);
+                }
+              } catch (error: any) {
+                Alert.alert('Error', error.message || 'Failed to cancel request');
+              }
+            },
+          },
+        ]
+      );
     } else {
       // Send request
-      const { error } = await api.sendFriendRequest(currentUser.id, params.id);
-      if (error) {
+      try {
+        const { error } = await api.sendFriendRequest(currentUser.id, params.id);
+        if (error) {
+          Alert.alert('Error', error.message || 'Failed to send friend request');
+          return;
+        }
+        setFriendRequestSent(true);
+        Alert.alert('Success', 'Friend request sent!');
+      } catch (error: any) {
         Alert.alert('Error', error.message || 'Failed to send friend request');
-        return;
       }
-      setFriendRequestSent(true);
-    }
-  };
-
-  const handleFollow = async () => {
-    if (!currentUser?.id) return;
-
-    if (isFollowing) {
-      await api.unfollowUser(currentUser.id, params.id);
-      setIsFollowing(false);
-    } else {
-      await api.followUser(currentUser.id, params.id);
-      setIsFollowing(true);
     }
   };
 
   const handleToggleCloseFriend = async () => {
     if (!currentUser?.id || !isFriend) return;
-    await api.toggleCloseFriend(currentUser.id, params.id, !isCloseFriend);
-    setIsCloseFriend(!isCloseFriend);
+    try {
+      const { error } = await api.toggleCloseFriend(currentUser.id, params.id, !isCloseFriend);
+      if (error) {
+        Alert.alert('Error', error.message || 'Failed to update close friend status');
+        return;
+      }
+      setIsCloseFriend(!isCloseFriend);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'An error occurred');
+    }
   };
 
   const onRefresh = async () => {
@@ -244,72 +287,107 @@ export default function UserProfileScreen() {
     );
   }
 
+  // Use splash screen image as background (same as other tabs)
+  const backgroundSource = require('@/assets/images/splash-screen.png');
+
   return (
-    <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`} edges={['top']}>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+    <ImageBackground
+      source={backgroundSource}
+      style={{ flex: 1 }}
+      resizeMode="cover"
+    >
+      {/* Blurred Background Overlay */}
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)' }} />
       
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
+      {/* Gradient Overlay */}
+      <LinearGradient
+        colors={isDark 
+          ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']
+          : ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.05)']}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
       />
 
-      <ScrollView
-        className="flex-1"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Banner */}
-        <View className="relative" style={{ height: 200 }}>
-          {profile.banner_url ? (
-            <Image
-              source={{ uri: profile.banner_url }}
-              className="w-full h-full"
+      {/* Bottom gradient */}
+      <LinearGradient
+        colors={isDark
+          ? ['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']
+          : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.4)']}
+        locations={[0, 0.4424, 1]}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+
+      <SafeAreaView className="flex-1" edges={['top']}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        
+        <Stack.Screen
+          options={{
+            headerShown: false,
+          }}
+        />
+
+        <ScrollView
+          className="flex-1"
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Banner */}
+          <View className="relative" style={{ height: 200 }}>
+            <ImageBackground
+              source={backgroundSource}
+              style={{ width: '100%', height: '100%' }}
               resizeMode="cover"
-            />
-          ) : (
-            <View className={`w-full h-full ${isDark ? 'bg-gray-800' : 'bg-blue-500'}`} />
-          )}
-          
-          {/* Header Overlay */}
-          <View className="absolute top-0 left-0 right-0 flex-row items-center justify-between p-4">
-            <TouchableOpacity
-              onPress={() => router.back()}
-              className={`p-2 rounded-full ${isDark ? 'bg-gray-900/50' : 'bg-white/50'}`}
             >
-              <ChevronLeft size={24} color={isDark ? '#fff' : '#000'} />
-            </TouchableOpacity>
+              {/* Additional overlay for header area */}
+              <LinearGradient
+                colors={['rgba(0,0,0,0.5)', 'rgba(0,0,0,0.2)']}
+                style={{ width: '100%', height: '100%' }}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+              />
+            </ImageBackground>
             
-            {isOwnProfile && (
+            {/* Header Overlay */}
+            <View className="absolute top-0 left-0 right-0 flex-row items-center justify-between p-4">
               <TouchableOpacity
-                className={`p-2 rounded-full ${isDark ? 'bg-gray-900/50' : 'bg-white/50'}`}
+                onPress={() => router.back()}
+                className="p-2 rounded-full bg-black/30"
               >
-                <Settings size={20} color={isDark ? '#fff' : '#000'} />
+                <ChevronLeft size={24} color="#fff" />
               </TouchableOpacity>
+              
+              {isOwnProfile && (
+                <TouchableOpacity
+                  className="p-2 rounded-full bg-black/30"
+                >
+                  <Settings size={20} color="#fff" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Availability Status Badge */}
+            {profile.availability_status && (
+              <View className="absolute bottom-4 left-4">
+                <View
+                  className="px-3 py-1.5 rounded-full flex-row items-center"
+                  style={{ backgroundColor: getAvailabilityColor(profile.availability_status) }}
+                >
+                  <View className="w-2 h-2 rounded-full bg-white mr-2" />
+                  <Text className="text-white text-xs font-medium">
+                    {getAvailabilityText(profile.availability_status)}
+                  </Text>
+                </View>
+              </View>
             )}
           </View>
 
-          {/* Availability Status Badge */}
-          {profile.availability_status && (
-            <View className="absolute bottom-4 left-4">
-              <View
-                className="px-3 py-1.5 rounded-full flex-row items-center"
-                style={{ backgroundColor: getAvailabilityColor(profile.availability_status) }}
-              >
-                <View className="w-2 h-2 rounded-full bg-white mr-2" />
-                <Text className="text-white text-xs font-medium">
-                  {getAvailabilityText(profile.availability_status)}
-                </Text>
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* Profile Info */}
-        <View className={`px-5 pt-4 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-          <View className="flex-row items-start justify-between mb-4">
-            <View className="flex-1">
-              {/* Avatar */}
+          {/* Profile Info - Centered */}
+          <View className={`px-5 pt-4`} style={{ backgroundColor: 'transparent' }}>
+            <View className="items-center mb-4">
+              {/* Avatar - Centered */}
               <View className="relative -mt-12 mb-3">
                 <View className={`w-24 h-24 rounded-full ${isDark ? 'bg-gray-800' : 'bg-white'} items-center justify-center border-4 ${isDark ? 'border-gray-900' : 'border-gray-50'}`}>
                   {profile.avatar_url ? (
@@ -330,32 +408,36 @@ export default function UserProfileScreen() {
                 )}
               </View>
 
-              <Text className={`text-2xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {/* Name - Centered */}
+              <Text className={`text-2xl font-bold mb-1 text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 {profile.name}
               </Text>
               
+              {/* Major - Centered */}
               {profile.major && (
-                <View className="flex-row items-center mb-2">
+                <View className="flex-row items-center mb-2 justify-center">
                   <GraduationCap size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
-                  <Text className={`text-sm ml-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <Text className={`text-sm ml-1 text-center ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                     {profile.major} {profile.year ? `• ${profile.year}` : ''}
                   </Text>
                 </View>
               )}
 
+              {/* Bio - Centered */}
               {profile.bio && (
-                <Text className={`text-sm mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                <Text className={`text-sm mb-3 text-center ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   {profile.bio}
                 </Text>
               )}
 
-              {/* Interests */}
+              {/* Interests - Centered */}
               {profile.interests && profile.interests.length > 0 && (
-                <View className="flex-row flex-wrap mb-3" style={{ gap: 6 }}>
+                <View className="flex-row flex-wrap mb-3 justify-center" style={{ gap: 6 }}>
                   {profile.interests.map((interest, idx) => (
                     <View
                       key={idx}
-                      className={`px-3 py-1 rounded-full ${isDark ? 'bg-gray-800' : 'bg-blue-100'}`}
+                      className={`px-3 py-1 rounded-full ${isDark ? 'bg-gray-800/80' : 'bg-white/80'}`}
+                      style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }}
                     >
                       <Text className={`text-xs ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
                         {interest}
@@ -365,16 +447,16 @@ export default function UserProfileScreen() {
                 </View>
               )}
             </View>
-          </View>
 
           {/* Action Buttons */}
           {!isOwnProfile && (
-            <View className="flex-row mb-4" style={{ gap: 8 }}>
+            <View className="flex-row mb-4 justify-center" style={{ gap: 8 }}>
               <TouchableOpacity
                 onPress={handleFriendRequest}
-                className={`flex-1 flex-row items-center justify-center py-3 rounded-xl ${
-                  isFriend ? (isDark ? 'bg-gray-800' : 'bg-gray-200') : (isDark ? 'bg-blue-600' : 'bg-blue-500')
+                className={`flex-row items-center justify-center py-3 px-6 rounded-xl ${
+                  isFriend ? (isDark ? 'bg-gray-800/80' : 'bg-white/80') : (isDark ? 'bg-blue-600' : 'bg-blue-500')
                 }`}
+                style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 }}
               >
                 {isFriend ? (
                   <>
@@ -399,31 +481,9 @@ export default function UserProfileScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={handleFollow}
-                className={`flex-row items-center justify-center py-3 px-4 rounded-xl ${
-                  isFollowing ? (isDark ? 'bg-gray-800' : 'bg-gray-200') : (isDark ? 'bg-gray-700' : 'bg-gray-100')
-                }`}
-              >
-                {isFollowing ? (
-                  <>
-                    <UserMinus size={18} color={isDark ? '#fff' : '#000'} />
-                    <Text className={`ml-2 font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      Unfollow
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    <UserPlus size={18} color={isDark ? '#9ca3af' : '#6b7280'} />
-                    <Text className={`ml-2 font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Follow
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                className={`p-3 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}
+                className={`p-3 rounded-xl ${isDark ? 'bg-gray-800/80' : 'bg-white/80'}`}
                 onPress={() => router.push(`/(tabs)/messages?userId=${params.id}`)}
+                style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 }}
               >
                 <MessageCircle size={18} color={isDark ? '#9ca3af' : '#6b7280'} />
               </TouchableOpacity>
@@ -435,8 +495,9 @@ export default function UserProfileScreen() {
             <TouchableOpacity
               onPress={handleToggleCloseFriend}
               className={`flex-row items-center justify-between p-3 rounded-xl mb-4 ${
-                isDark ? 'bg-gray-800' : 'bg-white'
+                isDark ? 'bg-gray-800/80' : 'bg-white/90'
               }`}
+              style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 }}
             >
               <View className="flex-row items-center">
                 <Star size={18} color={isCloseFriend ? '#F59E0B' : (isDark ? '#9ca3af' : '#6b7280')} />
@@ -459,7 +520,8 @@ export default function UserProfileScreen() {
         {courses.length > 0 && (
           <Animated.View
             entering={FadeInDown.duration(500).delay(100)}
-            className={`mx-5 mb-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+            className={`mx-5 mb-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800/80' : 'bg-white/90'}`}
+            style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 }}
           >
             <View className="flex-row items-center mb-3">
               <BookOpen size={18} color={isDark ? '#9ca3af' : '#6b7280'} />
@@ -484,7 +546,8 @@ export default function UserProfileScreen() {
         {achievements.length > 0 && (
           <Animated.View
             entering={FadeInDown.duration(500).delay(200)}
-            className={`mx-5 mb-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+            className={`mx-5 mb-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800/80' : 'bg-white/90'}`}
+            style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 }}
           >
             <View className="flex-row items-center mb-3">
               <Trophy size={18} color={isDark ? '#9ca3af' : '#6b7280'} />
@@ -513,7 +576,8 @@ export default function UserProfileScreen() {
         {communities.length > 0 && (
           <Animated.View
             entering={FadeInDown.duration(500).delay(300)}
-            className={`mx-5 mb-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+            className={`mx-5 mb-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800/80' : 'bg-white/90'}`}
+            style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 }}
           >
             <View className="flex-row items-center mb-3">
               <Users size={18} color={isDark ? '#9ca3af' : '#6b7280'} />
@@ -535,7 +599,8 @@ export default function UserProfileScreen() {
         {upcomingEvents.length > 0 && (
           <Animated.View
             entering={FadeInDown.duration(500).delay(400)}
-            className={`mx-5 mb-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+            className={`mx-5 mb-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800/80' : 'bg-white/90'}`}
+            style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 }}
           >
             <View className="flex-row items-center mb-3">
               <Calendar size={18} color={isDark ? '#9ca3af' : '#6b7280'} />
@@ -563,7 +628,8 @@ export default function UserProfileScreen() {
         {profile.show_study_stats && profile.study_hours !== undefined && (
           <Animated.View
             entering={FadeInDown.duration(500).delay(500)}
-            className={`mx-5 mb-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+            className={`mx-5 mb-4 rounded-2xl p-4 ${isDark ? 'bg-gray-800/80' : 'bg-white/90'}`}
+            style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 }}
           >
             <View className="flex-row items-center mb-3">
               <BookOpen size={18} color={isDark ? '#9ca3af' : '#6b7280'} />
@@ -595,9 +661,10 @@ export default function UserProfileScreen() {
           </Animated.View>
         )}
 
-        <View className="h-8" />
-      </ScrollView>
-    </SafeAreaView>
+          <View className="h-8" />
+        </ScrollView>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
 

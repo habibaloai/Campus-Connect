@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
     View,
     Text,
@@ -132,7 +133,15 @@ export default function FriendsScreen() {
         fetchRequests();
     }, [fetchFriends, fetchRequests]);
 
-    // Real-time subscription for friend requests
+    // Refresh when screen comes into focus (e.g., after unfriending someone)
+    useFocusEffect(
+        useCallback(() => {
+            fetchFriends();
+            fetchRequests();
+        }, [fetchFriends, fetchRequests])
+    );
+
+    // Real-time subscription for friend requests and friendships
     useEffect(() => {
         if (!user?.id) return;
 
@@ -166,16 +175,34 @@ export default function FriendsScreen() {
                     fetchRequests();
                 }
             )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'friendships',
+                    filter: `user_id=eq.${user.id}`,
+                },
+                (payload) => {
+                    console.log('Friendship update in friends tab:', payload);
+                    // Reload friends when any change occurs
+                    fetchFriends();
+                }
+            )
             .subscribe();
 
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [user?.id, fetchRequests]);
+    }, [user?.id, fetchRequests, fetchFriends]);
 
     const renderFriendItem = ({ item }: { item: any }) => (
         <View className={`flex-row items-center justify-between p-4 mb-2 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
-            <View className="flex-row items-center flex-1">
+            <TouchableOpacity
+                onPress={() => router.push(`/profile/${item.friend_id}`)}
+                className="flex-row items-center flex-1"
+                activeOpacity={0.7}
+            >
                 <Image
                     source={{ uri: item.friend?.avatar_url || 'https://via.placeholder.com/50' }}
                     className="w-12 h-12 rounded-full bg-gray-200"
@@ -188,7 +215,7 @@ export default function FriendsScreen() {
                         {item.friend?.major || 'Student'}
                     </Text>
                 </View>
-            </View>
+            </TouchableOpacity>
             <View className="flex-row gap-2">
                 <TouchableOpacity
                     onPress={() => router.push(`/messages/${item.friend_id}`)}
@@ -208,7 +235,11 @@ export default function FriendsScreen() {
 
     const renderRequestItem = ({ item }: { item: any }) => (
         <View className={`flex-row items-center justify-between p-4 mb-2 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
-            <View className="flex-row items-center flex-1">
+            <TouchableOpacity
+                onPress={() => router.push(`/profile/${item.requester?.id}`)}
+                className="flex-row items-center flex-1"
+                activeOpacity={0.7}
+            >
                 <Image
                     source={{ uri: item.requester?.avatar_url || 'https://via.placeholder.com/50' }}
                     className="w-12 h-12 rounded-full bg-gray-200"
@@ -221,7 +252,7 @@ export default function FriendsScreen() {
                         {item.requester?.major || 'Student'}
                     </Text>
                 </View>
-            </View>
+            </TouchableOpacity>
             <View className="flex-row gap-2">
                 <TouchableOpacity
                     onPress={() => handleRespondToRequest(item.id, 'accepted')}
@@ -246,7 +277,11 @@ export default function FriendsScreen() {
 
         return (
             <View className={`flex-row items-center justify-between p-4 mb-2 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
-                <View className="flex-row items-center flex-1">
+                <TouchableOpacity
+                    onPress={() => router.push(`/profile/${item.id}`)}
+                    className="flex-row items-center flex-1"
+                    activeOpacity={0.7}
+                >
                     <Image
                         source={{ uri: item.avatar_url || 'https://via.placeholder.com/50' }}
                         className="w-12 h-12 rounded-full bg-gray-200"
@@ -259,7 +294,7 @@ export default function FriendsScreen() {
                             {item.major || 'Student'}
                         </Text>
                     </View>
-                </View>
+                </TouchableOpacity>
                 {!isFriend && (
                     <TouchableOpacity
                         onPress={() => handleSendRequest(item.id)}

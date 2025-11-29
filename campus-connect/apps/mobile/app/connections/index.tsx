@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   RefreshControl,
   TextInput,
 } from 'react-native';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -24,7 +24,7 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
-import { api } from '@/lib/supabase';
+import { api, supabase } from '@/lib/supabase';
 import { Friendship, Follow, Profile } from '@/types';
 
 export default function ConnectionsScreen() {
@@ -41,13 +41,7 @@ export default function ConnectionsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    if (user?.id) {
-      loadData();
-    }
-  }, [user?.id, activeTab]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!user?.id) return;
 
     try {
@@ -74,7 +68,48 @@ export default function ConnectionsScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, activeTab]);
+
+  useEffect(() => {
+    if (user?.id) {
+      loadData();
+    }
+  }, [user?.id, activeTab, loadData]);
+
+  // Refresh when screen comes into focus (e.g., after unfriending from profile)
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) {
+        loadData();
+      }
+    }, [user?.id, loadData])
+  );
+
+  // Real-time subscription for friendships changes
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('connections-friendships-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'friendships',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          // Reload data when friendships change
+          loadData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, loadData]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -141,6 +176,7 @@ export default function ConnectionsScreen() {
           <TouchableOpacity
             onPress={() => router.push(`/profile/${profile?.id}`)}
             className="mr-3"
+            activeOpacity={0.7}
           >
             <View className={`w-14 h-14 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-200'} items-center justify-center relative`}>
               {profile?.avatar_url ? (
@@ -159,7 +195,11 @@ export default function ConnectionsScreen() {
             </View>
           </TouchableOpacity>
 
-          <View className="flex-1">
+          <TouchableOpacity
+            onPress={() => router.push(`/profile/${profile?.id}`)}
+            className="flex-1"
+            activeOpacity={0.7}
+          >
             <View className="flex-row items-center">
               <Text className={`font-semibold text-base ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 {profile?.name || 'Unknown User'}
@@ -194,7 +234,7 @@ export default function ConnectionsScreen() {
                 </Text>
               </View>
             )}
-          </View>
+          </TouchableOpacity>
 
           <View className="flex-row" style={{ gap: 8 }}>
             <TouchableOpacity
