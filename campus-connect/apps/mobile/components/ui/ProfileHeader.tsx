@@ -72,9 +72,6 @@ export default function ProfileHeader({
             {/* Username */}
             <Text style={[styles.username, { color: isDark ? '#ffffff' : '#1e293b' }]}>@{username}</Text>
 
-            {/* Name */}
-            <Text style={[styles.name, { color: isDark ? '#ffffff' : '#1e293b' }]}>{name}</Text>
-
             {/* Location */}
             {location && <Text style={[styles.location, { color: isDark ? 'rgba(255, 255, 255, 0.8)' : '#64748b' }]}>{location}</Text>}
 
