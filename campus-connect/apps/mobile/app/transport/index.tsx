@@ -147,20 +147,23 @@ export default function TransportScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
       />
-      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <StatusBar style={isDark ? "light" : "dark"} />
         <Stack.Screen
           options={{
-            title: 'Navigate',
-            headerTransparent: true,
-            headerTitleStyle: { color: isDark ? '#ffffff' : '#1e293b' },
-            headerLeft: () => (
-              <TouchableOpacity onPress={() => router.back()} className="p-2">
-                <ChevronLeft size={24} color={isDark ? "#ffffff" : "#1e293b"} />
-              </TouchableOpacity>
-            ),
+            headerShown: false,
           }}
         />
+
+        {/* Header with Title and Back Button */}
+        <View className="flex-row items-center px-4 py-3">
+          <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2">
+            <ChevronLeft size={24} color={isDark ? "#ffffff" : "#1e293b"} />
+          </TouchableOpacity>
+          <Text className={`text-2xl font-bold flex-1 ml-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Navigate
+          </Text>
+        </View>
 
         <ScrollView
           className="flex-1"
@@ -168,6 +171,7 @@ export default function TransportScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
           }
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingTop: 8 }}
         >
         {/* Tab Switcher */}
         <Animated.View entering={FadeInDown.duration(500)} className="px-4 pt-4">

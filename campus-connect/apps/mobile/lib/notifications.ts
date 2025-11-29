@@ -223,9 +223,13 @@ export async function getNotificationHistory(userId: string, limit = 50) {
 
     // Map database fields to application model
     // The database has 'message' but the app expects 'body'
+    // Also map action_url for navigation
     const mappedData = (data || []).map((n: any) => ({
       ...n,
       body: n.body || n.message, // Fallback to message if body is missing
+      action_url: n.action_url, // Preserve action_url for navigation
+      // Extract target_id from action_url if needed
+      target_id: n.target_id || (n.action_url ? extractIdFromActionUrl(n.action_url) : undefined),
     }));
 
     return mappedData;
@@ -302,12 +306,61 @@ export async function deleteNotification(notificationId: string): Promise<boolea
   }
 }
 
+// Delete all notifications for a user
+export async function deleteAllNotifications(userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', userId);
+
+    return !error;
+  } catch (error) {
+    console.error('Error deleting all notifications:', error);
+    return false;
+  }
+}
+
+// Helper function to extract ID from action_url
+function extractIdFromActionUrl(actionUrl: string | undefined): string | undefined {
+  if (!actionUrl) return undefined;
+  
+  // Extract ID from paths like /profile/{id}, /(tabs)/messages/{id}, etc.
+  const match = actionUrl.match(/\/([^\/]+)$/);
+  return match ? match[1] : undefined;
+}
+
 // Get the route to navigate to based on notification data
 export function getNotificationRoute(data: NotificationData): string {
+  // If targetScreen (action_url) is provided, use it directly
+  if (data.targetScreen && data.targetScreen.startsWith('/')) {
+    return data.targetScreen;
+  }
+  
+  // Otherwise, construct route from type and targetId
   switch (data.type) {
     case 'event':
+      // Check if notification title indicates event chat
+      if (data.title === 'New Event Chat Message') {
+        // Extract event ID from action_url or use targetId
+        const eventId = data.targetId || extractIdFromActionUrl(data.targetScreen);
+        return eventId ? `/(tabs)/events/${eventId}?tab=chat` : '/(tabs)/events';
+      }
       return data.targetId ? `/(tabs)/events/${data.targetId}` : '/(tabs)/events';
     case 'message':
+    case 'social': // Friend requests and messages are 'social' type
+      // Check if it's a message notification
+      if (data.title === 'New Message') {
+        return data.targetId ? `/(tabs)/messages/${data.targetId}` : '/(tabs)/messages';
+      }
+      // Friend request notifications - navigate to requests tab
+      if (data.title === 'New Friend Request' || data.title === 'Friend Request Accepted') {
+        return '/(tabs)/friends?tab=requests';
+      }
+      // Post like/comment notifications
+      if (data.title === 'Post Liked' || data.title === 'New Comment') {
+        return data.targetId ? `/(tabs)/community/${data.targetId}` : '/(tabs)/community';
+      }
       return data.targetId ? `/(tabs)/messages/${data.targetId}` : '/(tabs)/messages';
     case 'community':
       return data.targetId ? `/(tabs)/community/${data.targetId}` : '/(tabs)/community';

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { Platform } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from './AuthContext';
+import { supabase } from '../lib/supabase';
 import {
   registerForPushNotificationsAsync,
   savePushTokenToSupabase,
@@ -10,6 +11,7 @@ import {
   getUnreadNotificationCount,
   markNotificationAsRead,
   markAllNotificationsAsRead,
+  deleteAllNotifications,
   getNotificationRoute,
   NotificationData,
 } from '../lib/notifications';
@@ -35,6 +37,7 @@ interface NotificationContextType {
   refreshNotifications: () => Promise<void>;
   markAsRead: (notificationId: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
   clearPushToken: () => Promise<void>;
 }
 
@@ -114,6 +117,18 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       setNotifications((prev) =>
         prev.map((n) => ({ ...n, read: true }))
       );
+      setUnreadCount(0);
+    }
+  }, [user?.id]);
+
+  // Clear all notifications
+  const clearAllNotifications = useCallback(async () => {
+    if (!user?.id) return;
+
+    const success = await deleteAllNotifications(user.id);
+    
+    if (success) {
+      setNotifications([]);
       setUnreadCount(0);
     }
   }, [user?.id]);
@@ -204,6 +219,54 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, [isAuthenticated, refreshNotifications]);
 
+  // Real-time subscription for notifications
+  useEffect(() => {
+    if (!user?.id || !isAuthenticated) return;
+
+    const channel = supabase
+      .channel(`notifications:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        async (payload) => {
+          // New notification created - refresh the list
+          console.log('New notification received:', payload.new);
+          await refreshNotifications();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        async (payload) => {
+          // Notification updated (e.g., marked as read) - refresh the list
+          console.log('Notification updated:', payload.new);
+          await refreshNotifications();
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Successfully subscribed to notifications real-time updates');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Error subscribing to notifications real-time updates');
+        }
+      });
+
+    return () => {
+      console.log('Cleaning up notifications real-time subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, isAuthenticated, refreshNotifications]);
+
   // Check for notification that opened the app (native only)
   useEffect(() => {
     if (Platform.OS === 'web') return;
@@ -235,6 +298,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         refreshNotifications,
         markAsRead,
         markAllAsRead,
+        clearAllNotifications,
         clearPushToken,
       }}
     >

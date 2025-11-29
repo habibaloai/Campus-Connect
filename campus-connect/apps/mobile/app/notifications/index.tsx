@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { router, Stack } from 'expo-router';
-import { Bell, CheckCheck, ChevronLeft, Calendar, MessageCircle, Users, BookOpen, Info } from 'lucide-react-native';
+import { Bell, CheckCheck, ChevronLeft, Calendar, MessageCircle, Users, BookOpen, Info, Trash2 } from 'lucide-react-native';
 import { useNotifications, StoredNotification } from '../../contexts/NotificationContext';
 import { getNotificationRoute, NotificationData } from '../../lib/notifications';
 
@@ -95,6 +96,13 @@ function getTimeAgo(dateString: string): string {
   });
 }
 
+// Helper to extract ID from URL
+function extractIdFromUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+  const match = url.match(/\/([^\/?]+)(?:\?|$)/);
+  return match ? match[1] : undefined;
+}
+
 export default function NotificationsScreen() {
   const {
     notifications,
@@ -103,6 +111,7 @@ export default function NotificationsScreen() {
     refreshNotifications,
     markAsRead,
     markAllAsRead,
+    clearAllNotifications,
   } = useNotifications();
 
   const handleNotificationPress = useCallback(
@@ -112,11 +121,20 @@ export default function NotificationsScreen() {
         await markAsRead(notification.id);
       }
 
-      // Navigate to target screen
+      // Navigate to target screen using action_url or notification type
+      const actionUrl = (notification as any).action_url;
+      
+      // Use action_url if available (preferred - comes from database)
+      if (actionUrl && actionUrl.startsWith('/')) {
+        router.push(actionUrl as any);
+        return;
+      }
+      
+      // Fallback: Construct route from notification data
       const data: NotificationData = {
         type: notification.type as any,
-        targetId: notification.target_id,
-        targetScreen: notification.target_screen,
+        targetId: notification.target_id || extractIdFromUrl(actionUrl),
+        targetScreen: notification.target_screen || actionUrl,
         title: notification.title,
         body: notification.body,
       };
@@ -180,13 +198,37 @@ export default function NotificationsScreen() {
               <ChevronLeft size={24} color="#374151" />
             </TouchableOpacity>
           ),
-          headerRight: () =>
-            unreadCount > 0 ? (
-              <TouchableOpacity onPress={markAllAsRead} className="p-2 flex-row items-center">
-                <CheckCheck size={20} color="#3B82F6" />
-                <Text className="text-blue-500 ml-1 text-sm font-medium">Mark all read</Text>
-              </TouchableOpacity>
-            ) : null,
+          headerRight: () => (
+            <View className="flex-row items-center">
+              {unreadCount > 0 && (
+                <TouchableOpacity onPress={markAllAsRead} className="p-2 flex-row items-center mr-2">
+                  <CheckCheck size={20} color="#3B82F6" />
+                  <Text className="text-blue-500 ml-1 text-sm font-medium">Mark all read</Text>
+                </TouchableOpacity>
+              )}
+              {notifications.length > 0 && (
+                <TouchableOpacity 
+                  onPress={() => {
+                    Alert.alert(
+                      'Clear All Notifications',
+                      'Are you sure you want to delete all notifications? This action cannot be undone.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Clear All',
+                          style: 'destructive',
+                          onPress: clearAllNotifications,
+                        },
+                      ]
+                    );
+                  }} 
+                  className="p-2"
+                >
+                  <Trash2 size={20} color="#EF4444" />
+                </TouchableOpacity>
+              )}
+            </View>
+          ),
         }}
       />
 

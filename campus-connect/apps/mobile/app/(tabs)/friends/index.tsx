@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
     View,
     Text,
@@ -24,8 +24,17 @@ export default function FriendsScreen() {
     const { user } = useAuth();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
+    const params = useLocalSearchParams<{ tab?: string }>();
 
-    const [activeTab, setActiveTab] = useState<Tab>('friends');
+    // Initialize activeTab from URL params if provided, otherwise default to 'friends'
+    const [activeTab, setActiveTab] = useState<Tab>((params?.tab as Tab) || 'friends');
+    
+    // Update activeTab when params change (e.g., when navigating from notification)
+    useEffect(() => {
+        if (params?.tab && ['friends', 'requests', 'search'].includes(params.tab)) {
+            setActiveTab(params.tab as Tab);
+        }
+    }, [params?.tab]);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 

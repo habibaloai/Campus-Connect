@@ -144,14 +144,19 @@ export default function AIScreen() {
         <StatusBar style={isDark ? "light" : "dark"} />
         <Stack.Screen
           options={{
-            title: 'AI Assistant',
-            headerLeft: () => (
-              <TouchableOpacity onPress={() => router.back()} className="p-2">
-                <ChevronLeft size={24} color={isDark ? '#FFFFFF' : '#374151'} />
-              </TouchableOpacity>
-            ),
+            headerShown: false,
           }}
         />
+
+        {/* Header with Title and Back Button */}
+        <View className="flex-row items-center px-4 py-3">
+          <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2">
+            <ChevronLeft size={24} color={isDark ? '#FFFFFF' : '#374151'} />
+          </TouchableOpacity>
+          <Text className={`text-2xl font-bold flex-1 ml-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            AI Assistant
+          </Text>
+        </View>
 
         <KeyboardAvoidingView
           className="flex-1"

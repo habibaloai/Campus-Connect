@@ -74,7 +74,8 @@ const categoryColors: Record<string, { bg: string; text: string }> = {
 };
 
 export default function EventDetailsScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string; tab?: string }>();
+  const { id } = params;
   const { user, profile } = useAuth();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -87,7 +88,17 @@ export default function EventDetailsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [rsvpLoading, setRsvpLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'details' | 'photos' | 'comments' | 'chat' | 'requests'>('details');
+  // Initialize activeTab from URL params if provided, otherwise default to 'details'
+  const [activeTab, setActiveTab] = useState<'details' | 'photos' | 'comments' | 'chat' | 'requests'>(
+    (params?.tab as any) || 'details'
+  );
+  
+  // Update activeTab when params change (e.g., when navigating from notification)
+  useEffect(() => {
+    if (params?.tab && ['details', 'photos', 'comments', 'chat', 'requests'].includes(params.tab)) {
+      setActiveTab(params.tab as any);
+    }
+  }, [params?.tab]);
   const [photos, setPhotos] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
   const [reactions, setReactions] = useState<any[]>([]);

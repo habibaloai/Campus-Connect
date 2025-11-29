@@ -2748,13 +2748,51 @@ export const api = {
       }
 
       if (existingRequest.status === 'accepted') {
-        return {
-          data: null,
-          error: {
-            message: 'You are already friends with this user',
-            code: 'ALREADY_FRIENDS',
-          },
-        };
+        // Check if they're actually still friends in the friendships table
+        // because the friend_requests record might be outdated if they unfriended
+        const { data: friendship, error: friendshipError } = await supabase
+          .from('friendships')
+          .select('id')
+          .or(`and(user_id.eq.${requesterId}, friend_id.eq.${recipientId}), and(user_id.eq.${recipientId}, friend_id.eq.${requesterId})`)
+          .maybeSingle();
+
+        if (friendshipError) {
+          console.error('Error checking friendship:', friendshipError);
+        }
+
+        // If they're still actually friends, return error
+        if (friendship) {
+          return {
+            data: null,
+            error: {
+              message: 'You are already friends with this user',
+              code: 'ALREADY_FRIENDS',
+            },
+          };
+        }
+
+        // If friendship doesn't exist but request is 'accepted', update request to pending
+        // This handles the case where they unfriended but the friend_requests record wasn't cleaned up
+        console.log('Found accepted request but no friendship - resetting request to pending:', existingRequest.id);
+        
+        const { data: updatedData, error: updateError } = await supabase
+          .from('friend_requests')
+          .update({
+            status: 'pending',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingRequest.id)
+          .select()
+          .maybeSingle();
+
+        if (updateError) {
+          return {
+            data: null,
+            error: updateError,
+          };
+        }
+
+        return { data: updatedData, error: null };
       }
 
       // If it's rejected or cancelled, update it to pending

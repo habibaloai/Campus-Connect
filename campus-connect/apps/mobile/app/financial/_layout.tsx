@@ -4,14 +4,7 @@ export default function FinancialLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: {
-          backgroundColor: '#FFFFFF',
-        },
-        headerTitleStyle: {
-          fontWeight: '600',
-          color: '#111827',
-        },
-        headerShadowVisible: false,
+        headerShown: false,
       }}
     />
   );

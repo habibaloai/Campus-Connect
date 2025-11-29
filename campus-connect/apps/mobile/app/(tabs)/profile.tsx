@@ -16,11 +16,9 @@ import {
   ChevronRight,
   Fingerprint,
   BookOpen,
-  Wallet,
   Utensils,
   Navigation,
   Bot,
-  Briefcase,
   Heart,
   Trophy,
   Settings,
@@ -84,11 +82,9 @@ export default function ProfileScreen() {
 
   const quickLinks = [
     { icon: BookOpen, label: 'Academics', route: '/academics', color: '#0066cc', bgColor: '#e6f2ff' },
-    { icon: Wallet, label: 'Financial', route: '/financial', color: '#10b981', bgColor: '#d1fae5' },
     { icon: Utensils, label: 'Dining', route: '/dining', color: '#f59e0b', bgColor: '#fef3c7' },
     { icon: Navigation, label: 'Navigate', route: '/transport', color: '#6366f1', bgColor: '#e0e7ff' },
     { icon: Bot, label: 'AI Assistant', route: '/ai', color: '#8b5cf6', bgColor: '#ede9fe' },
-    { icon: Briefcase, label: 'Career', route: '/career', color: '#64748b', bgColor: '#f1f5f9' },
     { icon: Heart, label: 'Wellness', route: '/wellness', color: '#ec4899', bgColor: '#fce7f3' },
     { icon: Trophy, label: 'Achievements', route: '/achievements', color: '#f59e0b', bgColor: '#fef3c7' },
   ];
