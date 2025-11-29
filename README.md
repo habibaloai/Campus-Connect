@@ -57,8 +57,15 @@ Create a file called `.env` in the **mobile app directory** (`campus-connect/app
 # Paste This
 EXPO_PUBLIC_SUPABASE_URL=https://ojmkhimriptucfsulfzv.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qbWtoaW1yaXB0dWNmc3VsZnp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNjE4MjYsImV4cCI6MjA3OTczNzgyNn0.Nu_-N1xZQBD9yzavMyzxAWC2dPp4UKM3tt6402kzGjs
+
+# Site URL (optional)
 EXPO_PUBLIC_SITE_URL=http://localhost:3001
 EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyCtI_PNpHLV7HRT1hI0lVpgMuA1B6kPImk
+
+
+
+
+
 ```
 
 **Important Notes:**
@@ -73,10 +80,12 @@ Create a file called `.env.local` in the **root directory** (`campus-connect/.en
 ```env
 # Supabase Configuration
 # Paste This
-EXPO_PUBLIC_SUPABASE_URL=https://ojmkhimriptucfsulfzv.supabase.co
+EEXPO_PUBLIC_SUPABASE_URL=https://ojmkhimriptucfsulfzv.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qbWtoaW1yaXB0dWNmc3VsZnp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNjE4MjYsImV4cCI6MjA3OTczNzgyNn0.Nu_-N1xZQBD9yzavMyzxAWC2dPp4UKM3tt6402kzGjs
+
+# Site URL (optional)
 EXPO_PUBLIC_SITE_URL=http://localhost:3001
-EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyCtI_PNpHLV7HRT1hI0lVpgMuA1B6kPImk
+EXPO_PUBLIC_SUPABASE_URL=https://ojmkhimriptucfsulfzv.supabase.coEXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qbWtoaW1yaXB0dWNmc3VsZnp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNjE4MjYsImV4cCI6MjA3OTczNzgyNn0.Nu_-N1xZQBD9yzavMyzxAWC2dPp4UKM3tt6402kzGjsEXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyCtI_PNpHLV7HRT1hI0lVpgMuA1B6kPImk
 ```
 
 **Important Notes:**
@@ -104,13 +113,6 @@ The `-c` flag clears the cache, which is **essential** when environment variable
 
 If you see errors about missing Supabase URL/Key, check your `.env` files.
 
-## 🗄️ Database Setup
-
-The database schema and migrations need to be set up in your Supabase project. Run the SQL files in your Supabase SQL Editor:
-
-1. Run `supabase-schema.sql` - Main database schema
-2. Run migration files from `supabase-migrations/` directory in order:
-   - `add-event-chat-support.sql` - Adds event chat functionality
 
 ## 🛠️ Tech Stack
 
@@ -152,6 +154,7 @@ campus-connect/
 1. **Verify both .env files exist:**
    - `campus-connect/apps/mobile/.env` (primary)
    - `campus-connect/.env.local` (fallback)
+   - change the .env.local to .env
 
 2. **Check file format:**
    - No spaces around `=`

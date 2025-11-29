@@ -14,10 +14,9 @@ import {
   Modal,
   Dimensions,
   StatusBar,
-  Keyboard,
 } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, MapPin, Users, Clock, ChevronLeft, Share2, Check, X, MessageCircle, Image as ImageIcon, Heart, MessageSquare, Camera, Send, Smile, Plus, Bookmark, Edit, Trash2, UserPlus, Search } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -80,7 +79,6 @@ export default function EventDetailsScreen() {
   const { user, profile } = useAuth();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const insets = useSafeAreaInsets();
 
   const [event, setEvent] = useState<Event | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
@@ -110,7 +108,6 @@ export default function EventDetailsScreen() {
   const [eventConversationId, setEventConversationId] = useState<string | null>(null);
   const [loadingChat, setLoadingChat] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const messageSubscriptionRef = useRef<any>(null);
   const chatScrollViewRef = useRef<ScrollView>(null);
   const [photoDescription, setPhotoDescription] = useState('');
@@ -573,31 +570,6 @@ export default function EventDetailsScreen() {
       }
     }
   }, [activeTab, event?.is_attending, fetchEventChat, eventConversationId]);
-
-  // Handle keyboard show/hide for chat input
-  useEffect(() => {
-    if (activeTab !== 'chat') return;
-
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-
-    const keyboardWillShowListener = Keyboard.addListener(showEvent, (e) => {
-      setKeyboardHeight(e.endCoordinates.height);
-      // Scroll to bottom when keyboard appears
-      setTimeout(() => {
-        chatScrollViewRef.current?.scrollToEnd({ animated: true });
-      }, Platform.OS === 'ios' ? 250 : 100);
-    });
-
-    const keyboardWillHideListener = Keyboard.addListener(hideEvent, () => {
-      setKeyboardHeight(0);
-    });
-
-    return () => {
-      keyboardWillShowListener.remove();
-      keyboardWillHideListener.remove();
-    };
-  }, [activeTab]);
 
   // Send message in event chat
   const sendChatMessage = async () => {
@@ -1173,16 +1145,12 @@ export default function EventDetailsScreen() {
                 <KeyboardAvoidingView
                   behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                   style={{ flex: 1 }}
-                  keyboardVerticalOffset={Platform.OS === 'ios' ? 120 + insets.top : 20}
+                  keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
                 >
                   <ScrollView
                     ref={chatScrollViewRef}
                     style={{ flex: 1 }}
-                    contentContainerStyle={{ 
-                      paddingVertical: 16, 
-                      flexGrow: 1,
-                      paddingBottom: 80, // Extra padding to ensure messages are visible above input
-                    }}
+                    contentContainerStyle={{ paddingVertical: 16, flexGrow: 1 }}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                     onContentSizeChange={() => {
@@ -1281,11 +1249,9 @@ export default function EventDetailsScreen() {
                       flexDirection: 'row',
                       alignItems: 'flex-end',
                       paddingTop: 12,
-                      paddingBottom: Math.max(insets.bottom, 12) + (keyboardHeight > 0 ? 0 : 0),
-                      paddingHorizontal: 0,
+                      paddingBottom: 12,
                       borderTopWidth: 1,
                       borderTopColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-                      backgroundColor: isDark ? 'rgba(17, 24, 39, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                     }}
                   >
                     <TextInput
@@ -1305,14 +1271,8 @@ export default function EventDetailsScreen() {
                       value={messageText}
                       onChangeText={setMessageText}
                       multiline
-                      textAlignVertical="top"
+                      textAlignVertical="center"
                       editable={!sendingMessage}
-                      onFocus={() => {
-                        // Scroll to bottom when input is focused
-                        setTimeout(() => {
-                          chatScrollViewRef.current?.scrollToEnd({ animated: true });
-                        }, 300);
-                      }}
                     />
                     <TouchableOpacity
                       onPress={sendChatMessage}
