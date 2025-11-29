@@ -26,3 +26,4 @@ WHERE cp.conversation_id = c.id
 -- Add comment for documentation
 COMMENT ON COLUMN conversation_participants.is_admin IS 'Indicates if the participant is an admin in a group conversation. Only applicable for group type conversations.';
 
+

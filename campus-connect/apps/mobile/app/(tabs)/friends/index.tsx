@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, Stack } from 'expo-router';
 import { Search, UserPlus, UserCheck, UserX, MessageCircle, ChevronLeft } from 'lucide-react-native';
 import { useAuth } from '@/providers';
-import { api } from '@/lib/supabase';
+import { api, supabase } from '@/lib/supabase';
 import { useColorScheme } from '@/components/useColorScheme';
 
 type Tab = 'friends' | 'requests' | 'search';
@@ -131,6 +131,47 @@ export default function FriendsScreen() {
         fetchFriends();
         fetchRequests();
     }, [fetchFriends, fetchRequests]);
+
+    // Real-time subscription for friend requests
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const channel = supabase
+            .channel('friends-tab-realtime')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'friend_requests',
+                    filter: `recipient_id=eq.${user.id}`,
+                },
+                (payload) => {
+                    console.log('Friend request update in friends tab:', payload);
+                    // Reload requests when any change occurs
+                    fetchRequests();
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'friend_requests',
+                    filter: `requester_id=eq.${user.id}`,
+                },
+                (payload) => {
+                    console.log('Sent friend request update in friends tab:', payload);
+                    // Reload requests when any change occurs
+                    fetchRequests();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [user?.id, fetchRequests]);
 
     const renderFriendItem = ({ item }: { item: any }) => (
         <View className={`flex-row items-center justify-between p-4 mb-2 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>

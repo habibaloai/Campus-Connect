@@ -2589,7 +2589,8 @@ export const api = {
 
   // Friend Requests
   sendFriendRequest: async (requesterId: string, recipientId: string) => {
-    const { data, error } = await supabase
+    // Try to insert first - this is the most common case
+    const { data: insertData, error: insertError } = await supabase
       .from('friend_requests')
       .insert({
         requester_id: requesterId,
@@ -2599,7 +2600,152 @@ export const api = {
       .select()
       .single();
 
-    return { data, error };
+    // If insert succeeds, we're done
+    if (!insertError && insertData) {
+      return { data: insertData, error: null };
+    }
+
+    // If we get a unique constraint error (23505), a request already exists
+    if (insertError && insertError.code === '23505') {
+      // Fetch the existing request
+      const { data: existingRequest, error: fetchError } = await supabase
+        .from('friend_requests')
+        .select('*')
+        .eq('requester_id', requesterId)
+        .eq('recipient_id', recipientId)
+        .maybeSingle();
+
+      if (fetchError) {
+        return { data: null, error: fetchError };
+      }
+
+      if (!existingRequest) {
+        // This shouldn't happen, but handle it
+        return {
+          data: null,
+          error: {
+            message: 'Friend request already exists but could not be retrieved',
+            code: 'UNKNOWN_ERROR',
+          },
+        };
+      }
+
+      // Check the status of the existing request
+      if (existingRequest.status === 'pending') {
+        return {
+          data: null,
+          error: {
+            message: 'Friend request already sent',
+            code: 'ALREADY_SENT',
+          },
+        };
+      }
+
+      if (existingRequest.status === 'accepted') {
+        return {
+          data: null,
+          error: {
+            message: 'You are already friends with this user',
+            code: 'ALREADY_FRIENDS',
+          },
+        };
+      }
+
+      // If it's rejected or cancelled, update it to pending
+      if (existingRequest.status === 'rejected' || existingRequest.status === 'cancelled') {
+        console.log('Updating rejected/cancelled request to pending:', existingRequest.id);
+        
+        // Update the request - use both id and the user IDs to ensure we can update
+        const { data: updatedData, error: updateError } = await supabase
+          .from('friend_requests')
+          .update({
+            status: 'pending',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingRequest.id)
+          .eq('requester_id', requesterId)
+          .eq('recipient_id', recipientId)
+          .select()
+          .maybeSingle();
+
+        console.log('Update result:', { updatedData, updateError });
+
+        if (updateError) {
+          console.error('Update error:', updateError);
+          return { data: null, error: updateError };
+        }
+
+        if (!updatedData) {
+          // Update didn't return data, but it might have succeeded
+          // Try to fetch it again to verify
+          console.log('Update returned no data, fetching again...');
+          const { data: refreshedData, error: refreshError } = await supabase
+            .from('friend_requests')
+            .select('*')
+            .eq('id', existingRequest.id)
+            .maybeSingle();
+
+          console.log('Refresh result:', { refreshedData, refreshError });
+
+          if (refreshError) {
+            console.error('Refresh error:', refreshError);
+            return { data: null, error: refreshError };
+          }
+
+          if (!refreshedData) {
+            return {
+              data: null,
+              error: {
+                message: 'Failed to update friend request - request not found after update',
+                code: 'UPDATE_FAILED',
+              },
+            };
+          }
+
+          // Verify the status was actually updated
+          if (refreshedData.status !== 'pending') {
+            console.error('Status was not updated correctly:', refreshedData.status);
+            return {
+              data: null,
+              error: {
+                message: `Failed to update friend request - status is still ${refreshedData.status}`,
+                code: 'UPDATE_FAILED',
+              },
+            };
+          }
+
+          console.log('Successfully updated request:', refreshedData);
+          return { data: refreshedData, error: null };
+        }
+
+        // Verify the status was actually updated
+        if (updatedData.status !== 'pending') {
+          console.error('Status was not updated correctly:', updatedData.status);
+          return {
+            data: null,
+            error: {
+              message: `Failed to update friend request - status is still ${updatedData.status}`,
+              code: 'UPDATE_FAILED',
+            },
+          };
+        }
+
+        console.log('Successfully updated request:', updatedData);
+        return { data: updatedData, error: null };
+      }
+
+      // Unknown status, return error
+      return {
+        data: null,
+        error: {
+          message: `Cannot resend friend request with status: ${existingRequest.status}`,
+          code: 'INVALID_STATUS',
+        },
+      };
+    }
+
+    // Some other error occurred
+    return { data: null, error: insertError };
   },
 
   getFriendRequests: async (userId: string, type: 'sent' | 'received' = 'received') => {

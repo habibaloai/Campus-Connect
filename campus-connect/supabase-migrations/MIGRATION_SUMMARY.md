@@ -28,3 +28,4 @@ All event-related tables have proper cascade delete rules:
 4. Test that existing group conversations have creators set as admins
 5. Test that post likes count updates automatically
 
+

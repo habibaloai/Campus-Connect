@@ -44,3 +44,4 @@ SET likes = COALESCE((
   WHERE pl.post_id = p.id
 ), 0);
 
+

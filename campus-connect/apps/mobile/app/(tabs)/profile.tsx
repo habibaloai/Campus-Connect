@@ -279,36 +279,6 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
               ))}
-
-              {profile?.bio && (
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
-                    borderRadius: 20,
-                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: isDark ? 0.3 : 0.1,
-                    shadowRadius: 4,
-                    elevation: 3,
-                    maxWidth: 200,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontWeight: '500',
-                      color: isDark ? '#e2e8f0' : '#475569',
-                    }}
-                    numberOfLines={1}
-                  >
-                    {profile.bio.length > 30 ? `${profile.bio.substring(0, 30)}...` : profile.bio}
-                  </Text>
-                </View>
-              )}
             </ScrollView>
           </Animated.View>
 

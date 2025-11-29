@@ -682,7 +682,7 @@ export const api = {
         author:profiles!user_id(id, name, avatar_url, major, year)
       `)
       .single();
-
+    
     if (error) {
       return { data: null, error };
     }

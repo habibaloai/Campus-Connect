@@ -461,3 +461,4 @@
 - Verify file paths are correct
 - Check Supabase Storage logs
 
+

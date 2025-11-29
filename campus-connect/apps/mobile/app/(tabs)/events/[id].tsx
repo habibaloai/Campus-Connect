@@ -437,8 +437,8 @@ export default function EventDetailsScreen() {
           promises.push(fetchOrganizer(eventData.organizer_id));
           if (eventData.organizer_id === user?.id) {
             promises.push(fetchJoinRequests());
-          }
-        }
+      }
+    }
         
         await Promise.all(promises);
       }

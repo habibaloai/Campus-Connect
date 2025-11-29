@@ -92,3 +92,4 @@ If issues persist:
 3. Check RLS policies allow subscriptions
 4. Verify user authentication is working
 
+

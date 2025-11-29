@@ -273,13 +273,13 @@ export default function EventPage({ params }: EventPageProps) {
                 <Trash2 size={20} />
               </motion.button>
             )}
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              className={styles.shareButton}
-              onClick={handleShare}
-            >
-              <Share2 size={20} />
-            </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            className={styles.shareButton}
+            onClick={handleShare}
+          >
+            <Share2 size={20} />
+          </motion.button>
           </div>
         </header>
 

@@ -7,6 +7,7 @@ import {
   Image,
   RefreshControl,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -157,7 +158,11 @@ export default function UserProfileScreen() {
       }
     } else {
       // Send request
-      await api.sendFriendRequest(currentUser.id, params.id);
+      const { error } = await api.sendFriendRequest(currentUser.id, params.id);
+      if (error) {
+        Alert.alert('Error', error.message || 'Failed to send friend request');
+        return;
+      }
       setFriendRequestSent(true);
     }
   };

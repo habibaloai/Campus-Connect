@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
-import { api } from '@/lib/supabase';
+import { api, supabase } from '@/lib/supabase';
 import { FriendRequest, Profile } from '@/types';
 
 export default function FriendRequestsScreen() {
@@ -42,6 +42,63 @@ export default function FriendRequestsScreen() {
       loadRequests();
     }
   }, [user?.id, activeTab]);
+
+  // Real-time subscription for friend requests
+  useEffect(() => {
+    if (!user?.id) return;
+
+    console.log('Setting up real-time subscription for friend requests, user:', user.id);
+
+    const channel = supabase
+      .channel('friend-requests-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'friend_requests',
+          filter: `recipient_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Friend request update received (recipient):', payload);
+          console.log('Event type:', payload.eventType);
+          console.log('New record:', payload.new);
+          console.log('Old record:', payload.old);
+          // Reload requests when any change occurs
+          loadRequests();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'friend_requests',
+          filter: `requester_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Friend request update sent (requester):', payload);
+          console.log('Event type:', payload.eventType);
+          console.log('New record:', payload.new);
+          console.log('Old record:', payload.old);
+          // Reload requests when any change occurs
+          loadRequests();
+        }
+      )
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Successfully subscribed to friend requests real-time updates');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Error subscribing to friend requests real-time updates');
+        }
+      });
+
+    return () => {
+      console.log('Cleaning up friend requests real-time subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   const loadRequests = async () => {
     if (!user?.id) return;
