@@ -11,6 +11,7 @@ import {
   AppState,
   ImageBackground,
   StyleSheet,
+  Keyboard,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
@@ -62,6 +63,7 @@ export default function ChatScreen() {
   const [messageText, setMessageText] = useState('');
   const [isOnline, setIsOnline] = useState<boolean>(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const presenceChannelRef = useRef<any>(null);
   const presenceSubscriptionRef = useRef<any>(null);
@@ -272,6 +274,30 @@ export default function ChatScreen() {
     }
   }, [typingUsers]);
 
+  // Handle keyboard show/hide to adjust layout and scroll
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const keyboardWillShowListener = Keyboard.addListener(showEvent, (e) => {
+      const height = e.endCoordinates.height;
+      setKeyboardHeight(height);
+      // Scroll to bottom when keyboard appears
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, Platform.OS === 'ios' ? 250 : 100);
+    });
+
+    const keyboardWillHideListener = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, []);
+
   // Send typing indicator when user types
   const handleTyping = useCallback(() => {
     if (!id || !currentUserId || !typingChannelRef.current) return;
@@ -463,58 +489,72 @@ export default function ChatScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
       />
-      <SafeAreaView style={styles.safeArea} edges={[]}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <StatusBar style={isDark ? "light" : "dark"} />
-      <Stack.Screen
-        options={{
-          title: '',
-          headerLeft: () => (
-            <TouchableOpacity 
-              onPress={() => router.back()} 
-              className="p-2"
-            >
-              <ChevronLeft size={24} color={isDark ? '#FFFFFF' : '#374151'} />
-            </TouchableOpacity>
-          ),
-          headerTitle: () => (
-            <View className="flex-row items-center">
-              <Text className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                {getTitle()}
-              </Text>
-              {conversation?.type === 'direct' && (
-                <View className="ml-2 flex-row items-center">
-                  <View
-                    className={`w-2 h-2 rounded-full ${
-                      isOnline ? 'bg-green-500' : 'bg-gray-400'
-                    }`}
-                    style={{
-                      shadowColor: isOnline ? '#10b981' : '#9ca3af',
-                      shadowOffset: { width: 0, height: 0 },
-                      shadowOpacity: 0.8,
-                      shadowRadius: 4,
-                    }}
-                  />
-                  <Text className={`text-xs ml-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {isOnline ? 'Online' : 'Offline'}
-                  </Text>
-                </View>
-              )}
-            </View>
-          ),
-        }}
-      />
-      
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-        keyboardVerticalOffset={90}
-      >
+        <Stack.Screen
+          options={{
+            title: '',
+            headerLeft: () => (
+              <TouchableOpacity 
+                onPress={() => router.back()} 
+                className="p-2"
+              >
+                <ChevronLeft size={24} color={isDark ? '#FFFFFF' : '#374151'} />
+              </TouchableOpacity>
+            ),
+            headerTitle: () => (
+              <View className="flex-row items-center">
+                <Text className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {getTitle()}
+                </Text>
+                {conversation?.type === 'direct' && (
+                  <View className="ml-2 flex-row items-center">
+                    <View
+                      className={`w-2 h-2 rounded-full ${
+                        isOnline ? 'bg-green-500' : 'bg-gray-400'
+                      }`}
+                      style={{
+                        shadowColor: isOnline ? '#10b981' : '#9ca3af',
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0.8,
+                        shadowRadius: 4,
+                      }}
+                    />
+                    <Text className={`text-xs ml-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {isOnline ? 'Online' : 'Offline'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ),
+          }}
+        />
+        
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1"
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 120 : 0}
+          style={{ flex: 1 }}
+        >
         {/* Messages */}
         <ScrollView
           ref={scrollViewRef}
           className="flex-1 px-4"
-          contentContainerStyle={{ paddingVertical: 16 }}
+          contentContainerStyle={{ 
+            paddingVertical: 16, 
+            flexGrow: 1,
+            paddingBottom: keyboardHeight > 0 ? 20 : 16,
+          }}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          onContentSizeChange={() => {
+            if (keyboardHeight > 0) {
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+            }
+          }}
         >
           {messages.length === 0 ? (
             <View className="items-center justify-center py-12">
@@ -666,7 +706,7 @@ export default function ChatScreen() {
           style={{
             paddingHorizontal: 16,
             paddingTop: 12,
-            paddingBottom: 12,
+            paddingBottom: Math.max(insets.bottom, 12),
             borderTopWidth: 1,
             borderTopColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
           }}
@@ -682,6 +722,12 @@ export default function ChatScreen() {
               onChangeText={(text) => {
                 setMessageText(text);
                 handleTyping();
+              }}
+              onFocus={() => {
+                // Scroll to bottom when input is focused
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollToEnd({ animated: true });
+                }, 300);
               }}
               multiline
               textAlignVertical="center"
@@ -720,7 +766,7 @@ export default function ChatScreen() {
             </TouchableOpacity>
           </View>
         </LinearGradient>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </ImageBackground>
   );
