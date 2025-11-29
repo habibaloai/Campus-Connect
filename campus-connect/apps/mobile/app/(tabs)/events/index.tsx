@@ -52,6 +52,7 @@ interface Event {
   image_url?: string;
   is_private?: boolean;
   has_pending_request?: boolean;
+  created_at?: string;
 }
 
 interface Attendee {
@@ -166,10 +167,12 @@ export default function EventsScreen() {
             setEvents((prev) => {
               // Check for duplicates
               if (prev.some((e) => e.id === newEvent.id)) return prev;
-              // Add and sort by date
-              const updated = [...prev, newEvent].sort((a, b) => 
-                new Date(a.date).getTime() - new Date(b.date).getTime()
-              );
+              // Add and sort by creation date (newest first)
+              const updated = [...prev, newEvent].sort((a, b) => {
+                const aCreated = new Date(a.created_at || a.date).getTime();
+                const bCreated = new Date(b.created_at || b.date).getTime();
+                return bCreated - aCreated; // Descending order (newest first)
+              });
               return updated;
             });
           }

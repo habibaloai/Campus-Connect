@@ -466,7 +466,7 @@ export const api = {
       `
       )
       .gte('date', new Date().toISOString().split('T')[0])
-      .order('date');
+      .order('created_at', { ascending: false });
 
     const { data, error } = await query;
 
