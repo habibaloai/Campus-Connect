@@ -9,7 +9,6 @@ import {
   Platform,
   ActivityIndicator,
   AppState,
-  BackHandler,
 } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -114,16 +113,6 @@ export default function ChatScreen() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  // Handle hardware back button (Android) - navigate to messages tab
-  useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      router.back();
-      return true; // Prevent default behavior
-    });
-
-    return () => backHandler.remove();
-  }, []);
 
   // Subscribe to new messages (real-time)
   useEffect(() => {
