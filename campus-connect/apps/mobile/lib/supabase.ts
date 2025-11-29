@@ -1,18 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
+import 'react-native-url-polyfill/auto';
 import { supabaseStorageAdapter } from './storage';
 import Constants from 'expo-constants';
 import { readAsStringAsync } from 'expo-file-system/legacy';
 
 // Get Supabase credentials from environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || Constants.expoConfig?.extra?.supabaseUrl || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || Constants.expoConfig?.extra?.supabaseAnonKey || '';
+// Try EXPO_PUBLIC_ first (recommended for Expo), then NEXT_PUBLIC_, then Constants.expoConfig.extra
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || Constants.expoConfig?.extra?.supabaseUrl;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || Constants.expoConfig?.extra?.supabaseAnonKey;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase credentials not found. Please check your .env file.');
+// Validate credentials - throw error if missing (required for Supabase)
+if (!supabaseUrl || !supabaseUrl.trim()) {
+  throw new Error('supabaseUrl is required. Please add EXPO_PUBLIC_SUPABASE_URL to your .env.local file in apps/mobile/');
+}
+
+if (!supabaseAnonKey || !supabaseAnonKey.trim()) {
+  throw new Error('supabaseAnonKey is required. Please add EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env.local file in apps/mobile/');
 }
 
 // Create Supabase client with React Native storage adapter
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl.trim(), supabaseAnonKey.trim(), {
   auth: {
     storage: supabaseStorageAdapter,
     autoRefreshToken: true,
@@ -1518,10 +1525,10 @@ export const api = {
   },
 
   deleteEvent: async (eventId: string, userId: string) => {
-    // Verify user is the organizer
+    // Verify user is the organizer and get event title for notifications
     const { data: event } = await supabase
       .from('events')
-      .select('organizer_id, image_url')
+      .select('organizer_id, image_url, title')
       .eq('id', eventId)
       .single();
 
@@ -1586,7 +1593,7 @@ export const api = {
             attendee.user_id,
             'event_deleted',
             'Event Cancelled',
-            `${event.title} has been cancelled`,
+            `${event.title || 'Event'} has been cancelled`,
             `/(tabs)/events`
           )
         );
@@ -1780,31 +1787,6 @@ export const api = {
       .select()
       .single();
     return { data, error };
-  },
-
-  // Achievements & Stats
-  getUserStats: async (userId: string) => {
-    const { data, error } = await supabase.from('user_stats').select('*').eq('user_id', userId).single();
-    return { data, error };
-  },
-
-  getAchievements: async (userId: string) => {
-    const { data: achievements, error } = await supabase.from('achievements').select('*');
-
-    if (achievements && userId) {
-      const { data: userAchievements } = await supabase.from('user_achievements').select('*').eq('user_id', userId);
-
-      const userMap = new Map(userAchievements?.map((ua) => [ua.achievement_id, ua]) || []);
-
-      achievements.forEach((achievement: any) => {
-        const ua: any = userMap.get(achievement.id);
-        achievement.user_progress = ua?.progress || 0;
-        achievement.unlocked = ua?.unlocked || false;
-        achievement.unlocked_at = ua?.unlocked_at;
-      });
-    }
-
-    return { data: achievements, error };
   },
 
   // Messaging
@@ -2211,14 +2193,16 @@ export const api = {
         },
         async (payload) => {
           // Check if user is a participant
-          const { data: participants } = await supabase
-            .from('conversation_participants')
-            .select('conversation_id')
-            .eq('conversation_id', payload.new.id)
-            .eq('user_id', userId);
+          if (payload.new && 'id' in payload.new && payload.new.id) {
+            const { data: participants } = await supabase
+              .from('conversation_participants')
+              .select('conversation_id')
+              .eq('conversation_id', payload.new.id)
+              .eq('user_id', userId);
 
-          if (participants && participants.length > 0) {
-            callback(payload.new);
+            if (participants && participants.length > 0) {
+              callback(payload.new);
+            }
           }
         }
       )
@@ -3286,7 +3270,7 @@ export const api = {
       if (uploadError) {
         // Check if it's a bucket not found or permission error
         const errorMessage = (uploadError.message || '').toLowerCase();
-        const statusCode = uploadError.statusCode || uploadError.status;
+        const statusCode = (uploadError as any)?.statusCode || (uploadError as any)?.status || undefined;
 
         console.error('[Avatar Upload] Upload error details:', {
           message: uploadError.message,

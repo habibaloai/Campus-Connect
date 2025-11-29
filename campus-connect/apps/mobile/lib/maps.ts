@@ -51,12 +51,20 @@ export interface NextArrival {
  */
 export const BUILDING_LOCATIONS: BuildingLocation[] = [
   {
+    id: 'mensa',
+    name: 'Mensa',
+    type: 'building',
+    latitude: 49.1428,
+    longitude: 9.2108,
+    address: 'L Building, Bildungs Campus, 74076 Heilbronn, Germany',
+  },
+  {
     id: 'd-building',
     name: 'D Building',
     type: 'building',
     latitude: 49.1420,
     longitude: 9.2100,
-    address: 'D Building, Bildungs Campus, 74076 Heilbronn, Germany',
+    address: 'Bildungscampus 2, Gebäude D, 74076 Heilbronn, Germany',
   },
   {
     id: 'l-building',
@@ -72,7 +80,7 @@ export const BUILDING_LOCATIONS: BuildingLocation[] = [
     type: 'building',
     latitude: 49.1430,
     longitude: 9.2110,
-    address: 'Library, Bildungs Campus, 74076 Heilbronn, Germany',
+    address: 'Bibliothek LIV, Bildungscampus, 74076 Heilbronn, Germany',
   },
   {
     id: 'weiperstr',
@@ -80,7 +88,7 @@ export const BUILDING_LOCATIONS: BuildingLocation[] = [
     type: 'street',
     latitude: 49.1410,
     longitude: 9.2095,
-    address: 'Weiperstraße, 74076 Heilbronn, Germany',
+    address: 'OpenSpace Heilbronn, 74076 Heilbronn, Germany',
   },
   {
     id: 'etzelstr-building',
@@ -88,13 +96,13 @@ export const BUILDING_LOCATIONS: BuildingLocation[] = [
     type: 'street',
     latitude: 49.1415,
     longitude: 9.2115,
-    address: 'Etzelstraße, 74076 Heilbronn, Germany',
+    address: 'Etzelstraße 38, 74076 Heilbronn, Germany',
   },
 ];
 
 /**
  * Bus stops in the Bildungs Campus area, Heilbronn
- * Real bus lines: 12, 31, 32, 33, 41, 42, 5
+ * Real bus lines: 5, 12, 31, 32, 33, 41, 42 (in increasing order)
  * Coordinates updated for accurate locations
  */
 export const BUS_STOPS: BusStop[] = [
@@ -131,7 +139,7 @@ export const BUS_STOPS: BusStop[] = [
     latitude: 49.1433,
     longitude: 9.2099,
     address: 'HN Europapl./Bildungscampus West, 74072 Heilbronn, Germany',
-    buses: ['12', '31', '32', '33', '42', '5'],
+    buses: ['5', '12', '31', '32', '33', '42'],
     description: 'Central bus stop at Europaplatz West',
   },
   {
@@ -140,7 +148,7 @@ export const BUS_STOPS: BusStop[] = [
     latitude: 49.1441,
     longitude: 9.2106,
     address: 'Heilbronn Industrieplatz Ost, 74076 Heilbronn, Germany',
-    buses: ['12', '31', '32', '41', '42', '5'],
+    buses: ['5', '12', '31', '32', '41', '42'],
     description: 'Bus stop at Industrieplatz Ost',
   },
 ];
@@ -247,10 +255,11 @@ export function getBusLinesForStop(stopId: string): string[] {
 
 /**
  * Bus schedules for Heilbronn Bildungs Campus area
- * Real bus lines: 12, 31, 32, 33, 41, 42, 5
+ * Real bus lines: 5, 12, 31, 32, 33, 41, 42 (in increasing order)
+ * Schedules organized by stop, then by bus line number in increasing order
  */
 export const BUS_SCHEDULES: BusSchedule[] = [
-  // Etzelstraße Stop 1 schedules
+  // Etzelstraße Stop 1 schedules (ordered: 12, 31, 32, 33, 41)
   {
     stopId: 'etzelstr-1',
     busLine: '12',
@@ -291,7 +300,7 @@ export const BUS_SCHEDULES: BusSchedule[] = [
     frequency: 'Every 30 min',
     direction: 'opposite',
   },
-  // Etzelstraße Stop 2 schedules
+  // Etzelstraße Stop 2 schedules (ordered: 12, 31, 32, 33, 42)
   {
     stopId: 'etzelstr-2',
     busLine: '12',
@@ -332,7 +341,7 @@ export const BUS_SCHEDULES: BusSchedule[] = [
     frequency: 'Every 30 min',
     direction: 'toward-harmonie',
   },
-  // Fügerstraße schedules
+  // Fügerstraße schedules (ordered: 31, 32, 33, 41, 42)
   {
     stopId: 'fuegerstrasse',
     busLine: '31',
@@ -373,7 +382,15 @@ export const BUS_SCHEDULES: BusSchedule[] = [
     frequency: 'Every 15-25 min',
     direction: 'toward-harmonie',
   },
-  // Europaplatz/Bildungscampus West schedules
+  // Europaplatz/Bildungscampus West schedules (ordered: 5, 12, 31, 32, 33, 42)
+  {
+    stopId: 'europaplatz-west',
+    busLine: '5',
+    weekdayTimes: ['06:15', '06:45', '07:15', '07:45', '08:15', '08:45', '09:15', '09:45', '10:15', '10:45', '11:15', '11:45', '12:15', '12:45', '13:15', '13:45', '14:15', '14:45', '15:15', '15:45', '16:15', '16:45', '17:15', '17:45', '18:15', '18:45', '19:15', '19:45', '20:15', '20:45', '21:15', '21:45', '22:15', '22:45', '23:15'],
+    weekendTimes: ['07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00', '22:30', '23:00', '23:30'],
+    frequency: 'Every 30 min',
+    direction: 'opposite',
+  },
   {
     stopId: 'europaplatz-west',
     busLine: '12',
@@ -414,15 +431,15 @@ export const BUS_SCHEDULES: BusSchedule[] = [
     frequency: 'Every 30 min',
     direction: 'toward-harmonie',
   },
+  // Industrieplatz Ost schedules (ordered: 5, 12, 31, 32, 41, 42)
   {
-    stopId: 'europaplatz-west',
+    stopId: 'industrieplatz-ost',
     busLine: '5',
-    weekdayTimes: ['06:15', '06:45', '07:15', '07:45', '08:15', '08:45', '09:15', '09:45', '10:15', '10:45', '11:15', '11:45', '12:15', '12:45', '13:15', '13:45', '14:15', '14:45', '15:15', '15:45', '16:15', '16:45', '17:15', '17:45', '18:15', '18:45', '19:15', '19:45', '20:15', '20:45', '21:15', '21:45', '22:15', '22:45', '23:15'],
-    weekendTimes: ['07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00', '22:30', '23:00', '23:30'],
-    frequency: 'Every 30 min',
-    direction: 'opposite',
+    weekdayTimes: ['06:13', '06:38', '07:03', '07:28', '07:53', '08:18', '08:43', '09:08', '09:33', '09:58', '10:23', '10:48', '11:13', '11:38', '12:03', '12:28', '12:53', '13:18', '13:43', '14:08', '14:33', '14:58', '15:23', '15:48', '16:13', '16:38', '17:03', '17:28', '17:53', '18:18', '18:43', '19:08', '19:38', '20:08', '20:38', '21:08', '21:38', '22:08', '22:38', '23:08'],
+    weekendTimes: ['07:23', '07:53', '08:23', '08:53', '09:23', '09:53', '10:23', '10:53', '11:23', '11:53', '12:23', '12:53', '13:23', '13:53', '14:23', '14:53', '15:23', '15:53', '16:23', '16:53', '17:23', '17:53', '18:23', '18:53', '19:23', '19:53', '20:23', '20:53', '21:23', '21:53', '22:23', '22:53', '23:23'],
+    frequency: 'Every 25 min',
+    direction: 'toward-harmonie',
   },
-  // Industrieplatz Ost schedules
   {
     stopId: 'industrieplatz-ost',
     busLine: '12',
@@ -462,14 +479,6 @@ export const BUS_SCHEDULES: BusSchedule[] = [
     weekendTimes: ['07:00', '07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00', '22:30', '23:00'],
     frequency: 'Every 30 min',
     direction: 'opposite',
-  },
-  {
-    stopId: 'industrieplatz-ost',
-    busLine: '5',
-    weekdayTimes: ['06:13', '06:38', '07:03', '07:28', '07:53', '08:18', '08:43', '09:08', '09:33', '09:58', '10:23', '10:48', '11:13', '11:38', '12:03', '12:28', '12:53', '13:18', '13:43', '14:08', '14:33', '14:58', '15:23', '15:48', '16:13', '16:38', '17:03', '17:28', '17:53', '18:18', '18:43', '19:08', '19:38', '20:08', '20:38', '21:08', '21:38', '22:08', '22:38', '23:08'],
-    weekendTimes: ['07:23', '07:53', '08:23', '08:53', '09:23', '09:53', '10:23', '10:53', '11:23', '11:53', '12:23', '12:53', '13:23', '13:53', '14:23', '14:53', '15:23', '15:53', '16:23', '16:53', '17:23', '17:53', '18:23', '18:53', '19:23', '19:53', '20:23', '20:53', '21:23', '21:53', '22:23', '22:53', '23:23'],
-    frequency: 'Every 25 min',
-    direction: 'toward-harmonie',
   },
 ];
 

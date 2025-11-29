@@ -18,6 +18,7 @@ import {
   ChevronRight,
   AlertCircle,
   Building,
+  Eye,
 } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { BUILDING_LOCATIONS, openGoogleMaps, openNavigation } from '@/lib/maps';
@@ -80,6 +81,23 @@ export default function TransportScreen() {
   const openMaps = (destination: string) => {
     const url = `https://maps.google.com/?q=${encodeURIComponent(destination)}`;
     Linking.openURL(url);
+  };
+
+  const handleStreetView = (building: typeof buildingOptions[0]) => {
+    // Find the full building data from BUILDING_LOCATIONS
+    const fullBuilding = BUILDING_LOCATIONS.find((b) => b.id === building.id);
+    if (!fullBuilding) return;
+    
+    // Navigate to embedded Street View screen
+    router.push({
+      pathname: '/transport/streetview',
+      params: {
+        latitude: fullBuilding.latitude.toString(),
+        longitude: fullBuilding.longitude.toString(),
+        name: fullBuilding.name,
+        address: fullBuilding.address || '',
+      },
+    });
   };
 
   const getAvailabilityColor = (available: number, total: number) => {
@@ -155,34 +173,62 @@ export default function TransportScreen() {
                 key={building.id}
                 entering={FadeInDown.duration(400).delay(150 + index * 50)}
               >
-                <TouchableOpacity
-                  className="bg-white rounded-xl p-4 mb-3 shadow-sm"
-                  activeOpacity={0.7}
-                  onPress={() => openGoogleMaps(building.address)}
-                >
-                  <View className="flex-row items-center justify-between mb-3">
-                    <View className="flex-row items-center flex-1">
-                      <Text className="text-2xl mr-3">{building.icon}</Text>
-                      <View className="flex-1">
-                        <Text className="text-lg font-semibold text-gray-800">{building.name}</Text>
-                        <Text className="text-xs text-gray-500 mt-0.5 capitalize">{building.type}</Text>
+                <View className="bg-white rounded-xl p-4 mb-3 shadow-sm">
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => openGoogleMaps(building.address)}
+                  >
+                    <View className="flex-row items-center justify-between mb-3">
+                      <View className="flex-row items-center flex-1">
+                        <Text className="text-2xl mr-3">{building.icon}</Text>
+                        <View className="flex-1">
+                          <Text className="text-lg font-semibold text-gray-800">{building.name}</Text>
+                          <Text className="text-xs text-gray-500 mt-0.5 capitalize">{building.type}</Text>
+                        </View>
+                      </View>
+                      <View
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: building.color }}
+                      />
+                    </View>
+
+                    <View className="pt-3 border-t border-gray-100">
+                      <View className="flex-row items-center">
+                        <MapPin size={14} color="#9CA3AF" />
+                        <Text className="text-sm text-gray-500 ml-2" numberOfLines={2}>
+                          {building.address}
+                        </Text>
                       </View>
                     </View>
-                    <View
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: building.color }}
-                    />
-                  </View>
+                  </TouchableOpacity>
 
-                  <View className="pt-3 border-t border-gray-100">
-                    <View className="flex-row items-center">
-                      <MapPin size={14} color="#9CA3AF" />
-                      <Text className="text-sm text-gray-500 ml-2" numberOfLines={2}>
-                        {building.address}
-                      </Text>
-                    </View>
+                  {/* Action Buttons - Street View and Navigate */}
+                  <View className="flex-row gap-2 mt-3 pt-3 border-t border-gray-100">
+                    <TouchableOpacity
+                      className="flex-1 flex-row items-center justify-center py-2.5 rounded-xl border border-blue-500"
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleStreetView(building);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Eye size={14} color="#3b82f6" />
+                      <Text className="text-blue-500 font-medium text-xs ml-1.5">Street View</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      className="flex-1 flex-row items-center justify-center py-2.5 rounded-xl bg-blue-500"
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        openNavigation(BUILDING_LOCATIONS.find((b) => b.id === building.id) || building);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Navigation size={14} color="#ffffff" />
+                      <Text className="text-white font-medium text-xs ml-1.5">Navigate</Text>
+                    </TouchableOpacity>
                   </View>
-                </TouchableOpacity>
+                </View>
               </Animated.View>
             ))}
 
