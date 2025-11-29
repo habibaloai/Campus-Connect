@@ -9,9 +9,13 @@ import {
   Platform,
   ActivityIndicator,
   AppState,
+  ImageBackground,
+  StyleSheet,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { Send, User, ChevronLeft, Users } from 'lucide-react-native';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
@@ -49,6 +53,7 @@ export default function ChatScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversation, setConversation] = useState<Conversation | null>(null);
@@ -386,17 +391,80 @@ export default function ChatScreen() {
 
   const messageGroups = groupMessagesByDate(messages);
 
+  // Use splash screen image as background (same as other tabs)
+  const backgroundSource = require('@/assets/images/splash-screen.png');
+
   if (loading) {
     return (
-      <SafeAreaView className={`flex-1 items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <ActivityIndicator size="large" color="#1a73e8" />
-        <Text className={`mt-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Loading messages...</Text>
-      </SafeAreaView>
+      <ImageBackground
+        source={backgroundSource}
+        style={styles.background}
+        resizeMode="cover"
+      >
+        {/* Blurred Background Overlay */}
+        <View style={[styles.blurOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)' }]} />
+        
+        {/* Gradient Overlay */}
+        <LinearGradient
+          colors={isDark 
+            ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']
+            : ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.05)']}
+          style={styles.gradientOverlay}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+        />
+
+        {/* Bottom gradient */}
+        <LinearGradient
+          colors={isDark
+            ? ['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']
+            : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.4)']}
+          locations={[0, 0.4424, 1]}
+          style={styles.bottomGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+        />
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#0066cc" />
+            <Text style={[styles.loadingText, { color: isDark ? '#ffffff' : '#1e293b' }]}>Loading messages...</Text>
+          </View>
+        </SafeAreaView>
+      </ImageBackground>
     );
   }
 
   return (
-    <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`} edges={['bottom']}>
+    <ImageBackground
+      source={backgroundSource}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      {/* Blurred Background Overlay */}
+      <View style={[styles.blurOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)' }]} />
+      
+      {/* Gradient Overlay */}
+      <LinearGradient
+        colors={isDark 
+          ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']
+          : ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.05)']}
+        style={styles.gradientOverlay}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+
+      {/* Bottom gradient */}
+      <LinearGradient
+        colors={isDark
+          ? ['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']
+          : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.4)']}
+        locations={[0, 0.4424, 1]}
+        style={styles.bottomGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+      <SafeAreaView style={styles.safeArea} edges={[]}>
+        <StatusBar style={isDark ? "light" : "dark"} />
       <Stack.Screen
         options={{
           title: '',
@@ -459,11 +527,22 @@ export default function ChatScreen() {
               <View key={group.date}>
                 {/* Date separator */}
                 <View className="items-center my-4">
-                  <View className={`px-3 py-1 rounded-full ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`}>
-                    <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <LinearGradient
+                    colors={isDark
+                      ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)']
+                      : ['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.85)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 20,
+                    }}
+                  >
+                    <Text className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                       {group.date}
                     </Text>
-                  </View>
+                  </LinearGradient>
                 </View>
 
                 {/* Messages for this date */}
@@ -481,34 +560,43 @@ export default function ChatScreen() {
                         </Text>
                       )}
                       
-                      <View
-                        className={`max-w-[80%] px-4 py-3 rounded-2xl ${
-                          isOwnMessage
-                            ? 'bg-primary-500 rounded-br-sm'
-                            : isDark
-                            ? 'bg-gray-800 rounded-bl-sm'
-                            : 'bg-white rounded-bl-sm'
-                        }`}
-                        style={
-                          !isOwnMessage
-                            ? {
-                                shadowColor: '#000',
-                                shadowOffset: { width: 0, height: 1 },
-                                shadowOpacity: 0.05,
-                                shadowRadius: 2,
-                                elevation: 1,
-                              }
-                            : undefined
-                        }
-                      >
-                        <Text
-                          className={`text-base ${
-                            isOwnMessage ? 'text-white' : isDark ? 'text-white' : 'text-gray-900'
-                          }`}
+                      {isOwnMessage ? (
+                        <LinearGradient
+                          colors={['#3b82f6', '#2563eb']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={{
+                            maxWidth: '80%',
+                            paddingHorizontal: 16,
+                            paddingVertical: 12,
+                            borderRadius: 16,
+                            borderBottomRightRadius: 4,
+                          }}
                         >
-                          {message.content}
-                        </Text>
-                      </View>
+                          <Text className="text-base text-white">
+                            {message.content}
+                          </Text>
+                        </LinearGradient>
+                      ) : (
+                        <View
+                          className={`max-w-[80%] px-4 py-3 rounded-2xl rounded-bl-sm ${
+                            isDark
+                              ? 'bg-gray-800/90'
+                              : 'bg-white/90'
+                          }`}
+                          style={{
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 4,
+                            elevation: 3,
+                          }}
+                        >
+                          <Text className={`text-base ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {message.content}
+                          </Text>
+                        </View>
+                      )}
                       <View className={`flex-row items-center ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
                         <Text
                           className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
@@ -540,38 +628,53 @@ export default function ChatScreen() {
           {/* Typing Indicator */}
           {typingUsers.length > 0 && (
             <View className="flex-row items-center mb-2 px-2">
-              <View
-                className={`px-4 py-2 rounded-2xl ${
-                  isDark ? 'bg-gray-800' : 'bg-white'
-                }`}
+              <LinearGradient
+                colors={isDark
+                  ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)']
+                  : ['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.85)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
                 style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 16,
+                  borderBottomLeftRadius: 4,
                   shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.05,
-                  shadowRadius: 2,
-                  elevation: 1,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3,
                 }}
               >
-                <Text className={`italic ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                <Text className={`italic text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                   {typingUsers.length === 1 && conversation?.type === 'direct'
                     ? 'typing...'
                     : 'Someone is typing...'}
                 </Text>
-              </View>
+              </LinearGradient>
             </View>
           )}
         </ScrollView>
 
         {/* Message Input */}
-        <View
-          className={`px-4 py-3 ${isDark ? 'bg-gray-800' : 'bg-white'} border-t ${
-            isDark ? 'border-gray-700' : 'border-gray-200'
-          }`}
+        <LinearGradient
+          colors={isDark
+            ? ['rgba(0, 102, 204, 0.25)', 'rgba(0, 102, 204, 0.15)']
+            : ['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.85)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{
+            paddingHorizontal: 16,
+            paddingTop: 12,
+            paddingBottom: 12,
+            borderTopWidth: 1,
+            borderTopColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+          }}
         >
           <View className="flex-row items-end">
             <TextInput
               className={`flex-1 max-h-24 px-4 py-3 rounded-2xl ${
-                isDark ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'
+                isDark ? 'bg-gray-800/90 text-white' : 'bg-white/90 text-gray-900'
               }`}
               placeholder="Type a message..."
               placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
@@ -583,14 +686,28 @@ export default function ChatScreen() {
               multiline
               textAlignVertical="center"
               editable={!sending}
+              style={{
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
             />
             <TouchableOpacity
               onPress={sendMessage}
               disabled={!messageText.trim() || sending}
               className={`ml-2 w-12 h-12 rounded-full items-center justify-center ${
-                messageText.trim() && !sending ? 'bg-primary-500' : isDark ? 'bg-gray-700' : 'bg-gray-200'
+                messageText.trim() && !sending ? 'bg-blue-500' : isDark ? 'bg-gray-800' : 'bg-gray-200'
               }`}
               activeOpacity={0.8}
+              style={{
+                shadowColor: messageText.trim() && !sending ? '#3b82f6' : '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.2,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
             >
               {sending ? (
                 <ActivityIndicator size="small" color="#ffffff" />
@@ -602,8 +719,38 @@ export default function ChatScreen() {
               )}
             </TouchableOpacity>
           </View>
-        </View>
+        </LinearGradient>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
+
+const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  blurOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bottomGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+  },
+});
