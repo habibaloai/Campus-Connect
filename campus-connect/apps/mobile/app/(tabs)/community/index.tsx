@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -32,7 +32,7 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
-import { api, supabase } from '@/lib/supabase';
+import { api } from '@/lib/supabase';
 
 interface Post {
   id: string;
@@ -114,6 +114,7 @@ export default function CommunityScreen() {
   const [error, setError] = useState<string | null>(null);
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const lastOptimisticUpdatesRef = useRef<Map<string, { likes: number; timestamp: number }>>(new Map());
   
   // Create Post Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -135,7 +136,34 @@ export default function CommunityScreen() {
         return;
       }
       
-      setPosts(data || []);
+      // Preserve optimistic updates for posts that were recently liked/unliked
+      const now = Date.now();
+      setPosts((prevPosts) => {
+        if (!data) return prevPosts;
+        
+        return data.map((serverPost) => {
+          const optimisticUpdate = lastOptimisticUpdatesRef.current.get(serverPost.id);
+          
+          // If we have a recent optimistic update (within last 2 seconds), preserve it
+          if (optimisticUpdate && (now - optimisticUpdate.timestamp) < 2000) {
+            const prevPost = prevPosts.find((p) => p.id === serverPost.id);
+            if (prevPost) {
+              // Keep optimistic likes and is_liked, update other fields
+              return {
+                ...serverPost,
+                likes: prevPost.likes, // Keep optimistic likes
+                is_liked: prevPost.is_liked, // Keep optimistic is_liked
+              };
+            }
+          } else if (optimisticUpdate) {
+            // Remove old optimistic update from ref
+            lastOptimisticUpdatesRef.current.delete(serverPost.id);
+          }
+          
+          // No recent optimistic update, use server data
+          return serverPost;
+        });
+      });
     } catch (err) {
       console.error('Error:', err);
       setError('Failed to load posts');
@@ -149,6 +177,7 @@ export default function CommunityScreen() {
     fetchPosts();
   }, [fetchPosts]);
 
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchPosts();
@@ -157,24 +186,103 @@ export default function CommunityScreen() {
   const handleLike = async (postId: string, isLiked: boolean) => {
     if (!user?.id) return;
 
+    // Find the current post state
+    const currentPost = posts.find((p) => p.id === postId);
+    if (!currentPost) return;
+
+    // Prevent double-tapping
+    const actualIsLiked = currentPost.is_liked || false;
+    if (actualIsLiked === !isLiked) {
+      // State already matches what we want, ignore
+      return;
+    }
+
+    // Optimistically update UI immediately
+    const currentLikes = currentPost.likes || 0;
+    const newLikes = actualIsLiked ? Math.max(currentLikes - 1, 0) : currentLikes + 1;
+    
+    // Track optimistic update to prevent fetchPosts from overwriting it
+    lastOptimisticUpdatesRef.current.set(postId, {
+      likes: newLikes,
+      timestamp: Date.now(),
+    });
+    
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (p.id === postId) {
+          // Create a completely new object to ensure React detects the change
+          return {
+            ...p,
+            is_liked: !actualIsLiked,
+            likes: Number(newLikes), // Ensure it's a number
+          };
+        }
+        return p;
+      })
+    );
+
     try {
-      if (isLiked) {
-        await supabase.from('post_likes').delete().eq('post_id', postId).eq('user_id', user.id);
-        setPosts((prev) =>
-          prev.map((p) =>
-            p.id === postId ? { ...p, is_liked: false, likes: p.likes - 1 } : p
-          )
-        );
+      if (actualIsLiked) {
+        // Unlike
+        const { error } = await api.unlikePost(postId, user.id);
+        if (error) {
+          // Revert optimistic update on error
+          setPosts((prev) =>
+            prev.map((p) => {
+              if (p.id === postId) {
+                return {
+                  ...p,
+                  is_liked: true,
+                  likes: (p.likes || 0) + 1,
+                };
+              }
+              return p;
+            })
+          );
+          Alert.alert('Error', error.message || 'Failed to unlike post');
+          return;
+        }
       } else {
-        await supabase.from('post_likes').insert({ post_id: postId, user_id: user.id });
-        setPosts((prev) =>
-          prev.map((p) =>
-            p.id === postId ? { ...p, is_liked: true, likes: p.likes + 1 } : p
-          )
-        );
+        // Like
+        const { error } = await api.likePost(postId, user.id);
+        if (error && error.code !== 'ALREADY_LIKED') {
+          // Revert optimistic update on error
+          setPosts((prev) =>
+            prev.map((p) => {
+              if (p.id === postId) {
+                return {
+                  ...p,
+                  is_liked: false,
+                  likes: Math.max((p.likes || 0) - 1, 0),
+                };
+              }
+              return p;
+            })
+          );
+          Alert.alert('Error', error.message || 'Failed to like post');
+          return;
+        }
       }
-    } catch (err) {
+
+      // Don't refresh immediately - optimistic update is correct
+      // The database trigger will update the count, and it will be correct on next natural refresh
+      // This prevents the count from "jumping back" to the old value
+    } catch (err: any) {
       console.error('Error toggling like:', err);
+      // Revert optimistic update on error
+      setPosts((prev) =>
+        prev.map((p) => {
+          if (p.id === postId) {
+            return {
+              ...p,
+              is_liked: actualIsLiked,
+              likes: currentPost.likes || 0,
+            };
+          }
+          return p;
+        })
+      );
+      Alert.alert('Error', err.message || 'Failed to toggle like');
     }
   };
 

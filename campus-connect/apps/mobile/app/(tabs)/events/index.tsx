@@ -144,6 +144,110 @@ export default function EventsScreen() {
     fetchEvents();
   }, [fetchEvents]);
 
+  // Subscribe to real-time event updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Subscribe to events table changes
+    const eventsChannel = supabase
+      .channel(`events:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'events',
+        },
+        async (payload) => {
+          // New event created - add to list
+          const newEvent = payload.new as any;
+          // Only add if it's a future event
+          if (newEvent.date >= new Date().toISOString().split('T')[0]) {
+            setEvents((prev) => {
+              // Check for duplicates
+              if (prev.some((e) => e.id === newEvent.id)) return prev;
+              // Add and sort by date
+              const updated = [...prev, newEvent].sort((a, b) => 
+                new Date(a.date).getTime() - new Date(b.date).getTime()
+              );
+              return updated;
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'events',
+        },
+        async (payload) => {
+          // Event updated - update in list
+          const updatedEvent = payload.new as any;
+          setEvents((prev) =>
+            prev.map((e) => (e.id === updatedEvent.id ? { ...e, ...updatedEvent } : e))
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'events',
+        },
+        async (payload) => {
+          // Event deleted - remove from list
+          const deletedEventId = payload.old.id;
+          setEvents((prev) => prev.filter((e) => e.id !== deletedEventId));
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'event_attendees',
+        },
+        async (payload) => {
+          // Attendee joined - update attendee count
+          const attendee = payload.new as any;
+          setEvents((prev) =>
+            prev.map((e) =>
+              e.id === attendee.event_id
+                ? { ...e, attendee_count: (e.attendee_count || 0) + 1 }
+                : e
+            )
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'event_attendees',
+        },
+        async (payload) => {
+          // Attendee left - update attendee count
+          const attendee = payload.old as any;
+          setEvents((prev) =>
+            prev.map((e) =>
+              e.id === attendee.event_id
+                ? { ...e, attendee_count: Math.max((e.attendee_count || 0) - 1, 0) }
+                : e
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(eventsChannel);
+    };
+  }, [user?.id]);
+
   // Refresh events when screen comes into focus (e.g., after deleting an event)
   useFocusEffect(
     useCallback(() => {

@@ -151,6 +151,7 @@ export interface Event {
   category: string;
   max_attendees: number;
   organizer?: string;
+  organizer_id?: string;
   image_url?: string;
   attendee_count?: number;
   is_attending?: boolean;
@@ -473,6 +474,86 @@ export const api = {
     return { data, error };
   },
 
+  deleteEvent: async (eventId: string, userId: string) => {
+    // Verify user is the organizer and get event title for notifications
+    const { data: event } = await supabase
+      .from('events')
+      .select('organizer_id, image_url, title')
+      .eq('id', eventId)
+      .single();
+
+    if (!event || event.organizer_id !== userId) {
+      return {
+        error: { message: 'You can only delete events you created', code: 'PERMISSION_DENIED' },
+      };
+    }
+
+    // Get all photos for this event to delete from storage
+    const { data: photos } = await supabase
+      .from('event_photos')
+      .select('photo_url')
+      .eq('event_id', eventId);
+
+    // Delete event (cascade will handle related records)
+    const { error: deleteError } = await supabase.from('events').delete().eq('id', eventId);
+
+    if (deleteError) {
+      return { error: deleteError };
+    }
+
+    // Delete cover photo from storage (non-blocking)
+    if (event.image_url) {
+      const urlParts = event.image_url.split('/');
+      const fileName = urlParts[urlParts.length - 1].split('?')[0];
+      const filePath = `${eventId}/${fileName}`;
+      supabase.storage
+        .from('event-covers')
+        .remove([filePath])
+        .catch((err) => {
+          console.warn('Failed to delete cover photo:', err);
+        });
+    }
+
+    // Delete all photos from storage (non-blocking)
+    if (photos && photos.length > 0) {
+      const filePaths = photos.map((photo) => {
+        const urlParts = photo.photo_url.split('/');
+        const fileName = urlParts[urlParts.length - 1].split('?')[0];
+        return `${eventId}/${fileName}`;
+      });
+      supabase.storage
+        .from('event-photos')
+        .remove(filePaths)
+        .catch((err) => {
+          console.warn('Failed to delete event photos:', err);
+        });
+    }
+
+    // Notify all attendees about event deletion
+    const { data: attendees } = await supabase
+      .from('event_attendees')
+      .select('user_id')
+      .eq('event_id', eventId);
+
+    if (attendees) {
+      const notificationPromises = attendees
+        .filter((a) => a.user_id !== userId) // Don't notify the organizer
+        .map((attendee) =>
+          api.createNotification(
+            attendee.user_id,
+            'event_deleted',
+            'Event Cancelled',
+            `${event.title || 'Event'} has been cancelled`,
+            `/event`
+          )
+        );
+
+      Promise.all(notificationPromises).catch((err) => console.warn('Failed to send some notifications:', err));
+    }
+
+    return { error: null };
+  },
+
   // Posts
   getPosts: async (userId?: string) => {
     const { data, error } = await supabase
@@ -510,14 +591,173 @@ export const api = {
   },
 
   likePost: async (postId: string, userId: string) => {
+    // Check if user already liked
+    const { data: existingLike } = await supabase
+      .from('post_likes')
+      .select('id')
+      .eq('post_id', postId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (existingLike) {
+      return { data: null, error: { message: 'Post already liked', code: 'ALREADY_LIKED' } };
+    }
+
+    // Insert like (trigger will update posts.likes count)
+    const { data, error } = await supabase
+      .from('post_likes')
+      .insert({ post_id: postId, user_id: userId })
+      .select()
+      .single();
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    // Get post author to send notification
+    const { data: post } = await supabase
+      .from('posts')
+      .select('user_id, title')
+      .eq('id', postId)
+      .single();
+
+    if (post && post.user_id !== userId) {
+      // Send notification to post author
+      api.createNotification(
+        post.user_id,
+        'post_liked',
+        'Post Liked',
+        `Someone liked your post: ${post.title}`,
+        `/dashboard/community/${postId}`
+      ).catch((err) => console.warn('Failed to send like notification:', err));
+    }
+
+    return { data, error: null };
+  },
+
+  unlikePost: async (postId: string, userId: string) => {
     const { error } = await supabase
       .from('post_likes')
-      .insert({ post_id: postId, user_id: userId });
-    
-    if (!error) {
-      await supabase.rpc('increment_post_likes', { post_id: postId });
+      .delete()
+      .eq('post_id', postId)
+      .eq('user_id', userId);
+
+    return { data: null, error };
+  },
+
+  getPostLikes: async (postId: string) => {
+    const { data, error } = await supabase
+      .from('post_likes')
+      .select(`
+        *,
+        user:profiles(id, name, avatar_url)
+      `)
+      .eq('post_id', postId)
+      .order('created_at', { ascending: false });
+
+    return { data, error };
+  },
+
+  // Post Comments
+  addComment: async (postId: string, userId: string, content: string) => {
+    // Validate content
+    if (!content.trim() || content.trim().length === 0) {
+      return { data: null, error: { message: 'Comment cannot be empty', code: 'VALIDATION_ERROR' } };
     }
-    return { error };
+
+    if (content.length > 5000) {
+      return { data: null, error: { message: 'Comment is too long (max 5000 characters)', code: 'VALIDATION_ERROR' } };
+    }
+
+    // Insert comment
+    const { data, error } = await supabase
+      .from('post_replies')
+      .insert({
+        post_id: postId,
+        user_id: userId,
+        content: content.trim(),
+      })
+      .select(`
+        *,
+        author:profiles!user_id(id, name, avatar_url, major, year)
+      `)
+      .single();
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    // Get post author to send notification
+    const { data: post } = await supabase
+      .from('posts')
+      .select('user_id, title')
+      .eq('id', postId)
+      .single();
+
+    if (post && post.user_id !== userId) {
+      // Send notification to post author
+      api.createNotification(
+        post.user_id,
+        'post_comment',
+        'New Comment',
+        `Someone commented on your post: ${post.title}`,
+        `/dashboard/community/${postId}`
+      ).catch((err) => console.warn('Failed to send comment notification:', err));
+    }
+
+    // Transform author from array to single object
+    const transformedData = data
+      ? {
+          ...data,
+          author: Array.isArray(data.author) ? data.author[0] : data.author,
+        }
+      : null;
+
+    return { data: transformedData, error: null };
+  },
+
+  getComments: async (postId: string) => {
+    const { data, error } = await supabase
+      .from('post_replies')
+      .select(`
+        *,
+        author:profiles!user_id(id, name, avatar_url, major, year)
+      `)
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true }); // Oldest first for conversation flow
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    // Transform authors from arrays to single objects
+    const transformedData = data?.map((comment: any) => ({
+      ...comment,
+      author: Array.isArray(comment.author) ? comment.author[0] : comment.author,
+    }));
+
+    return { data: transformedData, error: null };
+  },
+
+  deleteComment: async (commentId: string, userId: string) => {
+    // Verify user is the comment author
+    const { data: comment } = await supabase
+      .from('post_replies')
+      .select('user_id')
+      .eq('id', commentId)
+      .single();
+
+    if (!comment) {
+      return { data: null, error: { message: 'Comment not found', code: 'NOT_FOUND' } };
+    }
+
+    if (comment.user_id !== userId) {
+      return { data: null, error: { message: 'You can only delete your own comments', code: 'PERMISSION_DENIED' } };
+    }
+
+    const { error } = await supabase.from('post_replies').delete().eq('id', commentId);
+
+    return { data: null, error };
   },
 
   // FAQs

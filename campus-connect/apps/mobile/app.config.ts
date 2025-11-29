@@ -2,24 +2,56 @@ import { ExpoConfig, ConfigContext } from 'expo/config';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Load environment variables from root .env.local
+// Load environment variables from multiple sources
+// Priority: .env in mobile directory > .env.local in root > process.env
+
+// 1. Load from mobile directory .env file
+try {
+  const mobileEnvPath = path.resolve(__dirname, '.env');
+  if (fs.existsSync(mobileEnvPath)) {
+    const envConfig = fs.readFileSync(mobileEnvPath, 'utf8');
+    envConfig.split('\n').forEach((line) => {
+      const trimmedLine = line.trim();
+      if (trimmedLine && !trimmedLine.startsWith('#')) {
+        const match = trimmedLine.match(/^([^=]+)=(.*)$/);
+        if (match) {
+          const key = match[1].trim();
+          const value = match[2].trim().replace(/^["'](.*)["']$/, '$1');
+          if (!process.env[key]) {
+            process.env[key] = value;
+          }
+        }
+      }
+    });
+    console.log('✅ Loaded .env from mobile directory');
+  }
+} catch (error) {
+  console.warn('⚠️ Error loading mobile .env:', error);
+}
+
+// 2. Load from root .env.local as fallback
 try {
   const rootEnvPath = path.resolve(__dirname, '../../.env.local');
   if (fs.existsSync(rootEnvPath)) {
     const envConfig = fs.readFileSync(rootEnvPath, 'utf8');
     envConfig.split('\n').forEach((line) => {
-      const match = line.match(/^([^=]+)=(.*)$/);
-      if (match) {
-        const key = match[1].trim();
-        const value = match[2].trim().replace(/^["'](.*)["']$/, '$1');
-        if (!process.env[key]) {
-          process.env[key] = value;
+      const trimmedLine = line.trim();
+      if (trimmedLine && !trimmedLine.startsWith('#')) {
+        const match = trimmedLine.match(/^([^=]+)=(.*)$/);
+        if (match) {
+          const key = match[1].trim();
+          const value = match[2].trim().replace(/^["'](.*)["']$/, '$1');
+          // Only use if it's EXPO_PUBLIC_ or if mobile .env didn't have it
+          if (key.startsWith('EXPO_PUBLIC_') && !process.env[key]) {
+            process.env[key] = value;
+          }
         }
       }
     });
+    console.log('✅ Loaded .env.local from root directory');
   }
 } catch (error) {
-  console.warn('Error loading root .env.local:', error);
+  console.warn('⚠️ Error loading root .env.local:', error);
 }
 
 export default ({ config }: ConfigContext): ExpoConfig => ({

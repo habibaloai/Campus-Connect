@@ -5,17 +5,53 @@ import Constants from 'expo-constants';
 import { readAsStringAsync } from 'expo-file-system/legacy';
 
 // Get Supabase credentials from environment variables
-// Try EXPO_PUBLIC_ first (recommended for Expo), then NEXT_PUBLIC_, then Constants.expoConfig.extra
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || Constants.expoConfig?.extra?.supabaseUrl;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || Constants.expoConfig?.extra?.supabaseAnonKey;
+// Priority: Constants.expoConfig.extra > EXPO_PUBLIC_ > NEXT_PUBLIC_
+// Constants.expoConfig.extra is populated from app.config.ts at build time
+const supabaseUrl = 
+  Constants.expoConfig?.extra?.supabaseUrl || 
+  process.env.EXPO_PUBLIC_SUPABASE_URL || 
+  process.env.NEXT_PUBLIC_SUPABASE_URL;
+  
+const supabaseAnonKey = 
+  Constants.expoConfig?.extra?.supabaseAnonKey || 
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+// Log for debugging (only in development)
+if (__DEV__) {
+  console.log('🔍 Supabase Config Check:');
+  console.log('  - Constants.expoConfig?.extra?.supabaseUrl:', Constants.expoConfig?.extra?.supabaseUrl ? '✅ Set' : '❌ Missing');
+  console.log('  - process.env.EXPO_PUBLIC_SUPABASE_URL:', process.env.EXPO_PUBLIC_SUPABASE_URL ? '✅ Set' : '❌ Missing');
+  console.log('  - Final supabaseUrl:', supabaseUrl ? '✅ Set' : '❌ Missing');
+}
 
 // Validate credentials - throw error if missing (required for Supabase)
 if (!supabaseUrl || !supabaseUrl.trim()) {
-  throw new Error('supabaseUrl is required. Please add EXPO_PUBLIC_SUPABASE_URL to your .env.local file in apps/mobile/');
+  const errorMsg = `supabaseUrl is required. Please add EXPO_PUBLIC_SUPABASE_URL to your .env file in apps/mobile/ directory.
+  
+Current values:
+- Constants.expoConfig?.extra?.supabaseUrl: ${Constants.expoConfig?.extra?.supabaseUrl || 'undefined'}
+- process.env.EXPO_PUBLIC_SUPABASE_URL: ${process.env.EXPO_PUBLIC_SUPABASE_URL || 'undefined'}
+
+Make sure:
+1. Create apps/mobile/.env file with EXPO_PUBLIC_SUPABASE_URL=your-url
+2. Restart Expo with: npm start (or npx expo start)
+3. Clear cache if needed: npx expo start -c`;
+  throw new Error(errorMsg);
 }
 
 if (!supabaseAnonKey || !supabaseAnonKey.trim()) {
-  throw new Error('supabaseAnonKey is required. Please add EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env.local file in apps/mobile/');
+  const errorMsg = `supabaseAnonKey is required. Please add EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env file in apps/mobile/ directory.
+  
+Current values:
+- Constants.expoConfig?.extra?.supabaseAnonKey: ${Constants.expoConfig?.extra?.supabaseAnonKey ? 'Set' : 'undefined'}
+- process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY: ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ? 'Set' : 'undefined'}
+
+Make sure:
+1. Create apps/mobile/.env file with EXPO_PUBLIC_SUPABASE_ANON_KEY=your-key
+2. Restart Expo with: npm start (or npx expo start)
+3. Clear cache if needed: npx expo start -c`;
+  throw new Error(errorMsg);
 }
 
 // Create Supabase client with React Native storage adapter
@@ -1689,6 +1725,177 @@ export const api = {
       .select()
       .single();
     return { data, error };
+  },
+
+  // Post Likes
+  likePost: async (postId: string, userId: string) => {
+    // Check if user already liked
+    const { data: existingLike } = await supabase
+      .from('post_likes')
+      .select('id')
+      .eq('post_id', postId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (existingLike) {
+      return { data: null, error: { message: 'Post already liked', code: 'ALREADY_LIKED' } };
+    }
+
+    // Insert like (trigger will update posts.likes count)
+    const { data, error } = await supabase
+      .from('post_likes')
+      .insert({ post_id: postId, user_id: userId })
+      .select()
+      .single();
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    // Get post author to send notification
+    const { data: post } = await supabase
+      .from('posts')
+      .select('user_id, title')
+      .eq('id', postId)
+      .single();
+
+    if (post && post.user_id !== userId) {
+      // Send notification to post author
+      api.createNotification(
+        post.user_id,
+        'post_liked',
+        'Post Liked',
+        `Someone liked your post: ${post.title}`,
+        `/(tabs)/community/${postId}`
+      ).catch((err) => console.warn('Failed to send like notification:', err));
+    }
+
+    return { data, error: null };
+  },
+
+  unlikePost: async (postId: string, userId: string) => {
+    const { error } = await supabase
+      .from('post_likes')
+      .delete()
+      .eq('post_id', postId)
+      .eq('user_id', userId);
+
+    return { data: null, error };
+  },
+
+  getPostLikes: async (postId: string) => {
+    const { data, error } = await supabase
+      .from('post_likes')
+      .select(`
+        *,
+        user:profiles(id, name, avatar_url)
+      `)
+      .eq('post_id', postId)
+      .order('created_at', { ascending: false });
+
+    return { data, error };
+  },
+
+  // Post Comments
+  addComment: async (postId: string, userId: string, content: string) => {
+    // Validate content
+    if (!content.trim() || content.trim().length === 0) {
+      return { data: null, error: { message: 'Comment cannot be empty', code: 'VALIDATION_ERROR' } };
+    }
+
+    if (content.length > 5000) {
+      return { data: null, error: { message: 'Comment is too long (max 5000 characters)', code: 'VALIDATION_ERROR' } };
+    }
+
+    // Insert comment
+    const { data, error } = await supabase
+      .from('post_replies')
+      .insert({
+        post_id: postId,
+        user_id: userId,
+        content: content.trim(),
+      })
+      .select(`
+        *,
+        author:profiles!user_id(id, name, avatar_url, major, year)
+      `)
+      .single();
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    // Get post author to send notification
+    const { data: post } = await supabase
+      .from('posts')
+      .select('user_id, title')
+      .eq('id', postId)
+      .single();
+
+    if (post && post.user_id !== userId) {
+      // Send notification to post author
+      api.createNotification(
+        post.user_id,
+        'post_comment',
+        'New Comment',
+        `Someone commented on your post: ${post.title}`,
+        `/(tabs)/community/${postId}`
+      ).catch((err) => console.warn('Failed to send comment notification:', err));
+    }
+
+    // Transform author from array to single object
+    const transformedData = data
+      ? {
+          ...data,
+          author: Array.isArray(data.author) ? data.author[0] : data.author,
+        }
+      : null;
+
+    return { data: transformedData, error: null };
+  },
+
+  getComments: async (postId: string) => {
+    const { data, error } = await supabase
+      .from('post_replies')
+      .select(`
+        *,
+        author:profiles!user_id(id, name, avatar_url, major, year)
+      `)
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true }); // Oldest first for conversation flow
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    // Transform authors from arrays to single objects
+    const transformedData = data?.map((comment: any) => ({
+      ...comment,
+      author: Array.isArray(comment.author) ? comment.author[0] : comment.author,
+    }));
+
+    return { data: transformedData, error: null };
+  },
+
+  deleteComment: async (commentId: string, userId: string) => {
+    // Verify user is the comment author
+    const { data: comment } = await supabase
+      .from('post_replies')
+      .select('user_id')
+      .eq('id', commentId)
+      .single();
+
+    if (!comment) {
+      return { data: null, error: { message: 'Comment not found', code: 'NOT_FOUND' } };
+    }
+
+    if (comment.user_id !== userId) {
+      return { data: null, error: { message: 'You can only delete your own comments', code: 'PERMISSION_DENIED' } };
+    }
+
+    const { error } = await supabase.from('post_replies').delete().eq('id', commentId);
+
+    return { data: null, error };
   },
 
   // FAQs

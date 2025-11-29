@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MessageCircle, Heart, Tag, Clock, Loader2, PlusCircle } from 'lucide-react';
 import { usePosts, useMutation } from '@/hooks/useSupabase';
@@ -18,8 +18,24 @@ const categoryStyles: Record<string, { bg: string; color: string; label: string 
 
 export default function CommunityTab() {
   const { user } = useAuth();
-  const { data: posts, loading, error, refetch } = usePosts();
+  const { data: initialPosts, loading, error, refetch } = usePosts();
+  const [posts, setPosts] = useState<Post[]>(initialPosts || []);
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+
+  // Update posts when initialPosts changes
+  useEffect(() => {
+    if (initialPosts) {
+      setPosts(initialPosts);
+      // Update likedPosts set from initial data
+      const liked = new Set<string>();
+      initialPosts.forEach((post) => {
+        if (post.is_liked) {
+          liked.add(post.id);
+        }
+      });
+      setLikedPosts(liked);
+    }
+  }, [initialPosts]);
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -37,14 +53,38 @@ export default function CommunityTab() {
     }
   };
 
+
   const handleLike = async (postId: string) => {
     if (!user) return;
     
-    if (likedPosts.has(postId)) return;
+    const currentPost = posts.find((p) => p.id === postId);
+    if (!currentPost) return;
     
-    setLikedPosts(prev => new Set(prev).add(postId));
-    await api.likePost(postId, user.id);
-    refetch();
+    const isLiked = currentPost.is_liked || false;
+    
+    try {
+      if (isLiked) {
+        // Unlike
+        const { error } = await api.unlikePost(postId, user.id);
+        if (error) {
+          alert(`Error: ${error.message || 'Failed to unlike post'}`);
+          return;
+        }
+      } else {
+        // Like
+        const { error } = await api.likePost(postId, user.id);
+        if (error && error.code !== 'ALREADY_LIKED') {
+          alert(`Error: ${error.message || 'Failed to like post'}`);
+          return;
+        }
+      }
+      
+      // Refresh posts to get accurate counts from server
+      await refetch();
+    } catch (err: any) {
+      console.error('Error toggling like:', err);
+      alert(`Error: ${err.message || 'Failed to toggle like'}`);
+    }
   };
 
   if (loading) {

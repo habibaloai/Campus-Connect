@@ -1,11 +1,13 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import { Calendar, MapPin, Users, ChevronRight, Loader2 } from 'lucide-react';
 import { useEvents } from '@/hooks/useSupabase';
-import { Event as EventType } from '@/lib/supabase';
+import { Event as EventType, supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 import { StaggerContainer, StaggerItem } from '@/components/PageTransition';
 import styles from './EventsTab.module.css';
 
@@ -31,7 +33,9 @@ const categoryLabels: Record<string, string> = {
 
 export default function EventsTab() {
   const router = useRouter();
-  const { data: events, loading, error } = useEvents();
+  const { user } = useAuth();
+  const { data: initialEvents, loading, error, refetch } = useEvents();
+  const [events, setEvents] = useState<EventType[]>(initialEvents || []);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -41,6 +45,109 @@ export default function EventsTab() {
       day: 'numeric',
     });
   };
+
+  // Update events when initialEvents changes
+  useEffect(() => {
+    if (initialEvents) {
+      setEvents(initialEvents);
+    }
+  }, [initialEvents]);
+
+  // Subscribe to real-time event updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const eventsChannel = supabase
+      .channel(`events-realtime:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'events',
+        },
+        async (payload) => {
+          const newEvent = payload.new as any;
+          // Only add if it's a future event
+          if (newEvent.date >= new Date().toISOString().split('T')[0]) {
+            setEvents((prev) => {
+              if (prev.some((e) => e.id === newEvent.id)) return prev;
+              const updated = [...prev, newEvent].sort(
+                (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+              );
+              return updated;
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'events',
+        },
+        async (payload) => {
+          const updatedEvent = payload.new as any;
+          setEvents((prev) =>
+            prev.map((e) => (e.id === updatedEvent.id ? { ...e, ...updatedEvent } : e))
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'events',
+        },
+        async (payload) => {
+          const deletedEventId = payload.old.id;
+          setEvents((prev) => prev.filter((e) => e.id !== deletedEventId));
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'event_attendees',
+        },
+        async (payload) => {
+          const attendee = payload.new as any;
+          setEvents((prev) =>
+            prev.map((e) =>
+              e.id === attendee.event_id
+                ? { ...e, attendee_count: (e.attendee_count || 0) + 1 }
+                : e
+            )
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'event_attendees',
+        },
+        async (payload) => {
+          const attendee = payload.old as any;
+          setEvents((prev) =>
+            prev.map((e) =>
+              e.id === attendee.event_id
+                ? { ...e, attendee_count: Math.max((e.attendee_count || 0) - 1, 0) }
+                : e
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(eventsChannel);
+    };
+  }, [user?.id]);
 
   const handleEventClick = (eventId: string) => {
     router.push(`/event/${eventId}`);

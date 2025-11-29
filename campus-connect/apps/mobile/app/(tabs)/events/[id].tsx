@@ -284,6 +284,98 @@ export default function EventDetailsScreen() {
     fetchEvent();
   }, [fetchEvent]);
 
+  // Subscribe to real-time updates for this specific event
+  useEffect(() => {
+    if (!id) return;
+
+    const eventChannel = supabase
+      .channel(`event:${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'events',
+          filter: `id=eq.${id}`,
+        },
+        async (payload) => {
+          // Event updated - fetch full event details to get all updated data
+          console.log('Event updated via real-time:', payload.new);
+          await fetchEvent();
+          // Also update edit form if modal is open
+          const updatedEvent = payload.new as any;
+          if (showEditModal) {
+            setEditForm({
+              title: updatedEvent.title || '',
+              description: updatedEvent.description || '',
+              date: updatedEvent.date || '',
+              time: updatedEvent.time || '',
+              location: updatedEvent.location || '',
+              category: updatedEvent.category || 'social',
+              max_attendees: updatedEvent.max_attendees?.toString() || '',
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'events',
+          filter: `id=eq.${id}`,
+        },
+        async () => {
+          // Event deleted - show message and redirect
+          setEvent(null);
+          setError('This event has been deleted');
+          Alert.alert('Event Deleted', 'This event has been cancelled.', [
+            {
+              text: 'Go Back',
+              onPress: () => router.back(),
+            },
+          ]);
+          // Auto-redirect after 3 seconds
+          setTimeout(() => {
+            router.back();
+          }, 3000);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'event_attendees',
+          filter: `event_id=eq.${id}`,
+        },
+        async () => {
+          // Attendee joined - refresh full event data and attendees list
+          await fetchEvent();
+          await fetchAttendees();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'event_attendees',
+          filter: `event_id=eq.${id}`,
+        },
+        async () => {
+          // Attendee left - refresh full event data and attendees list
+          await fetchEvent();
+          await fetchAttendees();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(eventChannel);
+    };
+  }, [id, showEditModal, fetchEvent, fetchAttendees]);
+
   // Fetch related data when event is loaded
   useEffect(() => {
     if (event?.id) {
@@ -299,16 +391,65 @@ export default function EventDetailsScreen() {
   }, [event?.id, event?.organizer_id, user?.id, fetchAttendees, fetchOrganizer, fetchUserJoinRequest, fetchJoinRequests]);
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchEvent();
-    if (event?.id) {
-      await fetchAttendees();
-      fetchUserJoinRequest();
-      if (event.organizer_id === user?.id) {
-        fetchJoinRequests();
-      }
+    if (!id) {
+      console.log('onRefresh: No id, skipping');
+      return;
     }
-  }, [fetchEvent, fetchAttendees, fetchUserJoinRequest, fetchJoinRequests, event?.id, event?.organizer_id, user?.id]);
+    console.log('onRefresh: Starting refresh for event', id);
+    setRefreshing(true);
+    try {
+      // Fetch event first
+      const { data: eventData, error: eventError } = await api.getEventById(id, user?.id);
+      
+      if (eventError) {
+        console.error('Error fetching event:', eventError);
+        setError('Failed to refresh event');
+        setRefreshing(false);
+        return;
+      }
+
+      if (eventData) {
+        // Update event state
+        eventData.is_private = eventData.is_private ?? false;
+        if (eventData.has_pending_request !== undefined) {
+          setUserJoinRequest(eventData.has_pending_request ? { id: 'pending' } : null);
+        }
+        setEvent(eventData);
+        
+        // Update edit form
+        setEditForm({
+          title: eventData.title || '',
+          description: eventData.description || '',
+          date: eventData.date || '',
+          time: eventData.time || '',
+          location: eventData.location || '',
+          category: eventData.category || 'social',
+          max_attendees: eventData.max_attendees?.toString() || '',
+        });
+
+        // Fetch all related data in parallel
+        const promises = [
+          fetchAttendees(),
+          fetchUserJoinRequest(),
+        ];
+        
+        if (eventData.organizer_id) {
+          promises.push(fetchOrganizer(eventData.organizer_id));
+          if (eventData.organizer_id === user?.id) {
+            promises.push(fetchJoinRequests());
+          }
+        }
+        
+        await Promise.all(promises);
+      }
+    } catch (err) {
+      console.error('Error refreshing event:', err);
+      setError('Failed to refresh event');
+    } finally {
+      console.log('onRefresh: Setting refreshing to false');
+      setRefreshing(false);
+    }
+  }, [id, user?.id, fetchAttendees, fetchUserJoinRequest, fetchOrganizer, fetchJoinRequests]);
 
   // Real-time subscription for event updates
   useEffect(() => {
@@ -506,8 +647,18 @@ export default function EventDetailsScreen() {
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#14b8a6" />
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={onRefresh} 
+              tintColor="#14b8a6"
+              colors={['#14b8a6']}
+              enabled={true}
+            />
           }
+          nestedScrollEnabled={true}
+          scrollEnabled={true}
+          bounces={true}
+          alwaysBounceVertical={true}
         >
           {/* Header */}
           <View
@@ -1191,6 +1342,29 @@ export default function EventDetailsScreen() {
                   <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '600' }}>Save Changes</Text>
                 )}
               </TouchableOpacity>
+
+              {/* Delete Event Button - Only visible to organizer */}
+              {user?.id === event?.organizer_id && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowEditModal(false);
+                    setShowDeleteConfirm(true);
+                  }}
+                  style={{
+                    paddingVertical: 14,
+                    borderRadius: 12,
+                    backgroundColor: '#ef4444',
+                    alignItems: 'center',
+                    marginTop: 12,
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <Trash2 size={18} color="#ffffff" />
+                  <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '600' }}>Delete Event</Text>
+                </TouchableOpacity>
+              )}
             </ScrollView>
           </View>
         </View>
@@ -1210,8 +1384,20 @@ export default function EventDetailsScreen() {
             <Text style={{ fontSize: 18, fontWeight: 'bold', color: isDark ? '#ffffff' : '#1e293b', marginBottom: 12 }}>
               Delete Event
             </Text>
-            <Text style={{ fontSize: 14, color: isDark ? '#e2e8f0' : '#475569', marginBottom: 20 }}>
+            {event && (
+              <Text style={{ fontSize: 16, fontWeight: '600', color: isDark ? '#e2e8f0' : '#1e293b', marginBottom: 12 }}>
+                {event.title}
+              </Text>
+            )}
+            <Text style={{ fontSize: 14, color: isDark ? '#e2e8f0' : '#475569', marginBottom: 12 }}>
               Are you sure you want to delete this event? This action cannot be undone.
+            </Text>
+            <Text style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#64748b', marginBottom: 20 }}>
+              This will permanently delete:
+              {'\n'}• The event and all its details
+              {'\n'}• All event photos and comments
+              {'\n'}• All attendee records
+              {'\n'}• All join requests
             </Text>
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <TouchableOpacity

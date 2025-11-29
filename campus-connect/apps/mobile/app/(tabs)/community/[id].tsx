@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,10 +14,10 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Heart, MessageSquare, User, Send, ChevronLeft, Share2 } from 'lucide-react-native';
+import { Heart, MessageSquare, User, Send, ChevronLeft, Share2, Trash } from 'lucide-react-native';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/supabase';
 
 interface Author {
   id: string;
@@ -73,6 +73,8 @@ export default function PostDetailsScreen() {
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [renderKey, setRenderKey] = useState(0); // Force re-render on iOS
+  const lastOptimisticUpdateRef = useRef<{ postId: string; likes: number; timestamp: number } | null>(null);
 
   // Fetch post and replies
   const fetchData = useCallback(async () => {
@@ -81,47 +83,46 @@ export default function PostDetailsScreen() {
     try {
       setError(null);
 
-      // Fetch post
-      const { data: postData, error: postError } = await supabase
-        .from('posts')
-        .select(`
-          *,
-          author:profiles(id, name, avatar_url, major, year)
-        `)
-        .eq('id', id)
-        .single();
+      // Fetch post using API
+      const { data: postsData } = await api.getPosts(user?.id);
+      const postData = postsData?.find((p) => p.id === id);
 
-      if (postError) {
-        console.error('Error fetching post:', postError);
-        setError('Failed to load post');
+      if (!postData) {
+        setError('Post not found');
         return;
       }
 
-      // Check if user liked this post
-      if (user?.id) {
-        const { data: likeData } = await supabase
-          .from('post_likes')
-          .select('id')
-          .eq('post_id', id)
-          .eq('user_id', user.id)
-          .single();
-
-        postData.is_liked = !!likeData;
+      // Check if we have a recent optimistic update (within last 2 seconds)
+      const now = Date.now();
+      const optimisticUpdate = lastOptimisticUpdateRef.current;
+      if (optimisticUpdate && 
+          optimisticUpdate.postId === id && 
+          (now - optimisticUpdate.timestamp) < 2000) {
+        // Don't overwrite recent optimistic update - it's more accurate
+        // Only update other fields, preserve likes and is_liked
+        setPost((prev) => {
+          if (!prev) return postData;
+          return {
+            ...postData,
+            likes: prev.likes, // Keep optimistic likes
+            is_liked: prev.is_liked, // Keep optimistic is_liked
+          };
+        });
+      } else {
+        // No recent optimistic update, use server data
+        setPost(postData);
+        // Clear the ref if update is old
+        if (optimisticUpdate && optimisticUpdate.postId === id) {
+          lastOptimisticUpdateRef.current = null;
+        }
       }
 
-      setPost(postData);
+      // Fetch replies using API
+      const { data: repliesData, error: repliesError } = await api.getComments(id);
 
-      // Fetch replies
-      const { data: repliesData, error: repliesError } = await supabase
-        .from('post_replies')
-        .select(`
-          *,
-          author:profiles(id, name, avatar_url, major)
-        `)
-        .eq('post_id', id)
-        .order('created_at', { ascending: true });
-
-      if (!repliesError) {
+      if (repliesError) {
+        console.error('Error fetching replies:', repliesError);
+      } else {
         setReplies(repliesData || []);
       }
     } catch (err) {
@@ -138,6 +139,8 @@ export default function PostDetailsScreen() {
     fetchData();
   }, [fetchData]);
 
+
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchData();
@@ -147,18 +150,79 @@ export default function PostDetailsScreen() {
   const handleLike = async () => {
     if (!post || !user?.id) return;
 
+    const currentIsLiked = post.is_liked || false;
+    const currentLikes = post.likes || 0;
+
+    // Optimistically update UI immediately
+    const newLikes = currentIsLiked ? Math.max(currentLikes - 1, 0) : currentLikes + 1;
+    setPost((prev) => {
+      if (!prev) return null;
+      // Create a completely new object to ensure React detects the change
+      return {
+        ...prev,
+        is_liked: !currentIsLiked,
+        likes: Number(newLikes), // Ensure it's a number
+      };
+    });
+    // Track optimistic update to prevent fetchData from overwriting it
+    lastOptimisticUpdateRef.current = {
+      postId: id,
+      likes: newLikes,
+      timestamp: Date.now(),
+    };
+    // Force re-render on iOS by updating render key
+    setRenderKey((prev) => prev + 1);
+
     try {
-      if (post.is_liked) {
+      if (currentIsLiked) {
         // Unlike
-        await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', user.id);
-        setPost((prev) => (prev ? { ...prev, is_liked: false, likes: prev.likes - 1 } : null));
+        const { error } = await api.unlikePost(post.id, user.id);
+        if (error) {
+          // Revert optimistic update on error
+          setPost((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              is_liked: true,
+              likes: currentLikes,
+            };
+          });
+          Alert.alert('Error', error.message || 'Failed to unlike post');
+          return;
+        }
       } else {
         // Like
-        await supabase.from('post_likes').insert({ post_id: post.id, user_id: user.id });
-        setPost((prev) => (prev ? { ...prev, is_liked: true, likes: prev.likes + 1 } : null));
+        const { error } = await api.likePost(post.id, user.id);
+        if (error && error.code !== 'ALREADY_LIKED') {
+          // Revert optimistic update on error
+          setPost((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              is_liked: false,
+              likes: currentLikes,
+            };
+          });
+          Alert.alert('Error', error.message || 'Failed to like post');
+          return;
+        }
       }
-    } catch (err) {
+
+      // Don't refresh immediately - optimistic update is correct
+      // The database trigger will update the count, and it will be correct on next natural refresh
+      // This prevents the count from "jumping back" to the old value
+    } catch (err: any) {
       console.error('Error toggling like:', err);
+      // Revert optimistic update on error
+      setPost((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          is_liked: currentIsLiked,
+          likes: currentLikes,
+        };
+      });
+      Alert.alert('Error', err.message || 'Failed to toggle like');
     }
   };
 
@@ -171,29 +235,24 @@ export default function PostDetailsScreen() {
     setReplyText('');
 
     try {
-      const { data, error } = await supabase
-        .from('post_replies')
-        .insert({
-          post_id: post.id,
-          user_id: user.id,
-          content: content,
-        })
-        .select(`
-          *,
-          author:profiles(id, name, avatar_url, major)
-        `)
-        .single();
+      const { data, error } = await api.addComment(post.id, user.id, content);
 
       if (error) {
         console.error('Error sending reply:', error);
         setReplyText(content);
-        Alert.alert('Error', 'Failed to send reply');
+        Alert.alert('Error', error.message || 'Failed to send reply');
       } else if (data) {
-        setReplies((prev) => [...prev, data]);
+        // Refresh comments to get accurate data from server
+        const { data: commentsData } = await api.getComments(post.id);
+        if (commentsData) {
+          setReplies(commentsData);
+          setPost((prev) => (prev ? { ...prev, reply_count: commentsData.length } : null));
+        }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error:', err);
       setReplyText(content);
+      Alert.alert('Error', err.message || 'Failed to send reply');
     } finally {
       setSending(false);
     }
@@ -313,14 +372,21 @@ export default function PostDetailsScreen() {
             </Text>
 
             <View className="flex-row items-center mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <TouchableOpacity className="flex-row items-center mr-6" onPress={handleLike}>
+              <TouchableOpacity 
+                className="flex-row items-center mr-6" 
+                onPress={handleLike}
+                key={`like-btn-${post.id}-${renderKey}`}
+              >
                 <Heart
                   size={20}
                   color={post.is_liked ? '#ef4444' : isDark ? '#9ca3af' : '#6b7280'}
                   fill={post.is_liked ? '#ef4444' : 'none'}
                 />
-                <Text className={`text-base ml-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  {post.likes}
+                <Text 
+                  key={`likes-text-${post.id}-${renderKey}`}
+                  className={`text-base ml-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                >
+                  {String(post.likes ?? 0)}
                 </Text>
               </TouchableOpacity>
               <View className="flex-row items-center">
@@ -346,37 +412,73 @@ export default function PostDetailsScreen() {
                 </Text>
               </View>
             ) : (
-              replies.map((reply) => (
-                <View
-                  key={reply.id}
-                  className={`p-4 rounded-xl mb-3 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
-                >
-                  <View className="flex-row items-center mb-2">
-                    <View className="w-8 h-8 rounded-full bg-gray-200 items-center justify-center overflow-hidden">
-                      {reply.author?.avatar_url ? (
-                        <Image
-                          source={{ uri: reply.author.avatar_url }}
-                          className="w-8 h-8 rounded-full"
-                          style={{ width: 32, height: 32 }}
-                        />
-                      ) : (
-                        <User size={16} color="#6b7280" />
+              replies.map((reply) => {
+                const isOwnComment = reply.author?.id === user?.id;
+                return (
+                  <View
+                    key={reply.id}
+                    className={`p-4 rounded-xl mb-3 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+                  >
+                    <View className="flex-row items-center mb-2">
+                      <View className="w-8 h-8 rounded-full bg-gray-200 items-center justify-center overflow-hidden">
+                        {reply.author?.avatar_url ? (
+                          <Image
+                            source={{ uri: reply.author.avatar_url }}
+                            className="w-8 h-8 rounded-full"
+                            style={{ width: 32, height: 32 }}
+                          />
+                        ) : (
+                          <User size={16} color="#6b7280" />
+                        )}
+                      </View>
+                      <View className="ml-2 flex-1">
+                        <Text className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {reply.author?.name || 'Anonymous'}
+                        </Text>
+                        <Text className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                          {reply.author?.major || 'Student'} • {formatTimeAgo(reply.created_at)}
+                        </Text>
+                      </View>
+                      {isOwnComment && (
+                        <TouchableOpacity
+                          onPress={async () => {
+                            Alert.alert(
+                              'Delete Comment',
+                              'Are you sure you want to delete this comment?',
+                              [
+                                { text: 'Cancel', style: 'cancel' },
+                                {
+                                  text: 'Delete',
+                                  style: 'destructive',
+                                  onPress: async () => {
+                                    const { error } = await api.deleteComment(reply.id, user!.id);
+                                    if (error) {
+                                      Alert.alert('Error', error.message || 'Failed to delete comment');
+                                    } else {
+                                      // Refresh comments to get accurate data from server
+                                      const { data: commentsData } = await api.getComments(post.id);
+                                      if (commentsData) {
+                                        setReplies(commentsData);
+                                        setPost((prev) => (prev ? { ...prev, reply_count: commentsData.length } : null));
+                                      }
+                                    }
+                                  },
+                                },
+                              ]
+                            );
+                          }}
+                          className="p-2"
+                        >
+                          <Trash size={16} color={isDark ? '#ef4444' : '#dc2626'} />
+                        </TouchableOpacity>
                       )}
                     </View>
-                    <View className="ml-2 flex-1">
-                      <Text className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {reply.author?.name || 'Anonymous'}
-                      </Text>
-                      <Text className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                        {reply.author?.major || 'Student'} • {formatTimeAgo(reply.created_at)}
-                      </Text>
-                    </View>
+                    <Text className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                      {reply.content}
+                    </Text>
                   </View>
-                  <Text className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                    {reply.content}
-                  </Text>
-                </View>
-              ))
+                );
+              })
             )}
           </View>
         </ScrollView>
