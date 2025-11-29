@@ -23,12 +23,9 @@ import {
   Trophy,
   Users,
   BookOpen,
-  Heart,
-  Coffee,
   MessageCircle,
   UserPlus,
   UserMinus,
-  Star,
   Settings,
   Camera,
 } from 'lucide-react-native';
@@ -51,7 +48,6 @@ export default function UserProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isFriend, setIsFriend] = useState(false);
-  const [isCloseFriend, setIsCloseFriend] = useState(false);
   const [friendRequestSent, setFriendRequestSent] = useState(false);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
@@ -96,7 +92,6 @@ export default function UserProfileScreen() {
           f.friend_id === params.id || (f.friend as Profile)?.id === params.id
         );
         setIsFriend(!!friendship);
-        setIsCloseFriend(friendship?.is_close_friend || false);
       }
 
       // Check for pending friend request
@@ -161,7 +156,6 @@ export default function UserProfileScreen() {
                   return;
                 }
                 setIsFriend(false);
-                setIsCloseFriend(false);
                 Alert.alert('Success', 'Friend removed successfully');
               } catch (error: any) {
                 Alert.alert('Error', error.message || 'Failed to remove friend');
@@ -211,20 +205,6 @@ export default function UserProfileScreen() {
       } catch (error: any) {
         Alert.alert('Error', error.message || 'Failed to send friend request');
       }
-    }
-  };
-
-  const handleToggleCloseFriend = async () => {
-    if (!currentUser?.id || !isFriend) return;
-    try {
-      const { error } = await api.toggleCloseFriend(currentUser.id, params.id, !isCloseFriend);
-      if (error) {
-        Alert.alert('Error', error.message || 'Failed to update close friend status');
-        return;
-      }
-      setIsCloseFriend(!isCloseFriend);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'An error occurred');
     }
   };
 
@@ -388,22 +368,22 @@ export default function UserProfileScreen() {
           <View className={`px-5 pt-4`} style={{ backgroundColor: 'transparent' }}>
             <View className="items-center mb-4">
               {/* Avatar - Centered */}
-              <View className="relative -mt-12 mb-3">
-                <View className={`w-24 h-24 rounded-full ${isDark ? 'bg-gray-800' : 'bg-white'} items-center justify-center border-4 ${isDark ? 'border-gray-900' : 'border-gray-50'}`}>
+              <View className="relative -mt-16 mb-3">
+                <View className={`w-32 h-32 rounded-full ${isDark ? 'bg-gray-800' : 'bg-white'} items-center justify-center border-4 ${isDark ? 'border-gray-900' : 'border-gray-50'}`}>
                   {profile.avatar_url ? (
                     <Image
                       source={{ uri: profile.avatar_url }}
                       className="w-full h-full rounded-full"
                     />
                   ) : (
-                    <User size={40} color={isDark ? '#9ca3af' : '#6b7280'} />
+                    <User size={56} color={isDark ? '#9ca3af' : '#6b7280'} />
                   )}
                 </View>
                 {isOwnProfile && (
                   <TouchableOpacity
                     className={`absolute bottom-0 right-0 p-2 rounded-full ${isDark ? 'bg-gray-700' : 'bg-blue-500'}`}
                   >
-                    <Camera size={16} color="#fff" />
+                    <Camera size={18} color="#fff" />
                   </TouchableOpacity>
                 )}
               </View>
@@ -482,7 +462,24 @@ export default function UserProfileScreen() {
 
               <TouchableOpacity
                 className={`p-3 rounded-xl ${isDark ? 'bg-gray-800/80' : 'bg-white/80'}`}
-                onPress={() => router.push(`/(tabs)/messages?userId=${params.id}`)}
+                onPress={async () => {
+                  if (!currentUser?.id) {
+                    Alert.alert('Error', 'You must be logged in to send a message');
+                    return;
+                  }
+                  try {
+                    const result = await api.createDirectConversation(currentUser.id, params.id);
+                    if (result.error) {
+                      Alert.alert('Error', result.error.message || 'Failed to create conversation');
+                      return;
+                    }
+                    if (result.data) {
+                      router.push(`/(tabs)/messages/${result.data.id}` as any);
+                    }
+                  } catch (error: any) {
+                    Alert.alert('Error', error.message || 'An error occurred. Please try again.');
+                  }
+                }}
                 style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 }}
               >
                 <MessageCircle size={18} color={isDark ? '#9ca3af' : '#6b7280'} />
@@ -490,30 +487,6 @@ export default function UserProfileScreen() {
             </View>
           )}
 
-          {/* Close Friend Toggle */}
-          {isFriend && !isOwnProfile && (
-            <TouchableOpacity
-              onPress={handleToggleCloseFriend}
-              className={`flex-row items-center justify-between p-3 rounded-xl mb-4 ${
-                isDark ? 'bg-gray-800/80' : 'bg-white/90'
-              }`}
-              style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 }}
-            >
-              <View className="flex-row items-center">
-                <Star size={18} color={isCloseFriend ? '#F59E0B' : (isDark ? '#9ca3af' : '#6b7280')} />
-                <Text className={`ml-2 font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  Close Friend
-                </Text>
-              </View>
-              <View className={`w-12 h-6 rounded-full ${isCloseFriend ? 'bg-yellow-500' : (isDark ? 'bg-gray-700' : 'bg-gray-300')}`}>
-                <View
-                  className={`w-5 h-5 rounded-full bg-white absolute top-0.5 ${
-                    isCloseFriend ? 'right-0.5' : 'left-0.5'
-                  }`}
-                />
-              </View>
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* Course List */}
