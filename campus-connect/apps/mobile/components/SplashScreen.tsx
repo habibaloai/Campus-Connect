@@ -177,9 +177,9 @@ export default function SplashScreen({ imageUri }: SplashScreenProps) {
         <View style={[styles.backgroundImage, styles.placeholderBackground]} />
       )}
 
-      {/* Gradient Overlay - from rgba(0,0,0,0.5) to rgba(0,0,0,0.1) */}
+      {/* Gradient Overlay - from rgba(0,0,0,0.3) to rgba(0,0,0,0.05) */}
       <LinearGradient
-        colors={['rgba(0,0,0,0.5)', 'rgba(0,0,0,0.1)']}
+        colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.05)']}
         style={styles.gradientOverlay}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
@@ -187,7 +187,7 @@ export default function SplashScreen({ imageUri }: SplashScreenProps) {
 
       {/* Dark gradient at bottom */}
       <LinearGradient
-        colors={['rgba(17,17,16,0)', 'rgba(17,17,16,1)', 'rgba(17,17,16,1)']}
+        colors={['rgba(17,17,16,0)', 'rgba(17,17,16,0.7)', 'rgba(17,17,16,0.8)']}
         locations={[0, 0.4424, 1]}
         style={styles.bottomGradient}
         start={{ x: 0, y: 0 }}
