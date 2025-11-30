@@ -900,7 +900,7 @@ export default function EventDetailsScreen() {
           headerShown: false,
         }}
       />
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
         <ScrollView
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}

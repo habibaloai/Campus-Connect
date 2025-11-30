@@ -30,6 +30,7 @@ import {
   Target,
   UserCheck,
   Hash,
+  Activity,
 } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuth } from '@/providers';
@@ -85,7 +86,7 @@ export default function ProfileScreen() {
     { icon: Utensils, label: 'Dining', route: '/dining', color: '#f59e0b', bgColor: '#fef3c7' },
     { icon: Navigation, label: 'Navigate', route: '/transport', color: '#6366f1', bgColor: '#e0e7ff' },
     { icon: Bot, label: 'AI Assistant', route: '/ai', color: '#8b5cf6', bgColor: '#ede9fe' },
-    { icon: Heart, label: 'Wellness', route: '/wellness', color: '#ec4899', bgColor: '#fce7f3' },
+    { icon: Activity, label: 'Sports', route: '/wellness', color: '#ec4899', bgColor: '#fce7f3' },
     { icon: Trophy, label: 'Achievements', route: '/achievements', color: '#f59e0b', bgColor: '#fef3c7' },
   ];
 

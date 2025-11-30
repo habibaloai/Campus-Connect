@@ -30,6 +30,7 @@ import {
   ArrowRight,
   Bot,
   Search,
+  LogOut,
 } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useAuth, useNotifications } from '@/providers';
@@ -271,7 +272,7 @@ export default function HomeScreen() {
               <Text style={[styles.greetingText, { color: isDark ? '#ffffff' : '#1e293b' }]}>
                 {greeting()}, {userName} 👋
               </Text>
-              <Text style={[styles.greetingSubtext, { color: isDark ? 'rgba(255, 255, 255, 0.8)' : '#64748b' }]}>
+              <Text style={[styles.greetingSubtext, { color: isDark ? 'rgba(255, 255, 255, 0.8)' : '#ffffff' }]}>
                 Here's your overview for today
               </Text>
             </View>
@@ -636,22 +637,24 @@ export default function HomeScreen() {
           </Animated.View>
 
           {/* Sign Out Button */}
-          <View style={styles.signOutContainer}>
+          <Animated.View key={`signout-${animationKey}`} entering={FadeInDown.duration(400).delay(500).springify()} style={styles.signOutContainer}>
             <TouchableOpacity
               onPress={signOut}
-              style={[
-                styles.signOutButton,
-                {
-                  backgroundColor: isDark ? 'rgba(241, 245, 249, 0.8)' : 'rgba(241, 245, 249, 0.95)',
-                  borderColor: isDark ? 'rgba(148, 163, 184, 0.2)' : 'rgba(148, 163, 184, 0.3)',
-                }
-              ]}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingVertical: 16,
+                borderRadius: 16,
+                backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2',
+                marginTop: 24,
+              }}
+              activeOpacity={0.7}
             >
-              <Text style={[styles.signOutText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
-                Sign Out
-              </Text>
+              <LogOut size={20} color="#ef4444" />
+              <Text style={{ color: '#ef4444', fontWeight: '600', marginLeft: 8 }}>Sign Out</Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         </ScrollView>
       </SafeAreaView>
     </ImageBackground>
@@ -1135,17 +1138,6 @@ const styles = StyleSheet.create({
   },
   signOutContainer: {
     paddingHorizontal: 20,
-    marginTop: 24,
     marginBottom: 32,
-  },
-  signOutButton: {
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  signOutText: {
-    fontSize: 15,
-    fontWeight: '600',
   },
 });
