@@ -2183,6 +2183,24 @@ export const api = {
 
     if (error || !participations) return { data: [], error };
 
+    // Get list of cleared conversations with their deletion timestamps
+    let clearedConversations: Record<string, string> = {};
+    try {
+      const { data: deletions } = await supabase
+        .from('user_message_deletions')
+        .select('conversation_id, deleted_at')
+        .eq('user_id', userId);
+      
+      if (deletions) {
+        deletions.forEach((d: any) => {
+          clearedConversations[d.conversation_id] = d.deleted_at;
+        });
+      }
+    } catch (err) {
+      // Table might not exist yet, ignore error and continue
+      console.log('Could not fetch cleared conversations (table may not exist):', err);
+    }
+
     // Filter out event conversations - they should only appear in event chat, not in messages tab
     const filteredParticipations = participations.filter((p: any) => {
       const conv = p.conversation;
@@ -2192,17 +2210,10 @@ export const api = {
     const conversationsWithDetails = await Promise.all(
       filteredParticipations.map(async (p: any) => {
         const conv = p.conversation;
+        const deletionTime = clearedConversations[conv.id];
 
-        const { data: participants } = await supabase
-          .from('conversation_participants')
-          .select(
-            `
-            user:profiles(id, name, avatar_url)
-          `
-          )
-          .eq('conversation_id', conv.id);
-
-        const { data: lastMessages } = await supabase
+        // Get last message (considering deletion timestamp if conversation was cleared)
+        let lastMessageQuery = supabase
           .from('messages')
           .select(
             `
@@ -2213,16 +2224,44 @@ export const api = {
             sender:profiles(name)
           `
           )
-          .eq('conversation_id', conv.id)
+          .eq('conversation_id', conv.id);
+
+        // If conversation was cleared, only get messages after deletion
+        if (deletionTime) {
+          lastMessageQuery = lastMessageQuery.gt('created_at', deletionTime);
+        }
+
+        const { data: lastMessages } = await lastMessageQuery
           .order('created_at', { ascending: false })
           .limit(1);
 
-        const { count: unreadCount } = await supabase
+        // If conversation was cleared and there are no new messages, exclude it
+        if (deletionTime && (!lastMessages || lastMessages.length === 0)) {
+          return null;
+        }
+
+        const { data: participants } = await supabase
+          .from('conversation_participants')
+          .select(
+            `
+            user:profiles(id, name, avatar_url)
+          `
+          )
+          .eq('conversation_id', conv.id);
+
+        // Count unread messages (only after deletion if conversation was cleared)
+        let unreadQuery = supabase
           .from('messages')
           .select('*', { count: 'exact', head: true })
           .eq('conversation_id', conv.id)
           .eq('read', false)
           .neq('sender_id', userId);
+
+        if (deletionTime) {
+          unreadQuery = unreadQuery.gt('created_at', deletionTime);
+        }
+
+        const { count: unreadCount } = await unreadQuery;
 
         return {
           ...conv,
@@ -2233,16 +2272,32 @@ export const api = {
       })
     );
 
-    conversationsWithDetails.sort((a, b) => {
+    // Filter out null values (cleared conversations with no new messages)
+    const validConversations = conversationsWithDetails.filter((conv) => conv !== null);
+
+    validConversations.sort((a, b) => {
       const aTime = a.lastMessage?.created_at || a.created_at;
       const bTime = b.lastMessage?.created_at || b.created_at;
       return new Date(bTime).getTime() - new Date(aTime).getTime();
     });
 
-    return { data: conversationsWithDetails, error: null };
+    return { data: validConversations, error: null };
   },
 
-  getMessages: async (conversationId: string, limit = 50) => {
+  getMessages: async (conversationId: string, limit = 50, userId?: string) => {
+    // Check if user has cleared this conversation
+    let deletedAt: string | null = null;
+    if (userId) {
+      const { data: deletion } = await supabase
+        .from('user_message_deletions')
+        .select('deleted_at')
+        .eq('user_id', userId)
+        .eq('conversation_id', conversationId)
+        .single();
+      
+      deletedAt = deletion?.deleted_at || null;
+    }
+
     const { data, error } = await supabase
       .from('messages')
       .select(
@@ -2262,12 +2317,22 @@ export const api = {
       .order('created_at', { ascending: true })
       .limit(limit);
 
-    const transformedData = data?.map((msg: any) => ({
+    if (error) return { data: [], error };
+
+    // Filter out messages created before the deletion timestamp (if conversation was cleared)
+    let filteredData = data || [];
+    if (deletedAt) {
+      filteredData = filteredData.filter((msg: any) => 
+        new Date(msg.created_at) > new Date(deletedAt!)
+      );
+    }
+
+    const transformedData = filteredData.map((msg: any) => ({
       ...msg,
       sender: Array.isArray(msg.sender) ? msg.sender[0] : msg.sender,
     }));
 
-    return { data: transformedData, error };
+    return { data: transformedData, error: null };
   },
 
   sendMessage: async (conversationId: string, senderId: string, content: string) => {
@@ -2319,6 +2384,57 @@ export const api = {
       .eq('read', false);
 
     return { error };
+  },
+
+  clearChat: async (conversationId: string, userId: string) => {
+    try {
+      // First, try to check if a deletion record already exists
+      const { data: existing } = await supabase
+        .from('user_message_deletions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('conversation_id', conversationId)
+        .maybeSingle();
+
+      if (existing) {
+        // Update existing record
+        const { data, error } = await supabase
+          .from('user_message_deletions')
+          .update({
+            deleted_at: new Date().toISOString(),
+          })
+          .eq('id', existing.id)
+          .select()
+          .single();
+
+        return { data, error };
+      } else {
+        // Insert new record
+        const { data, error } = await supabase
+          .from('user_message_deletions')
+          .insert({
+            user_id: userId,
+            conversation_id: conversationId,
+            deleted_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        return { data, error };
+      }
+    } catch (err: any) {
+      // Handle case where table doesn't exist yet
+      if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
+        return {
+          data: null,
+          error: {
+            message: 'Clear chat feature is not available. Please run the database migration first.',
+            code: 'MIGRATION_REQUIRED',
+          },
+        };
+      }
+      return { data: null, error: err };
+    }
   },
 
   // Search

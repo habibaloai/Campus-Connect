@@ -12,12 +12,13 @@ import {
   ImageBackground,
   StyleSheet,
   Keyboard,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Send, User, ChevronLeft, Users } from 'lucide-react-native';
+import { Send, User, ChevronLeft, Users, MoreVertical, Trash2 } from 'lucide-react-native';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
 import { api, supabase } from '@/lib/supabase';
@@ -69,7 +70,7 @@ export default function ChatScreen() {
   const presenceSubscriptionRef = useRef<any>(null);
   const typingChannelRef = useRef<any>(null);
   const typingSubscriptionRef = useRef<any>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentUserId = user?.id;
 
@@ -79,7 +80,7 @@ export default function ChatScreen() {
 
     try {
       // Fetch messages
-      const { data: messagesData, error: messagesError } = await api.getMessages(id);
+      const { data: messagesData, error: messagesError } = await api.getMessages(id, 50, currentUserId);
       
       if (messagesError) {
         console.error('Error fetching messages:', messagesError);
@@ -367,6 +368,50 @@ export default function ChatScreen() {
     }
   };
 
+  // Clear chat (delete messages only from user's view)
+  const handleClearChat = () => {
+    if (!id || !currentUserId) return;
+
+    Alert.alert(
+      'Clear Chat',
+      'Are you sure you want to clear this chat? This will delete all messages from your view only. The other person will still see the messages.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await api.clearChat(id, currentUserId);
+              if (error) {
+                if (error.code === 'MIGRATION_REQUIRED') {
+                  Alert.alert(
+                    'Feature Not Available',
+                    'The clear chat feature requires a database migration. Please contact support or run the migration script.',
+                  );
+                } else {
+                  Alert.alert('Error', error.message || 'Failed to clear chat. Please try again.');
+                }
+                console.error('Error clearing chat:', error);
+              } else {
+                // Refresh messages to show empty state
+                setMessages([]);
+                // Navigate back to messages list (conversation will be filtered out)
+                router.replace('/(tabs)/messages');
+              }
+            } catch (err: any) {
+              console.error('Error clearing chat:', err);
+              Alert.alert('Error', err?.message || 'An error occurred. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Get conversation title and other participant
   const getOtherParticipant = () => {
     if (!conversation) return null;
@@ -526,6 +571,15 @@ export default function ChatScreen() {
                   </View>
                 )}
               </View>
+            ),
+            headerRight: () => (
+              <TouchableOpacity 
+                onPress={handleClearChat}
+                className="p-2"
+                activeOpacity={0.7}
+              >
+                <Trash2 size={20} color={isDark ? '#FFFFFF' : '#374151'} />
+              </TouchableOpacity>
             ),
           }}
         />
