@@ -14,10 +14,11 @@ import {
   Modal,
   Dimensions,
   StatusBar,
+  Keyboard,
 } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Calendar, MapPin, Users, Clock, ChevronLeft, Share2, Check, X, MessageCircle, Image as ImageIcon, Heart, MessageSquare, Camera, Send, Smile, Plus, Bookmark, Edit, Trash2, UserPlus, Search } from 'lucide-react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Calendar, MapPin, Users, Clock, ChevronLeft, Share2, Check, X, MessageCircle, Image as ImageIcon, Heart, MessageSquare, Camera, Send, Smile, Plus, Bookmark, Edit, Trash2, UserPlus, Search, Megaphone } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
@@ -79,6 +80,7 @@ export default function EventDetailsScreen() {
   const { user, profile } = useAuth();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
 
   const [event, setEvent] = useState<Event | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
@@ -89,31 +91,33 @@ export default function EventDetailsScreen() {
   const [rsvpLoading, setRsvpLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Initialize activeTab from URL params if provided, otherwise default to 'details'
-  const [activeTab, setActiveTab] = useState<'details' | 'photos' | 'comments' | 'chat' | 'requests'>(
+  const [activeTab, setActiveTab] = useState<'details' | 'photos' | 'announcements' | 'chat' | 'requests'>(
     (params?.tab as any) || 'details'
   );
   
   // Update activeTab when params change (e.g., when navigating from notification)
   useEffect(() => {
-    if (params?.tab && ['details', 'photos', 'comments', 'chat', 'requests'].includes(params.tab)) {
+    if (params?.tab && ['details', 'photos', 'announcements', 'chat', 'requests'].includes(params.tab)) {
       setActiveTab(params.tab as any);
     }
   }, [params?.tab]);
   const [photos, setPhotos] = useState<any[]>([]);
-  const [comments, setComments] = useState<any[]>([]);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
   const [reactions, setReactions] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
-  const [commentText, setCommentText] = useState('');
+  const [announcementText, setAnnouncementText] = useState('');
   const [messageText, setMessageText] = useState('');
   const [eventConversationId, setEventConversationId] = useState<string | null>(null);
   const [loadingChat, setLoadingChat] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const messageSubscriptionRef = useRef<any>(null);
   const chatScrollViewRef = useRef<ScrollView>(null);
   const [photoDescription, setPhotoDescription] = useState('');
   const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(null);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
-  const [loadingComments, setLoadingComments] = useState(false);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
+  const [sendingAnnouncement, setSendingAnnouncement] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<any | null>(null);
   const [showCommentsScreen, setShowCommentsScreen] = useState(false);
@@ -558,6 +562,89 @@ export default function EventDetailsScreen() {
     };
   }, [eventConversationId, user?.id]);
 
+  // Fetch event announcements
+  const fetchEventAnnouncements = useCallback(async () => {
+    if (!event?.id) return;
+
+    setLoadingAnnouncements(true);
+    try {
+      const { data, error } = await api.getEventAnnouncements(event.id);
+      
+      if (error) {
+        console.error('Error fetching announcements:', error);
+        setAnnouncements([]);
+      } else {
+        setAnnouncements(data || []);
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      setAnnouncements([]);
+    } finally {
+      setLoadingAnnouncements(false);
+    }
+  }, [event?.id]);
+
+  // Load announcements when announcements tab is active
+  useEffect(() => {
+    if (activeTab === 'announcements') {
+      fetchEventAnnouncements();
+    }
+  }, [activeTab, fetchEventAnnouncements]);
+
+  // Post announcement (only for event creator)
+  const handlePostAnnouncement = async () => {
+    if (!announcementText.trim() || !event?.id || !user?.id || !isOrganizer || sendingAnnouncement) return;
+
+    setSendingAnnouncement(true);
+    const content = announcementText.trim();
+    setAnnouncementText('');
+
+    try {
+      const { data, error } = await api.createEventAnnouncement(event.id, user.id, content);
+      
+      if (error) {
+        console.error('Error posting announcement:', error);
+        const errorMessage = error.message || 'Failed to post announcement. Please try again.';
+        
+        // Check if table doesn't exist
+        if (error.code === '42P01' || error.message?.includes('does not exist')) {
+          Alert.alert(
+            'Database Error',
+            'The announcements table has not been created yet. Please run the database migration first.',
+            [{ text: 'OK' }]
+          );
+        } else if (error.code === 'PERMISSION_DENIED') {
+          Alert.alert('Permission Denied', errorMessage);
+        } else {
+          Alert.alert('Error', errorMessage);
+        }
+        setAnnouncementText(content); // Restore text on error
+      } else if (data) {
+        // Add to local state
+        setAnnouncements((prev) => [data, ...prev]);
+      } else {
+        Alert.alert('Error', 'Failed to post announcement. No data returned.');
+        setAnnouncementText(content);
+      }
+    } catch (err: any) {
+      console.error('Error:', err);
+      const errorMessage = err?.message || 'Failed to post announcement. Please try again.';
+      
+      if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
+        Alert.alert(
+          'Database Error',
+          'The announcements table has not been created yet. Please run the database migration first.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Error', errorMessage);
+      }
+      setAnnouncementText(content);
+    } finally {
+      setSendingAnnouncement(false);
+    }
+  };
+
   // Load chat when chat tab is active and user is attending
   useEffect(() => {
     if (activeTab === 'chat' && event?.is_attending) {
@@ -639,6 +726,27 @@ export default function EventDetailsScreen() {
       api.unsubscribeFromEventJoinRequests(event.id);
     };
   }, [event?.id, event?.organizer_id, user?.id, fetchAttendees, fetchEvent]);
+
+  // Keyboard listeners for chat input
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+      }
+    );
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, []);
 
   // Handle RSVP
   const handleRSVP = async () => {
@@ -1011,7 +1119,7 @@ export default function EventDetailsScreen() {
               paddingHorizontal: 20,
             }}
           >
-            {['details', 'photos', 'comments', 'chat', ...(isOrganizer ? ['requests'] : [])].map((tab) => {
+            {['details', 'photos', 'announcements', 'chat', ...(isOrganizer ? ['requests'] : [])].map((tab) => {
               const isRequestsTab = tab === 'requests';
               const requestCount = isRequestsTab ? joinRequests.length : 0;
               
@@ -1038,7 +1146,7 @@ export default function EventDetailsScreen() {
                       textTransform: 'capitalize',
                     }}
                   >
-                    {tab}
+                    {tab === 'announcements' ? 'Announcements' : tab}
                   </Text>
                   {isRequestsTab && requestCount > 0 && (
                     <View
@@ -1116,12 +1224,152 @@ export default function EventDetailsScreen() {
             </View>
           )}
 
-          {activeTab === 'comments' && (
-            <View style={{ paddingHorizontal: 20, paddingBottom: 40 }}>
-              <Text style={{ fontSize: 18, fontWeight: '600', color: isDark ? '#ffffff' : '#1e293b', marginBottom: 16 }}>
-                Comments
-              </Text>
-              <Text style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>Comments coming soon</Text>
+          {activeTab === 'announcements' && (
+            <View style={{ flex: 1, paddingHorizontal: 20, paddingBottom: 40 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <Text style={{ fontSize: 18, fontWeight: '600', color: isDark ? '#ffffff' : '#1e293b' }}>
+                  Announcements
+                </Text>
+                {isOrganizer && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (announcementText.trim()) {
+                        handlePostAnnouncement();
+                      }
+                    }}
+                    disabled={!announcementText.trim() || sendingAnnouncement}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      borderRadius: 8,
+                      backgroundColor: announcementText.trim() && !sendingAnnouncement ? '#0066cc' : isDark ? 'rgba(31, 41, 55, 0.9)' : 'rgba(229, 231, 235, 0.9)',
+                    }}
+                  >
+                    {sendingAnnouncement ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <>
+                        <Megaphone size={16} color={announcementText.trim() ? '#ffffff' : isDark ? '#6b7280' : '#9ca3af'} />
+                        <Text
+                          style={{
+                            marginLeft: 6,
+                            color: announcementText.trim() ? '#ffffff' : isDark ? '#6b7280' : '#9ca3af',
+                            fontWeight: '600',
+                            fontSize: 14,
+                          }}
+                        >
+                          Post
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {isOrganizer && (
+                <View
+                  style={{
+                    marginBottom: 16,
+                    padding: 12,
+                    borderRadius: 12,
+                    backgroundColor: isDark ? 'rgba(31, 41, 55, 0.5)' : 'rgba(255, 255, 255, 0.5)',
+                    borderWidth: 1,
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                  }}
+                >
+                  <TextInput
+                    style={{
+                      minHeight: 80,
+                      color: isDark ? '#ffffff' : '#1e293b',
+                      fontSize: 16,
+                      textAlignVertical: 'top',
+                    }}
+                    placeholder="Write an announcement..."
+                    placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+                    value={announcementText}
+                    onChangeText={setAnnouncementText}
+                    multiline
+                    editable={!sendingAnnouncement}
+                  />
+                </View>
+              )}
+
+              {loadingAnnouncements ? (
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 }}>
+                  <ActivityIndicator size="large" color="#0066cc" />
+                </View>
+              ) : announcements.length === 0 ? (
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 }}>
+                  <Megaphone size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
+                  <Text style={{ marginTop: 16, fontSize: 16, color: isDark ? '#9ca3af' : '#6b7280', textAlign: 'center' }}>
+                    {isOrganizer ? 'No announcements yet. Post one to keep attendees informed!' : 'No announcements yet.'}
+                  </Text>
+                </View>
+              ) : (
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {announcements.map((announcement) => (
+                    <View
+                      key={announcement.id}
+                      style={{
+                        marginBottom: 16,
+                        padding: 16,
+                        borderRadius: 12,
+                        backgroundColor: isDark ? 'rgba(31, 41, 55, 0.5)' : 'rgba(255, 255, 255, 0.5)',
+                        borderLeftWidth: 3,
+                        borderLeftColor: '#0066cc',
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                        <Megaphone size={16} color="#0066cc" />
+                        <Text
+                          style={{
+                            marginLeft: 8,
+                            fontSize: 12,
+                            fontWeight: '600',
+                            color: '#0066cc',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Announcement
+                        </Text>
+                        <Text
+                          style={{
+                            marginLeft: 'auto',
+                            fontSize: 12,
+                            color: isDark ? '#6b7280' : '#9ca3af',
+                          }}
+                        >
+                          {new Date(announcement.created_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          })}
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: 16, color: isDark ? '#ffffff' : '#1e293b', lineHeight: 24 }}>
+                        {announcement.content}
+                      </Text>
+                      {announcement.organizer && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+                          <Avatar source={announcement.organizer.avatar_url} name={announcement.organizer.name} size="sm" />
+                          <Text
+                            style={{
+                              marginLeft: 8,
+                              fontSize: 12,
+                              color: isDark ? '#9ca3af' : '#6b7280',
+                            }}
+                          >
+                            {announcement.organizer.name}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
             </View>
           )}
 
@@ -1145,19 +1393,26 @@ export default function EventDetailsScreen() {
                 <KeyboardAvoidingView
                   behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                   style={{ flex: 1 }}
-                  keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+                  keyboardVerticalOffset={Platform.OS === 'ios' ? 120 : 0}
                 >
                   <ScrollView
                     ref={chatScrollViewRef}
                     style={{ flex: 1 }}
-                    contentContainerStyle={{ paddingVertical: 16, flexGrow: 1 }}
+                    contentContainerStyle={{ 
+                      paddingVertical: 16, 
+                      flexGrow: 1,
+                      paddingBottom: keyboardHeight > 0 ? 20 : 16,
+                    }}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="interactive"
                     onContentSizeChange={() => {
                       // Auto-scroll to bottom when content size changes
-                      setTimeout(() => {
-                        chatScrollViewRef.current?.scrollToEnd({ animated: true });
-                      }, 100);
+                      if (keyboardHeight > 0) {
+                        setTimeout(() => {
+                          chatScrollViewRef.current?.scrollToEnd({ animated: true });
+                        }, 100);
+                      }
                     }}
                   >
                     {messages.length === 0 ? (
@@ -1249,7 +1504,7 @@ export default function EventDetailsScreen() {
                       flexDirection: 'row',
                       alignItems: 'flex-end',
                       paddingTop: 12,
-                      paddingBottom: 12,
+                      paddingBottom: Math.max(insets.bottom, 12),
                       borderTopWidth: 1,
                       borderTopColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
                     }}
@@ -1270,6 +1525,12 @@ export default function EventDetailsScreen() {
                       placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
                       value={messageText}
                       onChangeText={setMessageText}
+                      onFocus={() => {
+                        // Scroll to bottom when input is focused
+                        setTimeout(() => {
+                          chatScrollViewRef.current?.scrollToEnd({ animated: true });
+                        }, 300);
+                      }}
                       multiline
                       textAlignVertical="center"
                       editable={!sendingMessage}
@@ -1713,7 +1974,8 @@ export default function EventDetailsScreen() {
             <Text style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#64748b', marginBottom: 20 }}>
               This will permanently delete:
               {'\n'}• The event and all its details
-              {'\n'}• All event photos and comments
+              {'\n'}• All event photos
+              {'\n'}• All announcements
               {'\n'}• All attendee records
               {'\n'}• All join requests
             </Text>

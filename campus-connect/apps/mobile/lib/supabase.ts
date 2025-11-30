@@ -568,6 +568,173 @@ export const api = {
     return { data, error };
   },
 
+  // Event Announcements
+  getEventAnnouncements: async (eventId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('event_announcements')
+        .select('*')
+        .eq('event_id', eventId)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching announcements:', error);
+        // If table doesn't exist, return empty array instead of error
+        if (error.code === '42P01' || error.message?.includes('does not exist')) {
+          return { data: [], error: null };
+        }
+        return { data: [], error };
+      }
+      
+      if (data && data.length > 0) {
+        // Fetch organizer profiles for all announcements
+        const organizerIds = [...new Set(data.map((a: any) => a.organizer_id))];
+        const { data: organizers } = await supabase
+          .from('profiles')
+          .select('id, name, avatar_url')
+          .in('id', organizerIds);
+        
+        // Create a map of organizer_id to organizer data
+        const organizerMap = new Map();
+        if (organizers) {
+          organizers.forEach((org: any) => {
+            organizerMap.set(org.id, org);
+          });
+        }
+        
+        // Transform data to include organizer info
+        const transformedData = data.map((announcement: any) => ({
+          ...announcement,
+          organizer: organizerMap.get(announcement.organizer_id) || null,
+        }));
+        
+        return { data: transformedData, error: null };
+      }
+      
+      return { data: [], error: null };
+    } catch (err: any) {
+      console.error('Error in getEventAnnouncements:', err);
+      // If table doesn't exist, return empty array
+      if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
+        return { data: [], error: null };
+      }
+      return { data: [], error: err };
+    }
+  },
+
+  createEventAnnouncement: async (eventId: string, userId: string, content: string) => {
+    try {
+      // Verify user is the organizer
+      const { data: event, error: eventError } = await supabase
+        .from('events')
+        .select('organizer_id')
+        .eq('id', eventId)
+        .single();
+
+      if (eventError) {
+        console.error('Error fetching event:', eventError);
+        return { data: null, error: eventError };
+      }
+
+      if (!event || event.organizer_id !== userId) {
+        return {
+          data: null,
+          error: { message: 'Only the event organizer can post announcements', code: 'PERMISSION_DENIED' },
+        };
+      }
+
+      const { data: insertData, error: insertError } = await supabase
+        .from('event_announcements')
+        .insert({
+          event_id: eventId,
+          organizer_id: userId,
+          content: content,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error inserting announcement:', insertError);
+        // If table doesn't exist, provide a helpful error message
+        if (insertError.code === '42P01' || insertError.message?.includes('does not exist')) {
+          return {
+            data: null,
+            error: {
+              message: 'The announcements table has not been created yet. Please run the database migration.',
+              code: '42P01',
+            },
+          };
+        }
+        return { data: null, error: insertError };
+      }
+
+      if (!insertData) {
+        return {
+          data: null,
+          error: { message: 'Failed to create announcement. No data returned.', code: 'INSERT_FAILED' },
+        };
+      }
+
+    // Fetch the organizer profile separately
+    const { data: organizerData } = await supabase
+      .from('profiles')
+      .select('id, name, avatar_url')
+      .eq('id', userId)
+      .single();
+
+    const transformedData = {
+      ...insertData,
+      organizer: organizerData || null,
+    };
+
+    // Notify all attendees about the new announcement
+    const { data: attendees } = await supabase
+      .from('event_attendees')
+      .select('user_id')
+      .eq('event_id', eventId);
+
+    if (attendees) {
+      const { data: eventData } = await supabase
+        .from('events')
+        .select('title')
+        .eq('id', eventId)
+        .single();
+
+      const notificationPromises = attendees
+        .filter((a) => a.user_id !== userId) // Don't notify the organizer
+        .map((attendee) =>
+          api.createNotification(
+            attendee.user_id,
+            'event_announcement',
+            'New Event Announcement',
+            `New announcement for ${eventData?.title || 'the event'}`,
+            `/(tabs)/events/${eventId}?tab=announcements`
+          )
+        );
+
+      Promise.all(notificationPromises).catch((err) => console.warn('Failed to send some notifications:', err));
+    }
+
+    return { data: transformedData, error: null };
+    } catch (err: any) {
+      console.error('Error in createEventAnnouncement:', err);
+      // If table doesn't exist, provide a helpful error message
+      if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
+        return {
+          data: null,
+          error: {
+            message: 'The announcements table has not been created yet. Please run the database migration.',
+            code: '42P01',
+          },
+        };
+      }
+      return {
+        data: null,
+        error: { message: err?.message || 'Failed to create announcement', code: err?.code || 'UNKNOWN_ERROR' },
+      };
+    }
+  },
+
   // Event Join Requests
   requestToJoinEvent: async (eventId: string, userId: string) => {
     // First, check if user is the organizer
@@ -2007,7 +2174,8 @@ export const api = {
           id,
           type,
           name,
-          created_at
+          created_at,
+          event_id
         )
       `
       )
@@ -2015,8 +2183,14 @@ export const api = {
 
     if (error || !participations) return { data: [], error };
 
+    // Filter out event conversations - they should only appear in event chat, not in messages tab
+    const filteredParticipations = participations.filter((p: any) => {
+      const conv = p.conversation;
+      return conv && conv.type !== 'event';
+    });
+
     const conversationsWithDetails = await Promise.all(
-      participations.map(async (p: any) => {
+      filteredParticipations.map(async (p: any) => {
         const conv = p.conversation;
 
         const { data: participants } = await supabase
