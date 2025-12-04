@@ -645,6 +645,54 @@ export default function EventDetailsScreen() {
     }
   };
 
+  const handleDeleteAnnouncement = async (announcementId: string) => {
+    if (!user?.id) return;
+
+    Alert.alert(
+      'Delete Announcement',
+      'Are you sure you want to delete this announcement? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await api.deleteEventAnnouncement(announcementId, user.id);
+              
+              if (error) {
+                const errorMessage = error.message || 'Failed to delete announcement';
+                console.error('Error deleting announcement:', error);
+                
+                if (error.code === 'PERMISSION_DENIED') {
+                  Alert.alert('Permission Denied', errorMessage);
+                } else if (error.code === '42P01') {
+                  Alert.alert(
+                    'Database Error',
+                    'The announcements table has not been created yet. Please run the database migration first.',
+                    [{ text: 'OK' }]
+                  );
+                } else {
+                  Alert.alert('Error', errorMessage);
+                }
+              } else {
+                // Remove from local state
+                setAnnouncements((prev) => prev.filter((a) => a.id !== announcementId));
+              }
+            } catch (err: any) {
+              console.error('Error:', err);
+              const errorMessage = err?.message || 'Failed to delete announcement';
+              Alert.alert('Error', errorMessage);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Load chat when chat tab is active and user is attending
   useEffect(() => {
     if (activeTab === 'chat' && event?.is_attending) {
@@ -1229,7 +1277,7 @@ export default function EventDetailsScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                 <Text style={{ fontSize: 18, fontWeight: '600', color: isDark ? '#ffffff' : '#1e293b' }}>
                   Announcements
-                </Text>
+              </Text>
                 {isOrganizer && (
                   <TouchableOpacity
                     onPress={() => {
@@ -1334,20 +1382,35 @@ export default function EventDetailsScreen() {
                         >
                           Announcement
                         </Text>
-                        <Text
-                          style={{
-                            marginLeft: 'auto',
-                            fontSize: 12,
-                            color: isDark ? '#6b7280' : '#9ca3af',
-                          }}
-                        >
-                          {new Date(announcement.created_at).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}
-                        </Text>
+                        <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: isDark ? '#6b7280' : '#9ca3af',
+                            }}
+                          >
+                            {new Date(announcement.created_at).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                            })}
+                          </Text>
+                          {announcement.organizer_id === user?.id && (
+                            <TouchableOpacity
+                              onPress={() => handleDeleteAnnouncement(announcement.id)}
+                              style={{
+                                backgroundColor: '#ef4444',
+                                padding: 6,
+                                borderRadius: 6,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <Trash2 size={14} color="#ffffff" />
+                            </TouchableOpacity>
+                          )}
+                        </View>
                       </View>
                       <Text style={{ fontSize: 16, color: isDark ? '#ffffff' : '#1e293b', lineHeight: 24 }}>
                         {announcement.content}
@@ -1409,9 +1472,9 @@ export default function EventDetailsScreen() {
                     onContentSizeChange={() => {
                       // Auto-scroll to bottom when content size changes
                       if (keyboardHeight > 0) {
-                        setTimeout(() => {
-                          chatScrollViewRef.current?.scrollToEnd({ animated: true });
-                        }, 100);
+                      setTimeout(() => {
+                        chatScrollViewRef.current?.scrollToEnd({ animated: true });
+                      }, 100);
                       }
                     }}
                   >

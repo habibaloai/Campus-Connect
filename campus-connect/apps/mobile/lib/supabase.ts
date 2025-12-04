@@ -735,6 +735,76 @@ export const api = {
     }
   },
 
+  deleteEventAnnouncement: async (announcementId: string, userId: string) => {
+    try {
+      // First, fetch the announcement to verify ownership
+      const { data: announcement, error: fetchError } = await supabase
+        .from('event_announcements')
+        .select('organizer_id')
+        .eq('id', announcementId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching announcement:', fetchError);
+        return { data: null, error: fetchError };
+      }
+
+      if (!announcement) {
+        return {
+          data: null,
+          error: { message: 'Announcement not found', code: 'NOT_FOUND' },
+        };
+      }
+
+      // Verify user is the organizer who created the announcement
+      if (announcement.organizer_id !== userId) {
+        return {
+          data: null,
+          error: { message: 'Only the announcement creator can delete it', code: 'PERMISSION_DENIED' },
+        };
+      }
+
+      // Delete the announcement
+      const { error: deleteError } = await supabase
+        .from('event_announcements')
+        .delete()
+        .eq('id', announcementId);
+
+      if (deleteError) {
+        console.error('Error deleting announcement:', deleteError);
+        // If table doesn't exist, provide a helpful error message
+        if (deleteError.code === '42P01' || deleteError.message?.includes('does not exist')) {
+          return {
+            data: null,
+            error: {
+              message: 'The announcements table has not been created yet. Please run the database migration.',
+              code: '42P01',
+            },
+          };
+        }
+        return { data: null, error: deleteError };
+      }
+
+      return { data: { id: announcementId }, error: null };
+    } catch (err: any) {
+      console.error('Error in deleteEventAnnouncement:', err);
+      // If table doesn't exist, provide a helpful error message
+      if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
+        return {
+          data: null,
+          error: {
+            message: 'The announcements table has not been created yet. Please run the database migration.',
+            code: '42P01',
+          },
+        };
+      }
+      return {
+        data: null,
+        error: err,
+      };
+    }
+  },
+
   // Event Join Requests
   requestToJoinEvent: async (eventId: string, userId: string) => {
     // First, check if user is the organizer
