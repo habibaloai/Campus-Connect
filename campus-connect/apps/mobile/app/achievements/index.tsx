@@ -32,6 +32,7 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useAuth } from '@/providers';
 import { useColorScheme } from '@/components/useColorScheme';
 import { api } from '@/lib/supabase';
+import { resolveStorageUrl } from '@/lib/resolve-storage-url';
 import { Achievement, UserAchievement, UserStats, LeaderboardEntry } from '@/types';
 
 const categoryIcons: Record<string, any> = {
@@ -451,7 +452,7 @@ export default function AchievementsScreen() {
                         <View className={`w-10 h-10 rounded-full items-center justify-center mr-3 overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
                           {profile?.avatar_url ? (
                             <Image
-                              source={{ uri: profile.avatar_url }}
+                              source={{ uri: resolveStorageUrl(profile.avatar_url)! }}
                               className="w-10 h-10 rounded-full"
                               style={{ width: 40, height: 40 }}
                             />

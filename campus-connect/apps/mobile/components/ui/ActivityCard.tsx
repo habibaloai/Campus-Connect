@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { resolveStorageUrl } from '@/lib/resolve-storage-url';
 import { MessageCircle, Heart, Eye, User } from 'lucide-react-native';
 import { useColorScheme } from '@/components/useColorScheme';
 import { DesignSystem } from '@/constants/design';
@@ -47,8 +48,8 @@ export default function ActivityCard({
         activeOpacity={0.8}
       >
         <View style={styles.header}>
-          {avatarUrl ? (
-            <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+          {resolveStorageUrl(avatarUrl) ? (
+            <Image source={{ uri: resolveStorageUrl(avatarUrl)! }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.avatarPlaceholder]}>
               <User size={20} color={DesignSystem.colors.primary} />

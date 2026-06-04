@@ -25,6 +25,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
 import { api } from '@/lib/supabase';
+import { resolveStorageUrl } from '@/lib/resolve-storage-url';
 import { Leaderboard, LeaderboardEntry, Profile } from '@/types';
 
 const LEADERBOARD_TYPES = [
@@ -238,7 +239,7 @@ export default function LeaderboardsScreen() {
                   >
                     {entries[1].user?.avatar_url ? (
                       <Image
-                        source={{ uri: entries[1].user.avatar_url }}
+                        source={{ uri: resolveStorageUrl(entries[1].user.avatar_url)! }}
                         className="w-full h-full rounded-full"
                       />
                     ) : (
@@ -274,7 +275,7 @@ export default function LeaderboardsScreen() {
                   >
                     {entries[0].user?.avatar_url ? (
                       <Image
-                        source={{ uri: entries[0].user.avatar_url }}
+                        source={{ uri: resolveStorageUrl(entries[0].user.avatar_url)! }}
                         className="w-full h-full rounded-full"
                       />
                     ) : (
@@ -308,7 +309,7 @@ export default function LeaderboardsScreen() {
                   >
                     {entries[2].user?.avatar_url ? (
                       <Image
-                        source={{ uri: entries[2].user.avatar_url }}
+                        source={{ uri: resolveStorageUrl(entries[2].user.avatar_url)! }}
                         className="w-full h-full rounded-full"
                       />
                     ) : (
@@ -385,7 +386,7 @@ export default function LeaderboardsScreen() {
                     <View className={`w-12 h-12 rounded-full mr-3 ${isDark ? 'bg-gray-700' : 'bg-gray-200'} items-center justify-center`}>
                       {profile?.avatar_url ? (
                         <Image
-                          source={{ uri: profile.avatar_url }}
+                          source={{ uri: resolveStorageUrl(profile.avatar_url)! }}
                           className="w-12 h-12 rounded-full"
                         />
                       ) : (

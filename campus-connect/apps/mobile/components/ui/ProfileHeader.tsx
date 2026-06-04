@@ -1,4 +1,5 @@
 import React from 'react';
+import { resolveStorageUrl } from '@/lib/resolve-storage-url';
 import { View, Text, Image, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -60,8 +61,8 @@ export default function ProfileHeader({
           <View style={styles.profileContent}>
             {/* Profile Picture */}
             <View style={styles.avatarContainer}>
-              {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+              {resolveStorageUrl(avatarUrl) ? (
+                <Image source={{ uri: resolveStorageUrl(avatarUrl)! }} style={styles.avatar} />
               ) : (
                 <View style={[styles.avatar, styles.avatarPlaceholder]}>
                   <Text style={styles.avatarText}>{name[0]?.toUpperCase() || 'U'}</Text>

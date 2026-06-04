@@ -33,6 +33,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
 import { api } from '@/lib/supabase';
+import { resolveStorageUrl } from '@/lib/resolve-storage-url';
 import { Profile, Friendship, Achievement, Event, Course } from '@/types';
 
 const { width } = Dimensions.get('window');
@@ -372,7 +373,7 @@ export default function UserProfileScreen() {
                 <View className={`w-32 h-32 rounded-full ${isDark ? 'bg-gray-800' : 'bg-white'} items-center justify-center border-4 ${isDark ? 'border-gray-900' : 'border-gray-50'}`}>
                   {profile.avatar_url ? (
                     <Image
-                      source={{ uri: profile.avatar_url }}
+                      source={{ uri: resolveStorageUrl(profile.avatar_url)! }}
                       className="w-full h-full rounded-full"
                     />
                   ) : (

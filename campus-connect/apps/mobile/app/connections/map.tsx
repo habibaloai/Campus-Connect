@@ -15,6 +15,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
 import { api } from '@/lib/supabase';
+import { resolveStorageUrl } from '@/lib/resolve-storage-url';
 import { FriendLocation, Profile } from '@/types';
 import { openNavigation } from '@/lib/maps';
 
@@ -132,7 +133,7 @@ export default function FriendMapScreen() {
                       <View className={`w-14 h-14 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-200'} items-center justify-center`}>
                         {friend?.avatar_url ? (
                           <Image
-                            source={{ uri: friend.avatar_url }}
+                            source={{ uri: resolveStorageUrl(friend.avatar_url)! }}
                             className="w-14 h-14 rounded-full"
                           />
                         ) : (

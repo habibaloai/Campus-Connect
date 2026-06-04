@@ -23,6 +23,7 @@ import { Image } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth, useMessages } from '@/providers';
+import { resolveStorageUrl } from '@/lib/resolve-storage-url';
 import { api, supabase } from '@/lib/supabase';
 import PageHeader from '@/components/ui/PageHeader';
 
@@ -243,7 +244,7 @@ export default function MessagesScreen() {
       return null; // Groups use Users icon
     }
     const otherParticipant = conv.participants.find((p) => p.id !== user?.id);
-    return otherParticipant?.avatar_url || null;
+    return resolveStorageUrl(otherParticipant?.avatar_url);
   };
 
   const getLastMessagePreview = (conv: Conversation) => {

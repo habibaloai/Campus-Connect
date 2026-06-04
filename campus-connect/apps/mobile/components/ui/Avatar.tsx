@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Image, Text, ImageErrorEventData, NativeSyntheticEvent } from 'react-native';
 import { User } from 'lucide-react-native';
+import { resolveStorageUrl } from '@/lib/resolve-storage-url';
 
 interface AvatarProps {
   source?: string | null;
@@ -37,23 +38,26 @@ export function Avatar({
       .slice(0, 2);
   };
 
+  const resolvedSource = resolveStorageUrl(source);
+
   const handleImageError = (error: NativeSyntheticEvent<ImageErrorEventData>) => {
     console.warn('Avatar image failed to load:', error.nativeEvent.error);
     setImageError(true);
   };
 
-  // Reset error state when source changes
   React.useEffect(() => {
     setImageError(false);
-  }, [source]);
-
-  const hasValidSource = source && !imageError && (source.startsWith('http') || source.startsWith('file://'));
+  }, [resolvedSource]);
+  const hasValidSource =
+    resolvedSource &&
+    !imageError &&
+    (resolvedSource.startsWith('http') || resolvedSource.startsWith('file://'));
 
   return (
     <View style={{ width: dimensions.container, height: dimensions.container }}>
       {hasValidSource ? (
         <Image
-          source={{ uri: source }}
+          source={{ uri: resolvedSource! }}
           className="rounded-full"
           style={{ width: dimensions.container, height: dimensions.container }}
           onError={handleImageError}

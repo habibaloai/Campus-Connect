@@ -24,6 +24,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
 import { api, supabase } from '@/lib/supabase';
+import { resolveStorageUrl } from '@/lib/resolve-storage-url';
 import { FriendRequest, Profile } from '@/types';
 
 export default function FriendRequestsScreen() {
@@ -307,7 +308,7 @@ export default function FriendRequestsScreen() {
                       <View className={`w-14 h-14 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-200'} items-center justify-center`}>
                         {profile?.avatar_url ? (
                           <Image
-                            source={{ uri: profile.avatar_url }}
+                            source={{ uri: resolveStorageUrl(profile.avatar_url)! }}
                             className="w-14 h-14 rounded-full"
                           />
                         ) : (

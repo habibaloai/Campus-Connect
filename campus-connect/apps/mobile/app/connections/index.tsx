@@ -25,6 +25,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
 import { api, supabase } from '@/lib/supabase';
+import { resolveStorageUrl } from '@/lib/resolve-storage-url';
 import { Friendship, Follow, Profile } from '@/types';
 
 export default function ConnectionsScreen() {
@@ -181,7 +182,7 @@ export default function ConnectionsScreen() {
             <View className={`w-14 h-14 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-200'} items-center justify-center relative`}>
               {profile?.avatar_url ? (
                 <Image
-                  source={{ uri: profile.avatar_url }}
+                  source={{ uri: resolveStorageUrl(profile.avatar_url)! }}
                   className="w-14 h-14 rounded-full"
                 />
               ) : (

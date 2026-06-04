@@ -16,6 +16,7 @@ import { router, Stack } from 'expo-router';
 import { Search, UserPlus, UserCheck, UserX, MessageCircle, ChevronLeft } from 'lucide-react-native';
 import { useAuth } from '@/providers';
 import { api, supabase } from '@/lib/supabase';
+import { resolveStorageUrl } from '@/lib/resolve-storage-url';
 import { useColorScheme } from '@/components/useColorScheme';
 
 type Tab = 'friends' | 'requests' | 'search';
@@ -213,7 +214,7 @@ export default function FriendsScreen() {
                 activeOpacity={0.7}
             >
                 <Image
-                    source={{ uri: item.friend?.avatar_url || 'https://via.placeholder.com/50' }}
+                    source={{ uri: resolveStorageUrl(item.friend?.avatar_url) || 'https://via.placeholder.com/50' }}
                     className="w-12 h-12 rounded-full bg-gray-200"
                 />
                 <View className="ml-3 flex-1">
@@ -250,7 +251,7 @@ export default function FriendsScreen() {
                 activeOpacity={0.7}
             >
                 <Image
-                    source={{ uri: item.requester?.avatar_url || 'https://via.placeholder.com/50' }}
+                    source={{ uri: resolveStorageUrl(item.requester?.avatar_url) || 'https://via.placeholder.com/50' }}
                     className="w-12 h-12 rounded-full bg-gray-200"
                 />
                 <View className="ml-3 flex-1">
@@ -292,7 +293,7 @@ export default function FriendsScreen() {
                     activeOpacity={0.7}
                 >
                     <Image
-                        source={{ uri: item.avatar_url || 'https://via.placeholder.com/50' }}
+                        source={{ uri: resolveStorageUrl(item.avatar_url) || 'https://via.placeholder.com/50' }}
                         className="w-12 h-12 rounded-full bg-gray-200"
                     />
                     <View className="ml-3 flex-1">

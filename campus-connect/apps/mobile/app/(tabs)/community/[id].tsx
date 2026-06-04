@@ -19,6 +19,7 @@ import { Heart, MessageSquare, User, Send, ChevronLeft, Share2, Trash, Reply } f
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
 import { api } from '@/lib/supabase';
+import { resolveStorageUrl } from '@/lib/resolve-storage-url';
 
 interface Author {
   id: string;
@@ -421,7 +422,7 @@ export default function PostDetailsScreen() {
               <View className="w-12 h-12 rounded-full bg-primary-100 items-center justify-center overflow-hidden">
                 {post.author?.avatar_url ? (
                   <Image
-                    source={{ uri: post.author.avatar_url }}
+                    source={{ uri: resolveStorageUrl(post.author.avatar_url)! }}
                     className="w-12 h-12 rounded-full"
                     style={{ width: 48, height: 48 }}
                   />
@@ -509,7 +510,7 @@ export default function PostDetailsScreen() {
                       <View className="w-8 h-8 rounded-full bg-gray-200 items-center justify-center overflow-hidden">
                         {reply.author?.avatar_url ? (
                           <Image
-                            source={{ uri: reply.author.avatar_url }}
+                            source={{ uri: resolveStorageUrl(reply.author.avatar_url)! }}
                             className="w-8 h-8 rounded-full"
                             style={{ width: 32, height: 32 }}
                           />

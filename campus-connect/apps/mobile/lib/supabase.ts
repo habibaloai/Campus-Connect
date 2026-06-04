@@ -4080,7 +4080,7 @@ export const api = {
       console.log('[Avatar Upload] User ID:', userId);
       console.log('[Avatar Upload] Attempting to upload to bucket: avatars');
 
-      const fileName = `${userId}_${Date.now()}.${fileExt} `;
+      const fileName = `${userId}_${Date.now()}.${fileExt}`;
       const filePath = fileName; // Store directly in bucket root, not in subfolder
 
       // Read file as base64 using legacy API (for compatibility)
@@ -4120,7 +4120,7 @@ export const api = {
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, bytes, {
-          contentType: `image / ${fileExt === 'jpg' ? 'jpeg' : fileExt} `,
+          contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
           upsert: false, // Don't upsert - we want unique filenames
         });
 

@@ -32,6 +32,7 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuth } from '@/providers';
+import { resolveStorageUrl } from '@/lib/resolve-storage-url';
 import { api } from '@/lib/supabase';
 
 interface Post {
@@ -653,7 +654,7 @@ export default function CommunityScreen() {
                       <View className="w-11 h-11 rounded-full bg-blue-100 items-center justify-center overflow-hidden">
                         {post.author?.avatar_url ? (
                           <Image
-                            source={{ uri: post.author.avatar_url }}
+                            source={{ uri: resolveStorageUrl(post.author.avatar_url)! }}
                             className="w-11 h-11 rounded-full"
                             style={{ width: 44, height: 44 }}
                           />
