@@ -55,8 +55,8 @@ Create a file called `.env` in the **mobile app directory** (`campus-connect/app
 ```env
 # Supabase Configuration
 # Paste This
-EXPO_PUBLIC_SUPABASE_URL=https://ojmkhimriptucfsulfzv.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qbWtoaW1yaXB0dWNmc3VsZnp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNjE4MjYsImV4cCI6MjA3OTczNzgyNn0.Nu_-N1xZQBD9yzavMyzxAWC2dPp4UKM3tt6402kzGjs
+EXPO_PUBLIC_SUPABASE_URL=https://frbkrtxbymsrzwmdhzlp.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_mCAtSqJSW5wINxH7kTVgeA_TODf8Pga
 
 # Site URL (optional)
 EXPO_PUBLIC_SITE_URL=http://localhost:3001
@@ -80,12 +80,12 @@ Create a file called `.env.local` in the **root directory** (`campus-connect/.en
 ```env
 # Supabase Configuration
 # Paste This
-EEXPO_PUBLIC_SUPABASE_URL=https://ojmkhimriptucfsulfzv.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qbWtoaW1yaXB0dWNmc3VsZnp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNjE4MjYsImV4cCI6MjA3OTczNzgyNn0.Nu_-N1xZQBD9yzavMyzxAWC2dPp4UKM3tt6402kzGjs
+EXPO_PUBLIC_SUPABASE_URL=https://frbkrtxbymsrzwmdhzlp.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_mCAtSqJSW5wINxH7kTVgeA_TODf8Pga
 
 # Site URL (optional)
 EXPO_PUBLIC_SITE_URL=http://localhost:3001
-EXPO_PUBLIC_SUPABASE_URL=https://ojmkhimriptucfsulfzv.supabase.coEXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qbWtoaW1yaXB0dWNmc3VsZnp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNjE4MjYsImV4cCI6MjA3OTczNzgyNn0.Nu_-N1xZQBD9yzavMyzxAWC2dPp4UKM3tt6402kzGjsEXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyCtI_PNpHLV7HRT1hI0lVpgMuA1B6kPImk
+EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyCtI_PNpHLV7HRT1hI0lVpgMuA1B6kPImk
 ```
 
 **Important Notes:**
