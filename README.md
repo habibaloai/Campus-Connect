@@ -18,7 +18,7 @@ Campus Connect is a production-style mobile application that centralizes student
 
 View screenshots and feature walkthrough:
 
-[LinkedIn Project Showcase](YOUR_LINK_HERE)
+[LinkedIn Project Showcase](https://www.linkedin.com/in/habiba-khalil-925758382/overlay/Project/88322504/treasury/?profileId=ACoAAF5whC0BPkmlbcIKwIFUyqPvDfYyTQZGCBw)
 
 ---
 
